@@ -77,6 +77,16 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
+      { title: "Orbit — Manage every social channel in one place" },
+      { property: "og:title", content: "Orbit — Manage every social channel in one place" },
+      { name: "twitter:title", content: "Orbit — Manage every social channel in one place" },
+      { name: "description", content: "Orbit is the calm control room for Facebook, Instagram, TikTok, YouTube and X — compose, schedule, analyze and reply across every platform from one workspace." },
+      { property: "og:description", content: "Orbit is the calm control room for Facebook, Instagram, TikTok, YouTube and X — compose, schedule, analyze and reply across every platform from one workspace." },
+      { name: "twitter:description", content: "Orbit is the calm control room for Facebook, Instagram, TikTok, YouTube and X — compose, schedule, analyze and reply across every platform from one workspace." },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/f41a47b4-3c15-497a-8e05-481a58f2befc/id-preview-a1b4d3dc--dacdac44-43b2-49b7-915e-4e9a07cb42e3.lovable.app-1785242568690.png" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/f41a47b4-3c15-497a-8e05-481a58f2befc/id-preview-a1b4d3dc--dacdac44-43b2-49b7-915e-4e9a07cb42e3.lovable.app-1785242568690.png" },
+      { name: "twitter:card", content: "summary_large_image" },
+      { property: "og:type", content: "website" },
     ],
     links: [
       {

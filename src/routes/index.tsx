@@ -11,8 +11,8 @@ export const Route = createFileRoute("/")({
         content:
           "Orbit is the calm control room for Facebook, Instagram, TikTok, YouTube and X — compose, schedule, analyze and reply across every platform from one workspace.",
       },
-      { property: "og:title", content: "Orbit — One workspace for every social channel" },
-      { property: "og:description", content: "Compose, schedule, analyze and reply across Facebook, Instagram, TikTok, YouTube and X." },
+      { property: "og:title", content: "Orbit — Manage every social channel in one place" },
+      { property: "og:description", content: "Orbit is the calm control room for Facebook, Instagram, TikTok, YouTube and X — compose, schedule, analyze and reply across every platform from one workspace." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
