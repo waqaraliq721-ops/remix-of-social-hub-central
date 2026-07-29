@@ -947,6 +947,15 @@ function ImagesToVideoPage() {
                   <Wand className="mr-1 h-3 w-3" /> Transition to all
                 </Button>
               </div>
+              <Button
+                size="sm"
+                variant="secondary"
+                className="h-7 w-full text-[11px]"
+                onClick={randomizeAll}
+                disabled={!images.length}
+              >
+                <Shuffle className="mr-1 h-3 w-3" /> Randomize each clip
+              </Button>
               <div>
                 <div className="mb-1 flex justify-between text-[11px]">
                   <Label>Transition length</Label>
