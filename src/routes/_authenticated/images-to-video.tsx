@@ -229,6 +229,7 @@ function ImagesToVideoPage() {
   const [defaultMotion, setDefaultMotion] = useState<MotionKind>("kenburns");
   const [defaultTransition, setDefaultTransition] = useState<TransitionKind>("fade");
   const [transitionMs, setTransitionMs] = useState(500);
+  const [transitionEasing, setTransitionEasing] = useState<EasingKind>("ease-in-out");
 
   const [script, setScript] = useState("");
   const [provider, setProvider] = useState<TtsProvider>("lovable");
