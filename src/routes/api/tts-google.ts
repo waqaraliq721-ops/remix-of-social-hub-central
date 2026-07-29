@@ -93,7 +93,7 @@ export const Route = createFileRoute("/api/tts-google")({
         const pcm = Uint8Array.from(Buffer.from(b64, "base64"));
         const wav = pcmToWav(pcm, sampleRate);
 
-        return new Response(wav, {
+        return new Response(new Blob([wav as BlobPart], { type: "audio/wav" }), {
           headers: {
             "Content-Type": "audio/wav",
             "Cache-Control": "no-store",
