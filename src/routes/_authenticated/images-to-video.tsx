@@ -90,6 +90,42 @@ const TRANSITION_OPTIONS: { value: TransitionKind; label: string }[] = [
   { value: "zoom-blur", label: "Zoom" },
 ];
 
+type EasingKind = "linear" | "ease-in" | "ease-out" | "ease-in-out";
+
+const EASING_OPTIONS: { value: EasingKind; label: string }[] = [
+  { value: "linear", label: "Linear" },
+  { value: "ease-in", label: "Smooth in" },
+  { value: "ease-out", label: "Smooth out" },
+  { value: "ease-in-out", label: "Ease in-out (AE)" },
+];
+
+/** Cubic easing curves that feel like After Effects easy-ease. */
+function applyEasing(t: number, kind: EasingKind) {
+  const x = Math.max(0, Math.min(1, t));
+  switch (kind) {
+    case "ease-in":
+      return x * x * x;
+    case "ease-out":
+      return 1 - Math.pow(1 - x, 3);
+    case "ease-in-out":
+      return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+    default:
+      return x;
+  }
+}
+
+/** Rough English syllable count — much closer to spoken duration than char count. */
+function estimateSyllables(word: string) {
+  const w = word.toLowerCase().replace(/[^a-z]/g, "");
+  if (!w) return 1;
+  if (w.length <= 3) return 1;
+  const groups = w
+    .replace(/(?:[^laeiouy]es|ed|[^laeiouy]e)$/, "")
+    .replace(/^y/, "")
+    .match(/[aeiouy]{1,2}/g);
+  return Math.max(1, groups ? groups.length : 1);
+}
+
 type TtsProvider = "lovable" | "elevenlabs" | "google";
 
 const PROVIDERS: { id: TtsProvider; label: string; hint: string }[] = [
