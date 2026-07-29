@@ -560,6 +560,11 @@ function ImagesToVideoPage() {
     ctx.closePath();
   }
 
+  // Re-sync required if script or chunking changes
+  useEffect(() => {
+    setCaptionsGenerated(false);
+  }, [script, captionWords]);
+
   // Redraw preview when paused-state deps change
   useEffect(() => {
     if (playing) return;
