@@ -754,6 +754,8 @@ function ImagesToVideoPage() {
     if (voUrl) URL.revokeObjectURL(voUrl);
     setVoUrl(null);
     setVoDuration(0);
+    setSpeechStart(0);
+    setSpeechEnd(0);
     setCaptionsGenerated(false);
     voAudioRef.current = null;
   };
