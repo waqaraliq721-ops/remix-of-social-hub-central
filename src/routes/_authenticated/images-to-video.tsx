@@ -89,20 +89,63 @@ const TRANSITION_OPTIONS: { value: TransitionKind; label: string }[] = [
   { value: "zoom-blur", label: "Zoom" },
 ];
 
-const VOICES = [
-  { id: "alloy", label: "Alloy — neutral" },
-  { id: "verse", label: "Verse — warm" },
-  { id: "sage", label: "Sage — calm" },
-  { id: "coral", label: "Coral — bright" },
-  { id: "ballad", label: "Ballad — cinematic" },
-  { id: "ash", label: "Ash — deep" },
+type TtsProvider = "lovable" | "elevenlabs" | "google";
+
+const PROVIDERS: { id: TtsProvider; label: string; hint: string }[] = [
+  { id: "lovable", label: "Lovable AI", hint: "Uses your Lovable credits" },
+  { id: "elevenlabs", label: "ElevenLabs", hint: "Studio-grade voices (free tier available)" },
+  { id: "google", label: "Google AI Studio", hint: "Gemini TTS · free tier" },
 ];
 
-const MODELS = [
-  { id: "openai/gpt-4o-mini-tts", label: "GPT-4o Mini TTS (default)" },
-  { id: "google/gemini-2.5-flash-tts", label: "Gemini 2.5 Flash TTS" },
-  { id: "google/gemini-2.5-pro-tts", label: "Gemini 2.5 Pro TTS" },
-];
+const VOICES_BY_PROVIDER: Record<TtsProvider, { id: string; label: string }[]> = {
+  lovable: [
+    { id: "alloy", label: "Alloy — neutral" },
+    { id: "verse", label: "Verse — warm" },
+    { id: "sage", label: "Sage — calm" },
+    { id: "coral", label: "Coral — bright" },
+    { id: "ballad", label: "Ballad — cinematic" },
+    { id: "ash", label: "Ash — deep" },
+  ],
+  elevenlabs: [
+    { id: "EXAVITQu4vr4xnSDxMaL", label: "Sarah — warm female" },
+    { id: "FGY2WhTYpPnrIDTdsKH5", label: "Laura — friendly female" },
+    { id: "cgSgspJ2msm6clMCkdW9", label: "Jessica — expressive female" },
+    { id: "XrExE9yKIg1WjnnlVkGX", label: "Matilda — narrator female" },
+    { id: "Xb7hH8MSUJpSbSDYk0k2", label: "Alice — british female" },
+    { id: "JBFqnCBsd6RMkjVDRZzb", label: "George — narrator male" },
+    { id: "CwhRBWXzGAHq8TQ4Fs17", label: "Roger — confident male" },
+    { id: "IKne3meq5aSn9XLyUdCD", label: "Charlie — natural male" },
+    { id: "TX3LPaxmHKxFdv7VOQHJ", label: "Liam — articulate male" },
+    { id: "nPczCjzI2devNBz1zQrb", label: "Brian — deep male" },
+  ],
+  google: [
+    { id: "Kore", label: "Kore — firm" },
+    { id: "Puck", label: "Puck — upbeat" },
+    { id: "Zephyr", label: "Zephyr — bright" },
+    { id: "Charon", label: "Charon — informative" },
+    { id: "Fenrir", label: "Fenrir — excitable" },
+    { id: "Leda", label: "Leda — youthful" },
+    { id: "Orus", label: "Orus — firm male" },
+    { id: "Aoede", label: "Aoede — breezy" },
+  ],
+};
+
+const MODELS_BY_PROVIDER: Record<TtsProvider, { id: string; label: string }[]> = {
+  lovable: [
+    { id: "openai/gpt-4o-mini-tts", label: "GPT-4o Mini TTS" },
+    { id: "google/gemini-2.5-flash-tts", label: "Gemini 2.5 Flash TTS" },
+    { id: "google/gemini-2.5-pro-tts", label: "Gemini 2.5 Pro TTS" },
+  ],
+  elevenlabs: [
+    { id: "eleven_multilingual_v2", label: "Multilingual v2 (best)" },
+    { id: "eleven_turbo_v2_5", label: "Turbo v2.5 (fast)" },
+    { id: "eleven_turbo_v2", label: "Turbo v2 (fastest)" },
+  ],
+  google: [
+    { id: "gemini-2.5-flash-preview-tts", label: "Gemini 2.5 Flash (free)" },
+    { id: "gemini-2.5-pro-preview-tts", label: "Gemini 2.5 Pro" },
+  ],
+};
 
 const CAPTION_FONTS = [
   { id: "Inter, system-ui, sans-serif", label: "Inter" },
@@ -149,8 +192,9 @@ function ImagesToVideoPage() {
   const [transitionMs, setTransitionMs] = useState(500);
 
   const [script, setScript] = useState("");
-  const [voice, setVoice] = useState(VOICES[0].id);
-  const [model, setModel] = useState(MODELS[0].id);
+  const [provider, setProvider] = useState<TtsProvider>("lovable");
+  const [voice, setVoice] = useState(VOICES_BY_PROVIDER.lovable[0].id);
+  const [model, setModel] = useState(MODELS_BY_PROVIDER.lovable[0].id);
   const [voUrl, setVoUrl] = useState<string | null>(null);
   const [voLoading, setVoLoading] = useState(false);
   const [voDuration, setVoDuration] = useState(0);
@@ -581,10 +625,20 @@ function ImagesToVideoPage() {
     }
     setVoLoading(true);
     try {
-      const res = await fetch("/api/tts", {
+      const endpoint =
+        provider === "elevenlabs"
+          ? "/api/tts-elevenlabs"
+          : provider === "google"
+            ? "/api/tts-google"
+            : "/api/tts";
+      const body =
+        provider === "elevenlabs"
+          ? { text: script, voiceId: voice, modelId: model }
+          : { text: script, voice, model };
+      const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: script, voice, model }),
+        body: JSON.stringify(body),
       });
       if (!res.ok) {
         const body = await res.text();
@@ -1068,13 +1122,36 @@ function ImagesToVideoPage() {
                 onChange={(e) => setScript(e.target.value)}
                 rows={5}
               />
+              <div>
+                <Label className="mb-1 block text-xs">Provider</Label>
+                <Select
+                  value={provider}
+                  onValueChange={(v) => {
+                    const p = v as TtsProvider;
+                    setProvider(p);
+                    setVoice(VOICES_BY_PROVIDER[p][0].id);
+                    setModel(MODELS_BY_PROVIDER[p][0].id);
+                  }}
+                >
+                  <SelectTrigger className="h-9">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PROVIDERS.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>
+                        {p.label} — <span className="text-muted-foreground">{p.hint}</span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="grid grid-cols-2 gap-2">
                 <Select value={model} onValueChange={setModel}>
                   <SelectTrigger className="h-9">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {MODELS.map((m) => (
+                    {MODELS_BY_PROVIDER[provider].map((m) => (
                       <SelectItem key={m.id} value={m.id}>
                         {m.label}
                       </SelectItem>
@@ -1086,7 +1163,7 @@ function ImagesToVideoPage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {VOICES.map((v) => (
+                    {VOICES_BY_PROVIDER[provider].map((v) => (
                       <SelectItem key={v.id} value={v.id}>
                         {v.label}
                       </SelectItem>
