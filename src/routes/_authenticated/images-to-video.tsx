@@ -488,7 +488,7 @@ function ImagesToVideoPage() {
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [images, totalDuration, transitionMs, captionsOn, captionSchedule, captionStyle, captionPos, captionSize, captionColor, captionAccent, captionFont, captionUppercase, captionWeight, captionMargin, captionStrokeWidth, captionBgOpacity],
+    [images, totalDuration, transitionMs, transitionEasing, captionsOn, captionSchedule, captionStyle, captionPos, captionSize, captionColor, captionAccent, captionFont, captionUppercase, captionWeight, captionMargin, captionStrokeWidth, captionBgOpacity],
   );
 
   // Keep latest drawFrame in a ref so the RAF loop is not recreated every state change.
