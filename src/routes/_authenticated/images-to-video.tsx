@@ -222,6 +222,32 @@ function buildCaptionChunks(script: string, wordsPer: number) {
   return chunks;
 }
 
+/** Scan a decoded audio buffer and return the [start, end] seconds of audible content. */
+function detectSpeechSpan(buf: AudioBuffer): { start: number; end: number } {
+  const ch = buf.getChannelData(0);
+  const sr = buf.sampleRate;
+  const win = Math.max(1, Math.floor(sr * 0.02)); // 20ms windows
+  const rms: number[] = [];
+  for (let i = 0; i < ch.length; i += win) {
+    let s = 0;
+    const end = Math.min(ch.length, i + win);
+    for (let j = i; j < end; j++) s += ch[j] * ch[j];
+    rms.push(Math.sqrt(s / (end - i)));
+  }
+  if (!rms.length) return { start: 0, end: buf.duration };
+  const peak = Math.max(...rms);
+  if (peak <= 0) return { start: 0, end: buf.duration };
+  const threshold = Math.max(0.008, peak * 0.08);
+  const firstIdx = rms.findIndex((v) => v > threshold);
+  if (firstIdx < 0) return { start: 0, end: buf.duration };
+  let lastIdx = rms.length - 1;
+  while (lastIdx > firstIdx && rms[lastIdx] <= threshold) lastIdx--;
+  const secPerWin = win / sr;
+  const start = Math.max(0, firstIdx * secPerWin - 0.05);
+  const end = Math.min(buf.duration, (lastIdx + 1) * secPerWin + 0.1);
+  return { start, end };
+}
+
 function ImagesToVideoPage() {
   const [images, setImages] = useState<ImgItem[]>([]);
   const [aspect, setAspect] = useState<AspectKey>("9:16");
