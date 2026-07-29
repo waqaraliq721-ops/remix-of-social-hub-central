@@ -51,8 +51,36 @@ export const Route = createFileRoute("/_authenticated/images-to-video")({
   component: ImagesToVideoPage,
 });
 
-type TransitionKind = "none" | "fade" | "slide" | "slide-up" | "zoom-blur";
-type MotionKind = "none" | "kenburns" | "zoom-in" | "zoom-out" | "pan-left" | "pan-right";
+type TransitionKind =
+  | "none"
+  | "fade"
+  | "slide"
+  | "slide-up"
+  | "slide-down"
+  | "slide-right"
+  | "zoom-blur"
+  | "wipe-left"
+  | "wipe-right"
+  | "iris"
+  | "push-up"
+  | "whip"
+  | "rotate-fade"
+  | "cross-blur";
+type MotionKind =
+  | "none"
+  | "kenburns"
+  | "zoom-in"
+  | "zoom-out"
+  | "pan-left"
+  | "pan-right"
+  | "pan-up"
+  | "pan-down"
+  | "zoom-in-tl"
+  | "zoom-out-br"
+  | "rotate-cw"
+  | "rotate-ccw"
+  | "shake"
+  | "parallax";
 
 type ImgItem = {
   id: string;
@@ -71,7 +99,19 @@ const ASPECTS: Record<AspectKey, { w: number; h: number; label: string }> = {
 };
 
 type CaptionPosition = "top" | "middle" | "bottom";
-type CaptionStyle = "pop" | "clean" | "bold" | "underline" | "karaoke";
+type CaptionStyle =
+  | "pop"
+  | "clean"
+  | "bold"
+  | "underline"
+  | "karaoke"
+  | "gradient"
+  | "neon"
+  | "shadow"
+  | "typewriter"
+  | "wave"
+  | "boxed"
+  | "highlight";
 
 const MOTION_OPTIONS: { value: MotionKind; label: string }[] = [
   { value: "none", label: "None" },
@@ -80,14 +120,46 @@ const MOTION_OPTIONS: { value: MotionKind; label: string }[] = [
   { value: "zoom-out", label: "Zoom out" },
   { value: "pan-left", label: "Pan left" },
   { value: "pan-right", label: "Pan right" },
+  { value: "pan-up", label: "Pan up" },
+  { value: "pan-down", label: "Pan down" },
+  { value: "zoom-in-tl", label: "Zoom in · top-left" },
+  { value: "zoom-out-br", label: "Zoom out · bottom-right" },
+  { value: "rotate-cw", label: "Rotate CW" },
+  { value: "rotate-ccw", label: "Rotate CCW" },
+  { value: "shake", label: "Shake" },
+  { value: "parallax", label: "Parallax tilt" },
 ];
 
 const TRANSITION_OPTIONS: { value: TransitionKind; label: string }[] = [
   { value: "none", label: "None" },
   { value: "fade", label: "Fade" },
-  { value: "slide", label: "Slide" },
+  { value: "cross-blur", label: "Cross blur" },
+  { value: "slide", label: "Slide left" },
+  { value: "slide-right", label: "Slide right" },
   { value: "slide-up", label: "Slide up" },
-  { value: "zoom-blur", label: "Zoom" },
+  { value: "slide-down", label: "Slide down" },
+  { value: "push-up", label: "Push up" },
+  { value: "wipe-left", label: "Wipe left" },
+  { value: "wipe-right", label: "Wipe right" },
+  { value: "iris", label: "Iris" },
+  { value: "zoom-blur", label: "Zoom blur" },
+  { value: "whip", label: "Whip pan" },
+  { value: "rotate-fade", label: "Rotate fade" },
+];
+
+const CAPTION_STYLE_OPTIONS: { value: CaptionStyle; label: string }[] = [
+  { value: "pop", label: "Pop" },
+  { value: "clean", label: "Clean" },
+  { value: "bold", label: "Bold outline" },
+  { value: "underline", label: "Underline" },
+  { value: "karaoke", label: "Karaoke" },
+  { value: "gradient", label: "Gradient" },
+  { value: "neon", label: "Neon glow" },
+  { value: "shadow", label: "Drop shadow" },
+  { value: "typewriter", label: "Typewriter" },
+  { value: "wave", label: "Wave" },
+  { value: "boxed", label: "Word boxes" },
+  { value: "highlight", label: "Highlight" },
 ];
 
 type EasingKind = "linear" | "ease-in" | "ease-out" | "ease-in-out";
@@ -405,11 +477,20 @@ function ImagesToVideoPage() {
     local: number,
     cw: number,
     ch: number,
-    extra: { ox?: number; oy?: number; scaleMul?: number; alpha?: number; blur?: number } = {},
+    extra: {
+      ox?: number;
+      oy?: number;
+      scaleMul?: number;
+      alpha?: number;
+      blur?: number;
+      rotate?: number;
+      clip?: (ctx: CanvasRenderingContext2D) => void;
+    } = {},
   ) => {
     let scale = 1;
     let mx = 0;
     let my = 0;
+    let rot = 0;
     switch (img.motion) {
       case "kenburns":
         scale = 1.05 + 0.12 * local;
@@ -430,8 +511,45 @@ function ImagesToVideoPage() {
         scale = 1.1;
         mx = -60 * (0.5 - local);
         break;
+      case "pan-up":
+        scale = 1.1;
+        my = 60 * (0.5 - local);
+        break;
+      case "pan-down":
+        scale = 1.1;
+        my = -60 * (0.5 - local);
+        break;
+      case "zoom-in-tl":
+        scale = 1 + 0.2 * local;
+        mx = 40 * local;
+        my = 30 * local;
+        break;
+      case "zoom-out-br":
+        scale = 1.2 - 0.2 * local;
+        mx = -40 * (1 - local);
+        my = -30 * (1 - local);
+        break;
+      case "rotate-cw":
+        scale = 1.15;
+        rot = (local - 0.5) * 0.06; // ~3.4°
+        break;
+      case "rotate-ccw":
+        scale = 1.15;
+        rot = -(local - 0.5) * 0.06;
+        break;
+      case "shake":
+        scale = 1.08;
+        mx = Math.sin(local * Math.PI * 12) * 6;
+        my = Math.cos(local * Math.PI * 10) * 4;
+        break;
+      case "parallax":
+        scale = 1.1;
+        rot = Math.sin(local * Math.PI * 2) * 0.02;
+        mx = Math.sin(local * Math.PI * 2) * 20;
+        break;
     }
     scale *= extra.scaleMul ?? 1;
+    rot += extra.rotate ?? 0;
 
     const iw = img.bitmap.naturalWidth;
     const ih = img.bitmap.naturalHeight;
@@ -442,8 +560,18 @@ function ImagesToVideoPage() {
     const dy = (ch - dh) / 2 + my + (extra.oy ?? 0);
 
     ctx.save();
+    if (extra.clip) {
+      ctx.beginPath();
+      extra.clip(ctx);
+      ctx.clip();
+    }
     if (extra.alpha !== undefined) ctx.globalAlpha = extra.alpha;
     if (extra.blur) ctx.filter = `blur(${extra.blur}px)`;
+    if (rot) {
+      ctx.translate(cw / 2, ch / 2);
+      ctx.rotate(rot);
+      ctx.translate(-cw / 2, -ch / 2);
+    }
     ctx.drawImage(img.bitmap, dx, dy, dw, dh);
     ctx.restore();
   };
@@ -479,13 +607,51 @@ function ImagesToVideoPage() {
             drawImageWithMotion(ctx, img, local, cw, ch);
             drawImageWithMotion(ctx, nextImg, 0, cw, ch, { alpha: p });
             break;
+          case "cross-blur":
+            drawImageWithMotion(ctx, img, local, cw, ch, { alpha: 1 - p, blur: 10 * p });
+            drawImageWithMotion(ctx, nextImg, 0, cw, ch, { alpha: p, blur: 10 * (1 - p) });
+            break;
           case "slide":
             drawImageWithMotion(ctx, img, local, cw, ch, { ox: -cw * p });
             drawImageWithMotion(ctx, nextImg, 0, cw, ch, { ox: cw * (1 - p) });
             break;
+          case "slide-right":
+            drawImageWithMotion(ctx, img, local, cw, ch, { ox: cw * p });
+            drawImageWithMotion(ctx, nextImg, 0, cw, ch, { ox: -cw * (1 - p) });
+            break;
           case "slide-up":
             drawImageWithMotion(ctx, img, local, cw, ch, { oy: -ch * p });
             drawImageWithMotion(ctx, nextImg, 0, cw, ch, { oy: ch * (1 - p) });
+            break;
+          case "slide-down":
+            drawImageWithMotion(ctx, img, local, cw, ch, { oy: ch * p });
+            drawImageWithMotion(ctx, nextImg, 0, cw, ch, { oy: -ch * (1 - p) });
+            break;
+          case "push-up":
+            // Outgoing slides up, incoming rises into place — no gap.
+            drawImageWithMotion(ctx, img, local, cw, ch, { oy: -ch * p });
+            drawImageWithMotion(ctx, nextImg, 0, cw, ch, { oy: ch * (1 - p), scaleMul: 0.95 + 0.05 * p });
+            break;
+          case "wipe-left":
+            drawImageWithMotion(ctx, img, local, cw, ch);
+            drawImageWithMotion(ctx, nextImg, 0, cw, ch, {
+              clip: (c) => c.rect(cw - cw * p, 0, cw * p, ch),
+            });
+            break;
+          case "wipe-right":
+            drawImageWithMotion(ctx, img, local, cw, ch);
+            drawImageWithMotion(ctx, nextImg, 0, cw, ch, {
+              clip: (c) => c.rect(0, 0, cw * p, ch),
+            });
+            break;
+          case "iris":
+            drawImageWithMotion(ctx, img, local, cw, ch);
+            drawImageWithMotion(ctx, nextImg, 0, cw, ch, {
+              clip: (c) => {
+                const r = Math.hypot(cw, ch) / 2 * p;
+                c.arc(cw / 2, ch / 2, Math.max(1, r), 0, Math.PI * 2);
+              },
+            });
             break;
           case "zoom-blur":
             drawImageWithMotion(ctx, img, local, cw, ch, {
@@ -497,6 +663,33 @@ function ImagesToVideoPage() {
               scaleMul: 1.3 - 0.3 * p,
               alpha: p,
               blur: 8 * (1 - p),
+            });
+            break;
+          case "whip": {
+            // Motion-blurred horizontal whip pan.
+            const dir = idx % 2 === 0 ? 1 : -1;
+            drawImageWithMotion(ctx, img, local, cw, ch, {
+              ox: -cw * p * dir,
+              blur: 14 * p,
+              alpha: 1 - p * 0.5,
+            });
+            drawImageWithMotion(ctx, nextImg, 0, cw, ch, {
+              ox: cw * (1 - p) * dir,
+              blur: 14 * (1 - p),
+              alpha: 0.5 + 0.5 * p,
+            });
+            break;
+          }
+          case "rotate-fade":
+            drawImageWithMotion(ctx, img, local, cw, ch, {
+              rotate: 0.15 * p,
+              scaleMul: 1 - 0.1 * p,
+              alpha: 1 - p,
+            });
+            drawImageWithMotion(ctx, nextImg, 0, cw, ch, {
+              rotate: -0.15 * (1 - p),
+              scaleMul: 0.9 + 0.1 * p,
+              alpha: p,
             });
             break;
           default:
@@ -600,6 +793,114 @@ function ImagesToVideoPage() {
           ctx.fillText(words[i], cursor, cy);
           cursor += widths[i] + spaceW;
         }
+      } else if (captionStyle === "gradient") {
+        if (captionBgOpacity > 0) {
+          ctx.fillStyle = hexWithAlpha("#000000", (captionBgOpacity / 100) * 0.35);
+          roundRect(ctx, x, y, boxW, boxH, size * 0.2);
+          ctx.fill();
+        }
+        const grad = ctx.createLinearGradient(x, y, x + boxW, y + boxH);
+        grad.addColorStop(0, captionAccent);
+        grad.addColorStop(1, captionColor);
+        ctx.lineWidth = Math.max(4, captionStrokeWidth * 0.5);
+        ctx.strokeStyle = "#000";
+        ctx.lineJoin = "round";
+        ctx.strokeText(text, cx, cy);
+        ctx.fillStyle = grad;
+        ctx.fillText(text, cx, cy);
+      } else if (captionStyle === "neon") {
+        ctx.save();
+        ctx.shadowColor = captionAccent;
+        ctx.shadowBlur = size * 0.5;
+        ctx.fillStyle = captionColor;
+        ctx.fillText(text, cx, cy);
+        ctx.shadowBlur = size * 0.9;
+        ctx.fillText(text, cx, cy);
+        ctx.restore();
+        ctx.strokeStyle = captionAccent;
+        ctx.lineWidth = Math.max(2, captionStrokeWidth * 0.3);
+        ctx.strokeText(text, cx, cy);
+      } else if (captionStyle === "shadow") {
+        ctx.save();
+        ctx.shadowColor = "rgba(0,0,0,0.85)";
+        ctx.shadowBlur = size * 0.25;
+        ctx.shadowOffsetX = size * 0.06;
+        ctx.shadowOffsetY = size * 0.08;
+        ctx.fillStyle = captionColor;
+        ctx.fillText(text, cx, cy);
+        ctx.restore();
+      } else if (captionStyle === "typewriter") {
+        // Reveal characters over the chunk duration; blinking caret at the tip.
+        const chars = text.length;
+        const shown = Math.max(1, Math.min(chars, Math.ceil(progress * chars)));
+        const visible = text.slice(0, shown);
+        if (captionBgOpacity > 0) {
+          ctx.fillStyle = hexWithAlpha("#000000", (captionBgOpacity / 100) * 0.5);
+          roundRect(ctx, x, y, boxW, boxH, size * 0.15);
+          ctx.fill();
+        }
+        ctx.lineWidth = Math.max(2, captionStrokeWidth * 0.5);
+        ctx.strokeStyle = "#000";
+        ctx.lineJoin = "round";
+        ctx.strokeText(visible, cx, cy);
+        ctx.fillStyle = captionColor;
+        ctx.fillText(visible, cx, cy);
+        const wVis = ctx.measureText(visible).width;
+        const caretVisible = Math.floor(progress * 12) % 2 === 0;
+        if (caretVisible && shown < chars) {
+          ctx.fillStyle = captionAccent;
+          ctx.fillRect(cx + wVis / 2 + 4, cy - size * 0.45, Math.max(3, size * 0.06), size * 0.9);
+        }
+      } else if (captionStyle === "wave") {
+        const words = text.split(" ");
+        const spaceW = ctx.measureText(" ").width;
+        const widths = words.map((wd) => ctx.measureText(wd).width);
+        const total = widths.reduce((s, wv) => s + wv, 0) + spaceW * (words.length - 1);
+        let cursor = cx - total / 2;
+        ctx.textAlign = "left";
+        for (let i = 0; i < words.length; i++) {
+          const phase = progress * Math.PI * 2 + i * 0.9;
+          const dy = Math.sin(phase) * size * 0.18;
+          ctx.lineWidth = Math.max(3, captionStrokeWidth * 0.5);
+          ctx.strokeStyle = "#000";
+          ctx.lineJoin = "round";
+          ctx.strokeText(words[i], cursor, cy + dy);
+          ctx.fillStyle = i % 2 === 0 ? captionColor : captionAccent;
+          ctx.fillText(words[i], cursor, cy + dy);
+          cursor += widths[i] + spaceW;
+        }
+      } else if (captionStyle === "boxed") {
+        // Each word in its own pill.
+        const words = text.split(" ");
+        const gap = size * 0.18;
+        const padX = size * 0.28;
+        const widths = words.map((wd) => ctx.measureText(wd).width);
+        const pillWs = widths.map((wv) => wv + padX * 2);
+        const total = pillWs.reduce((s, wv) => s + wv, 0) + gap * (words.length - 1);
+        let cursor = cx - total / 2;
+        for (let i = 0; i < words.length; i++) {
+          const pw = pillWs[i];
+          const ph = size + paddingY * 1.4;
+          const py = cy - ph / 2;
+          ctx.fillStyle = hexWithAlpha(captionAccent, captionBgOpacity / 100);
+          roundRect(ctx, cursor, py, pw, ph, ph / 2);
+          ctx.fill();
+          ctx.fillStyle = captionColor;
+          ctx.textAlign = "center";
+          ctx.fillText(words[i], cursor + pw / 2, cy);
+          cursor += pw + gap;
+        }
+      } else if (captionStyle === "highlight") {
+        // Marker-style highlight behind text.
+        const highlightH = size * 0.7;
+        ctx.fillStyle = hexWithAlpha(captionAccent, captionBgOpacity / 100);
+        ctx.fillRect(cx - textW / 2 - size * 0.15, cy - highlightH / 2 + size * 0.08, textW + size * 0.3, highlightH);
+        ctx.lineWidth = Math.max(3, captionStrokeWidth * 0.4);
+        ctx.strokeStyle = "#000";
+        ctx.lineJoin = "round";
+        ctx.strokeText(text, cx, cy);
+        ctx.fillStyle = captionColor;
+        ctx.fillText(text, cx, cy);
       } else {
         // clean
         if (captionBgOpacity > 0) {
@@ -1440,16 +1741,21 @@ function ImagesToVideoPage() {
                   Generate a voiceover in the panel above to enable captions.
                 </p>
               )}
-              <Tabs value={captionStyle} onValueChange={(v) => setCaptionStyle(v as CaptionStyle)}>
-                <TabsList className="grid w-full grid-cols-5">
-                  <TabsTrigger value="pop" className="text-[11px]">Pop</TabsTrigger>
-                  <TabsTrigger value="clean" className="text-[11px]">Clean</TabsTrigger>
-                  <TabsTrigger value="bold" className="text-[11px]">Bold</TabsTrigger>
-                  <TabsTrigger value="underline" className="text-[11px]">Under</TabsTrigger>
-                  <TabsTrigger value="karaoke" className="text-[11px]">Karaoke</TabsTrigger>
-                </TabsList>
-                <TabsContent value={captionStyle} />
-              </Tabs>
+              <div>
+                <Label className="mb-1 block text-xs">Style</Label>
+                <Select value={captionStyle} onValueChange={(v) => setCaptionStyle(v as CaptionStyle)}>
+                  <SelectTrigger className="h-9">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CAPTION_STYLE_OPTIONS.map((o) => (
+                      <SelectItem key={o.value} value={o.value}>
+                        {o.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <Label className="mb-1 block text-xs">Position</Label>
