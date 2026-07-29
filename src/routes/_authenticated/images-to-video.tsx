@@ -51,8 +51,36 @@ export const Route = createFileRoute("/_authenticated/images-to-video")({
   component: ImagesToVideoPage,
 });
 
-type TransitionKind = "none" | "fade" | "slide" | "slide-up" | "zoom-blur";
-type MotionKind = "none" | "kenburns" | "zoom-in" | "zoom-out" | "pan-left" | "pan-right";
+type TransitionKind =
+  | "none"
+  | "fade"
+  | "slide"
+  | "slide-up"
+  | "slide-down"
+  | "slide-right"
+  | "zoom-blur"
+  | "wipe-left"
+  | "wipe-right"
+  | "iris"
+  | "push-up"
+  | "whip"
+  | "rotate-fade"
+  | "cross-blur";
+type MotionKind =
+  | "none"
+  | "kenburns"
+  | "zoom-in"
+  | "zoom-out"
+  | "pan-left"
+  | "pan-right"
+  | "pan-up"
+  | "pan-down"
+  | "zoom-in-tl"
+  | "zoom-out-br"
+  | "rotate-cw"
+  | "rotate-ccw"
+  | "shake"
+  | "parallax";
 
 type ImgItem = {
   id: string;
@@ -71,7 +99,19 @@ const ASPECTS: Record<AspectKey, { w: number; h: number; label: string }> = {
 };
 
 type CaptionPosition = "top" | "middle" | "bottom";
-type CaptionStyle = "pop" | "clean" | "bold" | "underline" | "karaoke";
+type CaptionStyle =
+  | "pop"
+  | "clean"
+  | "bold"
+  | "underline"
+  | "karaoke"
+  | "gradient"
+  | "neon"
+  | "shadow"
+  | "typewriter"
+  | "wave"
+  | "boxed"
+  | "highlight";
 
 const MOTION_OPTIONS: { value: MotionKind; label: string }[] = [
   { value: "none", label: "None" },
@@ -80,14 +120,46 @@ const MOTION_OPTIONS: { value: MotionKind; label: string }[] = [
   { value: "zoom-out", label: "Zoom out" },
   { value: "pan-left", label: "Pan left" },
   { value: "pan-right", label: "Pan right" },
+  { value: "pan-up", label: "Pan up" },
+  { value: "pan-down", label: "Pan down" },
+  { value: "zoom-in-tl", label: "Zoom in · top-left" },
+  { value: "zoom-out-br", label: "Zoom out · bottom-right" },
+  { value: "rotate-cw", label: "Rotate CW" },
+  { value: "rotate-ccw", label: "Rotate CCW" },
+  { value: "shake", label: "Shake" },
+  { value: "parallax", label: "Parallax tilt" },
 ];
 
 const TRANSITION_OPTIONS: { value: TransitionKind; label: string }[] = [
   { value: "none", label: "None" },
   { value: "fade", label: "Fade" },
-  { value: "slide", label: "Slide" },
+  { value: "cross-blur", label: "Cross blur" },
+  { value: "slide", label: "Slide left" },
+  { value: "slide-right", label: "Slide right" },
   { value: "slide-up", label: "Slide up" },
-  { value: "zoom-blur", label: "Zoom" },
+  { value: "slide-down", label: "Slide down" },
+  { value: "push-up", label: "Push up" },
+  { value: "wipe-left", label: "Wipe left" },
+  { value: "wipe-right", label: "Wipe right" },
+  { value: "iris", label: "Iris" },
+  { value: "zoom-blur", label: "Zoom blur" },
+  { value: "whip", label: "Whip pan" },
+  { value: "rotate-fade", label: "Rotate fade" },
+];
+
+const CAPTION_STYLE_OPTIONS: { value: CaptionStyle; label: string }[] = [
+  { value: "pop", label: "Pop" },
+  { value: "clean", label: "Clean" },
+  { value: "bold", label: "Bold outline" },
+  { value: "underline", label: "Underline" },
+  { value: "karaoke", label: "Karaoke" },
+  { value: "gradient", label: "Gradient" },
+  { value: "neon", label: "Neon glow" },
+  { value: "shadow", label: "Drop shadow" },
+  { value: "typewriter", label: "Typewriter" },
+  { value: "wave", label: "Wave" },
+  { value: "boxed", label: "Word boxes" },
+  { value: "highlight", label: "Highlight" },
 ];
 
 type EasingKind = "linear" | "ease-in" | "ease-out" | "ease-in-out";
