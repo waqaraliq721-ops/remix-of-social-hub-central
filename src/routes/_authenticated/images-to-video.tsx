@@ -477,11 +477,20 @@ function ImagesToVideoPage() {
     local: number,
     cw: number,
     ch: number,
-    extra: { ox?: number; oy?: number; scaleMul?: number; alpha?: number; blur?: number } = {},
+    extra: {
+      ox?: number;
+      oy?: number;
+      scaleMul?: number;
+      alpha?: number;
+      blur?: number;
+      rotate?: number;
+      clip?: (ctx: CanvasRenderingContext2D) => void;
+    } = {},
   ) => {
     let scale = 1;
     let mx = 0;
     let my = 0;
+    let rot = 0;
     switch (img.motion) {
       case "kenburns":
         scale = 1.05 + 0.12 * local;
@@ -502,8 +511,45 @@ function ImagesToVideoPage() {
         scale = 1.1;
         mx = -60 * (0.5 - local);
         break;
+      case "pan-up":
+        scale = 1.1;
+        my = 60 * (0.5 - local);
+        break;
+      case "pan-down":
+        scale = 1.1;
+        my = -60 * (0.5 - local);
+        break;
+      case "zoom-in-tl":
+        scale = 1 + 0.2 * local;
+        mx = 40 * local;
+        my = 30 * local;
+        break;
+      case "zoom-out-br":
+        scale = 1.2 - 0.2 * local;
+        mx = -40 * (1 - local);
+        my = -30 * (1 - local);
+        break;
+      case "rotate-cw":
+        scale = 1.15;
+        rot = (local - 0.5) * 0.06; // ~3.4°
+        break;
+      case "rotate-ccw":
+        scale = 1.15;
+        rot = -(local - 0.5) * 0.06;
+        break;
+      case "shake":
+        scale = 1.08;
+        mx = Math.sin(local * Math.PI * 12) * 6;
+        my = Math.cos(local * Math.PI * 10) * 4;
+        break;
+      case "parallax":
+        scale = 1.1;
+        rot = Math.sin(local * Math.PI * 2) * 0.02;
+        mx = Math.sin(local * Math.PI * 2) * 20;
+        break;
     }
     scale *= extra.scaleMul ?? 1;
+    rot += extra.rotate ?? 0;
 
     const iw = img.bitmap.naturalWidth;
     const ih = img.bitmap.naturalHeight;
@@ -514,8 +560,18 @@ function ImagesToVideoPage() {
     const dy = (ch - dh) / 2 + my + (extra.oy ?? 0);
 
     ctx.save();
+    if (extra.clip) {
+      ctx.beginPath();
+      extra.clip(ctx);
+      ctx.clip();
+    }
     if (extra.alpha !== undefined) ctx.globalAlpha = extra.alpha;
     if (extra.blur) ctx.filter = `blur(${extra.blur}px)`;
+    if (rot) {
+      ctx.translate(cw / 2, ch / 2);
+      ctx.rotate(rot);
+      ctx.translate(-cw / 2, -ch / 2);
+    }
     ctx.drawImage(img.bitmap, dx, dy, dw, dh);
     ctx.restore();
   };
