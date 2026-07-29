@@ -343,6 +343,9 @@ function ImagesToVideoPage() {
   const [musicUrl, setMusicUrl] = useState<string | null>(null);
   const [musicName, setMusicName] = useState<string | null>(null);
   const [musicVolume, setMusicVolume] = useState(20);
+  const [musicDuration, setMusicDuration] = useState(0);
+  const [musicStart, setMusicStart] = useState(0);
+  const [musicEnd, setMusicEnd] = useState(0);
   const [voVolume, setVoVolume] = useState(100);
 
   const [captionsOn, setCaptionsOn] = useState(true);
