@@ -312,6 +312,20 @@ function ImagesToVideoPage() {
   const applyTransitionToAll = (t: TransitionKind) =>
     setImages((prev) => prev.map((p) => ({ ...p, transition: t })));
 
+  const randomizeAll = () => {
+    // exclude "none" so randomization always produces visible motion/transitions
+    const motions = MOTION_OPTIONS.filter((o) => o.value !== "none").map((o) => o.value);
+    const transitions = TRANSITION_OPTIONS.filter((o) => o.value !== "none").map((o) => o.value);
+    setImages((prev) =>
+      prev.map((p) => ({
+        ...p,
+        motion: motions[Math.floor(Math.random() * motions.length)],
+        transition: transitions[Math.floor(Math.random() * transitions.length)],
+      })),
+    );
+    toast.success("Randomized motion & transitions");
+  };
+
   // -------- Rendering (draws image with motion, handles transition to next) --------
   const drawImageWithMotion = (
     ctx: CanvasRenderingContext2D,
