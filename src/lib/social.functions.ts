@@ -80,15 +80,41 @@ export const createPost = createServerFn({ method: "POST" })
       .parse(d),
   )
   .handler(async ({ data, context }) => {
-    const { error } = await context.supabase.from("posts").insert({
-      user_id: context.userId,
-      caption: data.caption,
-      platforms: data.platforms,
-      scheduled_at: data.scheduled_at ?? null,
-      status: data.status,
-    });
+    const { data: inserted, error } = await context.supabase
+      .from("posts")
+      .insert({
+        user_id: context.userId,
+        caption: data.caption,
+        platforms: data.platforms,
+        scheduled_at: data.scheduled_at ?? null,
+        status: data.status,
+      })
+      .select("id")
+      .single();
     if (error) throw new Error(error.message);
+    if (inserted) {
+      const targets = data.platforms.map((platform) => ({
+        post_id: inserted.id,
+        user_id: context.userId,
+        platform,
+        status: "pending" as const,
+      }));
+      const { error: tErr } = await context.supabase.from("post_targets").insert(targets);
+      if (tErr) throw new Error(tErr.message);
+    }
     return { ok: true };
+  });
+
+export const listPostTargets = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data, error } = await context.supabase
+      .from("post_targets")
+      .select("id, post_id, platform, status, error, created_at, posts(caption, scheduled_at)")
+      .order("created_at", { ascending: false })
+      .limit(50);
+    if (error) throw new Error(error.message);
+    return data ?? [];
   });
 
 export const deletePost = createServerFn({ method: "POST" })
