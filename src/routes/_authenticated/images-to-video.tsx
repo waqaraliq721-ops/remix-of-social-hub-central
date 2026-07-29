@@ -441,7 +441,8 @@ function ImagesToVideoPage() {
       const remaining = per - (t - idx * per);
       const inTransition =
         idx < images.length - 1 && remaining < transDur && img.transition !== "none";
-      const p = inTransition ? 1 - remaining / transDur : 0; // 0..1 across transition
+      const pRaw = inTransition ? 1 - remaining / transDur : 0; // 0..1 linear
+      const p = applyEasing(pRaw, transitionEasing);
 
       if (!inTransition) {
         drawImageWithMotion(ctx, img, local, cw, ch);
