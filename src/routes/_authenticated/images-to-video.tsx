@@ -36,6 +36,13 @@ import {
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
+import {
+  saveDraftSettings,
+  loadDraftSettings,
+  saveDraftImages,
+  loadDraftImages,
+  type DraftImage,
+} from "@/lib/i2v-draft";
 
 export const Route = createFileRoute("/_authenticated/images-to-video")({
   head: () => ({
@@ -89,6 +96,7 @@ type ImgItem = {
   name: string;
   motion: MotionKind;
   transition: TransitionKind; // transition OUT to next image
+  blob?: Blob; // kept so drafts can be persisted to IndexedDB
 };
 
 type AspectKey = "9:16" | "1:1" | "16:9";
@@ -424,6 +432,7 @@ function ImagesToVideoPage() {
             name: f.name,
             motion: defaultMotion,
             transition: defaultTransition,
+            blob: f,
           });
         } catch {
           URL.revokeObjectURL(src);
