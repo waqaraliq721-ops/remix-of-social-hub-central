@@ -238,6 +238,9 @@ function ImagesToVideoPage() {
   const [voUrl, setVoUrl] = useState<string | null>(null);
   const [voLoading, setVoLoading] = useState(false);
   const [voDuration, setVoDuration] = useState(0);
+  // Detected audible span within the voiceover (leading/trailing silence trimmed).
+  const [speechStart, setSpeechStart] = useState(0);
+  const [speechEnd, setSpeechEnd] = useState(0);
 
   const [musicUrl, setMusicUrl] = useState<string | null>(null);
   const [musicName, setMusicName] = useState<string | null>(null);
