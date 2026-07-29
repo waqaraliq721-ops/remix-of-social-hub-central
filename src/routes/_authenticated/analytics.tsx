@@ -171,7 +171,7 @@ function Analytics() {
                 <Tooltip />
                 <Bar dataKey="delta" radius={[6, 6, 0, 0]}>
                   {followerDelta.map((d) => (
-                    <Bar key={d.platform} dataKey="delta" fill={PLATFORM_MAP[d.platform as Platform].color} />
+                    <Cell key={d.platform} fill={PLATFORM_MAP[d.platform as Platform].color} />
                   ))}
                 </Bar>
               </BarChart>
