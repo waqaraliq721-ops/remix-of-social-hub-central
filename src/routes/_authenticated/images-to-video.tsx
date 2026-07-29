@@ -1304,9 +1304,34 @@ function ImagesToVideoPage() {
             </CardHeader>
             <CardContent className="space-y-3">
               <p className="text-xs text-muted-foreground">
-                Captions come from your script. When a voiceover is generated they're timed to
-                match its length, with per-chunk weighting by word length.
+                Captions are generated <strong>after</strong> your voiceover so they line up
+                exactly with the spoken audio. Regenerate them any time the script or voiceover changes.
               </p>
+              <div className="flex items-center gap-2 rounded-lg border bg-muted/20 p-2">
+                <Button
+                  size="sm"
+                  onClick={generateCaptions}
+                  disabled={!voUrl || voDuration <= 0 || !script.trim()}
+                  className="flex-1"
+                >
+                  <Captions className="mr-1 h-3.5 w-3.5" />
+                  {captionsGenerated ? "Re-sync captions" : "Generate captions"}
+                </Button>
+                <span
+                  className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                    captionsGenerated
+                      ? "bg-emerald-500/15 text-emerald-500"
+                      : "bg-muted text-muted-foreground"
+                  }`}
+                >
+                  {captionsGenerated ? `Synced · ${voDuration.toFixed(1)}s` : "Not synced"}
+                </span>
+              </div>
+              {!voUrl && (
+                <p className="text-[10px] text-muted-foreground">
+                  Generate a voiceover in the panel above to enable captions.
+                </p>
+              )}
               <Tabs value={captionStyle} onValueChange={(v) => setCaptionStyle(v as CaptionStyle)}>
                 <TabsList className="grid w-full grid-cols-5">
                   <TabsTrigger value="pop" className="text-[11px]">Pop</TabsTrigger>
