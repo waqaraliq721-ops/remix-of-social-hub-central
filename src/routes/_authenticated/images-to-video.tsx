@@ -90,6 +90,42 @@ const TRANSITION_OPTIONS: { value: TransitionKind; label: string }[] = [
   { value: "zoom-blur", label: "Zoom" },
 ];
 
+type EasingKind = "linear" | "ease-in" | "ease-out" | "ease-in-out";
+
+const EASING_OPTIONS: { value: EasingKind; label: string }[] = [
+  { value: "linear", label: "Linear" },
+  { value: "ease-in", label: "Smooth in" },
+  { value: "ease-out", label: "Smooth out" },
+  { value: "ease-in-out", label: "Ease in-out (AE)" },
+];
+
+/** Cubic easing curves that feel like After Effects easy-ease. */
+function applyEasing(t: number, kind: EasingKind) {
+  const x = Math.max(0, Math.min(1, t));
+  switch (kind) {
+    case "ease-in":
+      return x * x * x;
+    case "ease-out":
+      return 1 - Math.pow(1 - x, 3);
+    case "ease-in-out":
+      return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+    default:
+      return x;
+  }
+}
+
+/** Rough English syllable count — much closer to spoken duration than char count. */
+function estimateSyllables(word: string) {
+  const w = word.toLowerCase().replace(/[^a-z]/g, "");
+  if (!w) return 1;
+  if (w.length <= 3) return 1;
+  const groups = w
+    .replace(/(?:[^laeiouy]es|ed|[^laeiouy]e)$/, "")
+    .replace(/^y/, "")
+    .match(/[aeiouy]{1,2}/g);
+  return Math.max(1, groups ? groups.length : 1);
+}
+
 type TtsProvider = "lovable" | "elevenlabs" | "google";
 
 const PROVIDERS: { id: TtsProvider; label: string; hint: string }[] = [
@@ -171,17 +207,45 @@ function loadImageFromUrl(src: string): Promise<HTMLImageElement> {
   });
 }
 
-/** Split script into caption chunks with weights based on word/char counts. */
+/** Split script into caption chunks with weights based on syllable counts. */
 function buildCaptionChunks(script: string, wordsPer: number) {
   const words = script.replace(/\s+/g, " ").trim().split(" ").filter(Boolean);
   const chunks: { text: string; weight: number }[] = [];
   for (let i = 0; i < words.length; i += wordsPer) {
     const slice = words.slice(i, i + wordsPer);
     const text = slice.join(" ");
-    // weight by character count (roughly proportional to spoken duration)
-    chunks.push({ text, weight: Math.max(1, text.length) });
+    // syllables ~ spoken duration; add small trailing-punctuation pause
+    const syll = slice.reduce((s, w) => s + estimateSyllables(w), 0);
+    const pausePad = /[,.;:!?]$/.test(text) ? 0.6 : 0;
+    chunks.push({ text, weight: Math.max(0.5, syll + pausePad) });
   }
   return chunks;
+}
+
+/** Scan a decoded audio buffer and return the [start, end] seconds of audible content. */
+function detectSpeechSpan(buf: AudioBuffer): { start: number; end: number } {
+  const ch = buf.getChannelData(0);
+  const sr = buf.sampleRate;
+  const win = Math.max(1, Math.floor(sr * 0.02)); // 20ms windows
+  const rms: number[] = [];
+  for (let i = 0; i < ch.length; i += win) {
+    let s = 0;
+    const end = Math.min(ch.length, i + win);
+    for (let j = i; j < end; j++) s += ch[j] * ch[j];
+    rms.push(Math.sqrt(s / (end - i)));
+  }
+  if (!rms.length) return { start: 0, end: buf.duration };
+  const peak = Math.max(...rms);
+  if (peak <= 0) return { start: 0, end: buf.duration };
+  const threshold = Math.max(0.008, peak * 0.08);
+  const firstIdx = rms.findIndex((v) => v > threshold);
+  if (firstIdx < 0) return { start: 0, end: buf.duration };
+  let lastIdx = rms.length - 1;
+  while (lastIdx > firstIdx && rms[lastIdx] <= threshold) lastIdx--;
+  const secPerWin = win / sr;
+  const start = Math.max(0, firstIdx * secPerWin - 0.05);
+  const end = Math.min(buf.duration, (lastIdx + 1) * secPerWin + 0.1);
+  return { start, end };
 }
 
 function ImagesToVideoPage() {
@@ -191,6 +255,7 @@ function ImagesToVideoPage() {
   const [defaultMotion, setDefaultMotion] = useState<MotionKind>("kenburns");
   const [defaultTransition, setDefaultTransition] = useState<TransitionKind>("fade");
   const [transitionMs, setTransitionMs] = useState(500);
+  const [transitionEasing, setTransitionEasing] = useState<EasingKind>("ease-in-out");
 
   const [script, setScript] = useState("");
   const [provider, setProvider] = useState<TtsProvider>("lovable");
@@ -199,6 +264,9 @@ function ImagesToVideoPage() {
   const [voUrl, setVoUrl] = useState<string | null>(null);
   const [voLoading, setVoLoading] = useState(false);
   const [voDuration, setVoDuration] = useState(0);
+  // Detected audible span within the voiceover (leading/trailing silence trimmed).
+  const [speechStart, setSpeechStart] = useState(0);
+  const [speechEnd, setSpeechEnd] = useState(0);
 
   const [musicUrl, setMusicUrl] = useState<string | null>(null);
   const [musicName, setMusicName] = useState<string | null>(null);
@@ -248,16 +316,20 @@ function ImagesToVideoPage() {
     if (!captionsGenerated || voDuration <= 0) return [] as { start: number; end: number; text: string }[];
     const chunks = buildCaptionChunks(script, captionWords);
     if (!chunks.length) return [];
+    // Align chunks to the audible span of the voiceover, not the raw file length.
+    const spanStart = Math.max(0, speechStart);
+    const spanEnd = speechEnd > spanStart ? speechEnd : voDuration;
+    const span = Math.max(0.001, spanEnd - spanStart);
     const totalWeight = chunks.reduce((s, c) => s + c.weight, 0);
-    let cursor = 0;
+    let cursor = spanStart;
     const out: { start: number; end: number; text: string }[] = [];
     for (const c of chunks) {
-      const dur = (c.weight / totalWeight) * voDuration;
+      const dur = (c.weight / totalWeight) * span;
       out.push({ start: cursor, end: cursor + dur, text: c.text });
       cursor += dur;
     }
     return out;
-  }, [script, captionWords, voDuration, captionsGenerated]);
+  }, [script, captionWords, voDuration, captionsGenerated, speechStart, speechEnd]);
 
   // -------- Image loading --------
   const addFiles = useCallback(
@@ -395,7 +467,8 @@ function ImagesToVideoPage() {
       const remaining = per - (t - idx * per);
       const inTransition =
         idx < images.length - 1 && remaining < transDur && img.transition !== "none";
-      const p = inTransition ? 1 - remaining / transDur : 0; // 0..1 across transition
+      const pRaw = inTransition ? 1 - remaining / transDur : 0; // 0..1 linear
+      const p = applyEasing(pRaw, transitionEasing);
 
       if (!inTransition) {
         drawImageWithMotion(ctx, img, local, cw, ch);
@@ -441,7 +514,7 @@ function ImagesToVideoPage() {
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [images, totalDuration, transitionMs, captionsOn, captionSchedule, captionStyle, captionPos, captionSize, captionColor, captionAccent, captionFont, captionUppercase, captionWeight, captionMargin, captionStrokeWidth, captionBgOpacity],
+    [images, totalDuration, transitionMs, transitionEasing, captionsOn, captionSchedule, captionStyle, captionPos, captionSize, captionColor, captionAccent, captionFont, captionUppercase, captionWeight, captionMargin, captionStrokeWidth, captionBgOpacity],
   );
 
   // Keep latest drawFrame in a ref so the RAF loop is not recreated every state change.
@@ -673,8 +746,28 @@ function ImagesToVideoPage() {
       const audio = new Audio(url);
       audio.addEventListener("loadedmetadata", () => {
         setVoDuration(audio.duration);
+        // Default span = whole file until silence analysis finishes.
+        setSpeechStart(0);
+        setSpeechEnd(audio.duration);
       });
       voAudioRef.current = audio;
+
+      // Detect leading/trailing silence so captions start with the first spoken word.
+      try {
+        const ab = await blob.arrayBuffer();
+        const AC: typeof AudioContext =
+          window.AudioContext ||
+          (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+        const ctx = new AC();
+        const buf = await ctx.decodeAudioData(ab.slice(0));
+        const { start, end } = detectSpeechSpan(buf);
+        setSpeechStart(start);
+        setSpeechEnd(end);
+        ctx.close().catch(() => {});
+      } catch {
+        // Silence detection is best-effort — fall back to full-file range.
+      }
+
       toast.success("Voiceover ready — now generate captions to sync them");
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : "TTS failed");
@@ -687,6 +780,8 @@ function ImagesToVideoPage() {
     if (voUrl) URL.revokeObjectURL(voUrl);
     setVoUrl(null);
     setVoDuration(0);
+    setSpeechStart(0);
+    setSpeechEnd(0);
     setCaptionsGenerated(false);
     voAudioRef.current = null;
   };
@@ -962,6 +1057,19 @@ function ImagesToVideoPage() {
                   <span className="text-muted-foreground">{transitionMs}ms</span>
                 </div>
                 <Slider min={150} max={1500} step={50} value={[transitionMs]} onValueChange={(v) => setTransitionMs(v[0])} />
+              </div>
+              <div>
+                <Label className="mb-1 block text-[11px]">Transition easing</Label>
+                <Select value={transitionEasing} onValueChange={(v) => setTransitionEasing(v as EasingKind)}>
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {EASING_OPTIONS.map((o) => (
+                      <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
