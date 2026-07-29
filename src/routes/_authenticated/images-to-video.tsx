@@ -1112,13 +1112,36 @@ function ImagesToVideoPage() {
                 onChange={(e) => setScript(e.target.value)}
                 rows={5}
               />
+              <div>
+                <Label className="mb-1 block text-xs">Provider</Label>
+                <Select
+                  value={provider}
+                  onValueChange={(v) => {
+                    const p = v as TtsProvider;
+                    setProvider(p);
+                    setVoice(VOICES_BY_PROVIDER[p][0].id);
+                    setModel(MODELS_BY_PROVIDER[p][0].id);
+                  }}
+                >
+                  <SelectTrigger className="h-9">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PROVIDERS.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>
+                        {p.label} — <span className="text-muted-foreground">{p.hint}</span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="grid grid-cols-2 gap-2">
                 <Select value={model} onValueChange={setModel}>
                   <SelectTrigger className="h-9">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {MODELS.map((m) => (
+                    {MODELS_BY_PROVIDER[provider].map((m) => (
                       <SelectItem key={m.id} value={m.id}>
                         {m.label}
                       </SelectItem>
@@ -1130,7 +1153,7 @@ function ImagesToVideoPage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {VOICES.map((v) => (
+                    {VOICES_BY_PROVIDER[provider].map((v) => (
                       <SelectItem key={v.id} value={v.id}>
                         {v.label}
                       </SelectItem>
