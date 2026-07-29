@@ -89,20 +89,63 @@ const TRANSITION_OPTIONS: { value: TransitionKind; label: string }[] = [
   { value: "zoom-blur", label: "Zoom" },
 ];
 
-const VOICES = [
-  { id: "alloy", label: "Alloy — neutral" },
-  { id: "verse", label: "Verse — warm" },
-  { id: "sage", label: "Sage — calm" },
-  { id: "coral", label: "Coral — bright" },
-  { id: "ballad", label: "Ballad — cinematic" },
-  { id: "ash", label: "Ash — deep" },
+type TtsProvider = "lovable" | "elevenlabs" | "google";
+
+const PROVIDERS: { id: TtsProvider; label: string; hint: string }[] = [
+  { id: "lovable", label: "Lovable AI", hint: "Uses your Lovable credits" },
+  { id: "elevenlabs", label: "ElevenLabs", hint: "Studio-grade voices (free tier available)" },
+  { id: "google", label: "Google AI Studio", hint: "Gemini TTS · free tier" },
 ];
 
-const MODELS = [
-  { id: "openai/gpt-4o-mini-tts", label: "GPT-4o Mini TTS (default)" },
-  { id: "google/gemini-2.5-flash-tts", label: "Gemini 2.5 Flash TTS" },
-  { id: "google/gemini-2.5-pro-tts", label: "Gemini 2.5 Pro TTS" },
-];
+const VOICES_BY_PROVIDER: Record<TtsProvider, { id: string; label: string }[]> = {
+  lovable: [
+    { id: "alloy", label: "Alloy — neutral" },
+    { id: "verse", label: "Verse — warm" },
+    { id: "sage", label: "Sage — calm" },
+    { id: "coral", label: "Coral — bright" },
+    { id: "ballad", label: "Ballad — cinematic" },
+    { id: "ash", label: "Ash — deep" },
+  ],
+  elevenlabs: [
+    { id: "EXAVITQu4vr4xnSDxMaL", label: "Sarah — warm female" },
+    { id: "FGY2WhTYpPnrIDTdsKH5", label: "Laura — friendly female" },
+    { id: "cgSgspJ2msm6clMCkdW9", label: "Jessica — expressive female" },
+    { id: "XrExE9yKIg1WjnnlVkGX", label: "Matilda — narrator female" },
+    { id: "Xb7hH8MSUJpSbSDYk0k2", label: "Alice — british female" },
+    { id: "JBFqnCBsd6RMkjVDRZzb", label: "George — narrator male" },
+    { id: "CwhRBWXzGAHq8TQ4Fs17", label: "Roger — confident male" },
+    { id: "IKne3meq5aSn9XLyUdCD", label: "Charlie — natural male" },
+    { id: "TX3LPaxmHKxFdv7VOQHJ", label: "Liam — articulate male" },
+    { id: "nPczCjzI2devNBz1zQrb", label: "Brian — deep male" },
+  ],
+  google: [
+    { id: "Kore", label: "Kore — firm" },
+    { id: "Puck", label: "Puck — upbeat" },
+    { id: "Zephyr", label: "Zephyr — bright" },
+    { id: "Charon", label: "Charon — informative" },
+    { id: "Fenrir", label: "Fenrir — excitable" },
+    { id: "Leda", label: "Leda — youthful" },
+    { id: "Orus", label: "Orus — firm male" },
+    { id: "Aoede", label: "Aoede — breezy" },
+  ],
+};
+
+const MODELS_BY_PROVIDER: Record<TtsProvider, { id: string; label: string }[]> = {
+  lovable: [
+    { id: "openai/gpt-4o-mini-tts", label: "GPT-4o Mini TTS" },
+    { id: "google/gemini-2.5-flash-tts", label: "Gemini 2.5 Flash TTS" },
+    { id: "google/gemini-2.5-pro-tts", label: "Gemini 2.5 Pro TTS" },
+  ],
+  elevenlabs: [
+    { id: "eleven_multilingual_v2", label: "Multilingual v2 (best)" },
+    { id: "eleven_turbo_v2_5", label: "Turbo v2.5 (fast)" },
+    { id: "eleven_turbo_v2", label: "Turbo v2 (fastest)" },
+  ],
+  google: [
+    { id: "gemini-2.5-flash-preview-tts", label: "Gemini 2.5 Flash (free)" },
+    { id: "gemini-2.5-pro-preview-tts", label: "Gemini 2.5 Pro" },
+  ],
+};
 
 const CAPTION_FONTS = [
   { id: "Inter, system-ui, sans-serif", label: "Inter" },
