@@ -625,10 +625,20 @@ function ImagesToVideoPage() {
     }
     setVoLoading(true);
     try {
-      const res = await fetch("/api/tts", {
+      const endpoint =
+        provider === "elevenlabs"
+          ? "/api/tts-elevenlabs"
+          : provider === "google"
+            ? "/api/tts-google"
+            : "/api/tts";
+      const body =
+        provider === "elevenlabs"
+          ? { text: script, voiceId: voice, modelId: model }
+          : { text: script, voice, model };
+      const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: script, voice, model }),
+        body: JSON.stringify(body),
       });
       if (!res.ok) {
         const body = await res.text();
