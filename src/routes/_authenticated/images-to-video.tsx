@@ -192,8 +192,9 @@ function ImagesToVideoPage() {
   const [transitionMs, setTransitionMs] = useState(500);
 
   const [script, setScript] = useState("");
-  const [voice, setVoice] = useState(VOICES[0].id);
-  const [model, setModel] = useState(MODELS[0].id);
+  const [provider, setProvider] = useState<TtsProvider>("lovable");
+  const [voice, setVoice] = useState(VOICES_BY_PROVIDER.lovable[0].id);
+  const [model, setModel] = useState(MODELS_BY_PROVIDER.lovable[0].id);
   const [voUrl, setVoUrl] = useState<string | null>(null);
   const [voLoading, setVoLoading] = useState(false);
   const [voDuration, setVoDuration] = useState(0);
