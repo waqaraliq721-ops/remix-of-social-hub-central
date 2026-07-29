@@ -1009,9 +1009,12 @@ function ImagesToVideoPage() {
         voAudioRef.current.play().catch(() => {});
       }
       if (musicAudioRef.current) {
-        musicAudioRef.current.currentTime = pausedAtRef.current % (musicAudioRef.current.duration || 1);
+        const region = Math.max(0.01, musicEnd - musicStart);
+        musicAudioRef.current.currentTime = musicStart + (pausedAtRef.current % region);
         musicAudioRef.current.volume = musicVolume / 100;
-        musicAudioRef.current.loop = true;
+        musicAudioRef.current.loop = false;
+        musicStartRef.current = musicStart;
+        musicEndRef.current = musicEnd > musicStart ? musicEnd : musicDuration;
         musicAudioRef.current.play().catch(() => {});
       }
     }
