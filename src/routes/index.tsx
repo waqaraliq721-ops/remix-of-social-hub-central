@@ -1,4 +1,6 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Sparkles, CalendarDays, BarChart3, Inbox, PenSquare, Facebook, Instagram, Youtube, Twitter, Music2 } from "lucide-react";
 
