@@ -20,11 +20,13 @@ const items = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
   { title: "Compose", url: "/compose", icon: PenSquare },
   { title: "Videos", url: "/videos", icon: Video },
+  { title: "Images to Video", url: "/images-to-video", icon: Video },
   { title: "Calendar", url: "/calendar", icon: CalendarDays },
   { title: "Analytics", url: "/analytics", icon: BarChart3 },
   { title: "Inbox", url: "/inbox", icon: Inbox },
   { title: "Accounts", url: "/accounts", icon: PlugZap },
 ];
+
 
 export function AppSidebar() {
   const { state } = useSidebar();
