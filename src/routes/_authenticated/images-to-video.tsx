@@ -664,12 +664,13 @@ function ImagesToVideoPage() {
       const url = URL.createObjectURL(blob);
       if (voUrl) URL.revokeObjectURL(voUrl);
       setVoUrl(url);
+      setCaptionsGenerated(false); // require re-generate to match the new audio
       const audio = new Audio(url);
       audio.addEventListener("loadedmetadata", () => {
         setVoDuration(audio.duration);
       });
       voAudioRef.current = audio;
-      toast.success("Voiceover generated — captions now match its length");
+      toast.success("Voiceover ready — now generate captions to sync them");
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : "TTS failed");
     } finally {
@@ -681,7 +682,21 @@ function ImagesToVideoPage() {
     if (voUrl) URL.revokeObjectURL(voUrl);
     setVoUrl(null);
     setVoDuration(0);
+    setCaptionsGenerated(false);
     voAudioRef.current = null;
+  };
+
+  const generateCaptions = () => {
+    if (!voUrl || voDuration <= 0) {
+      toast("Generate a voiceover first — captions align to it");
+      return;
+    }
+    if (!script.trim()) {
+      toast("Write a script first");
+      return;
+    }
+    setCaptionsGenerated(true);
+    toast.success("Captions synced to voiceover");
   };
 
   // -------- Music --------
