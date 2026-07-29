@@ -1741,16 +1741,21 @@ function ImagesToVideoPage() {
                   Generate a voiceover in the panel above to enable captions.
                 </p>
               )}
-              <Tabs value={captionStyle} onValueChange={(v) => setCaptionStyle(v as CaptionStyle)}>
-                <TabsList className="grid w-full grid-cols-5">
-                  <TabsTrigger value="pop" className="text-[11px]">Pop</TabsTrigger>
-                  <TabsTrigger value="clean" className="text-[11px]">Clean</TabsTrigger>
-                  <TabsTrigger value="bold" className="text-[11px]">Bold</TabsTrigger>
-                  <TabsTrigger value="underline" className="text-[11px]">Under</TabsTrigger>
-                  <TabsTrigger value="karaoke" className="text-[11px]">Karaoke</TabsTrigger>
-                </TabsList>
-                <TabsContent value={captionStyle} />
-              </Tabs>
+              <div>
+                <Label className="mb-1 block text-xs">Style</Label>
+                <Select value={captionStyle} onValueChange={(v) => setCaptionStyle(v as CaptionStyle)}>
+                  <SelectTrigger className="h-9">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CAPTION_STYLE_OPTIONS.map((o) => (
+                      <SelectItem key={o.value} value={o.value}>
+                        {o.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <Label className="mb-1 block text-xs">Position</Label>
