@@ -242,22 +242,22 @@ function ImagesToVideoPage() {
     return images.length * perImageDuration;
   }, [images.length, perImageDuration, voDuration]);
 
-  /** Captions scheduled by weight, aligned to voice-over span if present. */
+  /** Captions scheduled by weight, aligned to voice-over span. Only active once the
+   * user has generated captions from an existing voiceover. */
   const captionSchedule = useMemo(() => {
+    if (!captionsGenerated || voDuration <= 0) return [] as { start: number; end: number; text: string }[];
     const chunks = buildCaptionChunks(script, captionWords);
-    if (!chunks.length || totalDuration <= 0) return [] as { start: number; end: number; text: string }[];
+    if (!chunks.length) return [];
     const totalWeight = chunks.reduce((s, c) => s + c.weight, 0);
-    const span = voDuration > 0 ? voDuration : totalDuration;
-    const offset = 0;
-    let cursor = offset;
+    let cursor = 0;
     const out: { start: number; end: number; text: string }[] = [];
     for (const c of chunks) {
-      const dur = (c.weight / totalWeight) * span;
+      const dur = (c.weight / totalWeight) * voDuration;
       out.push({ start: cursor, end: cursor + dur, text: c.text });
       cursor += dur;
     }
     return out;
-  }, [script, captionWords, totalDuration, voDuration]);
+  }, [script, captionWords, voDuration, captionsGenerated]);
 
   // -------- Image loading --------
   const addFiles = useCallback(
