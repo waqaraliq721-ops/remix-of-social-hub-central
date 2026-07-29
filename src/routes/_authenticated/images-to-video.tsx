@@ -206,6 +206,7 @@ function ImagesToVideoPage() {
   const [voVolume, setVoVolume] = useState(100);
 
   const [captionsOn, setCaptionsOn] = useState(true);
+  const [captionsGenerated, setCaptionsGenerated] = useState(false);
   const [captionStyle, setCaptionStyle] = useState<CaptionStyle>("pop");
   const [captionPos, setCaptionPos] = useState<CaptionPosition>("bottom");
   const [captionWords, setCaptionWords] = useState(3);
