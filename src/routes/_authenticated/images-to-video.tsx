@@ -793,6 +793,114 @@ function ImagesToVideoPage() {
           ctx.fillText(words[i], cursor, cy);
           cursor += widths[i] + spaceW;
         }
+      } else if (captionStyle === "gradient") {
+        if (captionBgOpacity > 0) {
+          ctx.fillStyle = hexWithAlpha("#000000", (captionBgOpacity / 100) * 0.35);
+          roundRect(ctx, x, y, boxW, boxH, size * 0.2);
+          ctx.fill();
+        }
+        const grad = ctx.createLinearGradient(x, y, x + boxW, y + boxH);
+        grad.addColorStop(0, captionAccent);
+        grad.addColorStop(1, captionColor);
+        ctx.lineWidth = Math.max(4, captionStrokeWidth * 0.5);
+        ctx.strokeStyle = "#000";
+        ctx.lineJoin = "round";
+        ctx.strokeText(text, cx, cy);
+        ctx.fillStyle = grad;
+        ctx.fillText(text, cx, cy);
+      } else if (captionStyle === "neon") {
+        ctx.save();
+        ctx.shadowColor = captionAccent;
+        ctx.shadowBlur = size * 0.5;
+        ctx.fillStyle = captionColor;
+        ctx.fillText(text, cx, cy);
+        ctx.shadowBlur = size * 0.9;
+        ctx.fillText(text, cx, cy);
+        ctx.restore();
+        ctx.strokeStyle = captionAccent;
+        ctx.lineWidth = Math.max(2, captionStrokeWidth * 0.3);
+        ctx.strokeText(text, cx, cy);
+      } else if (captionStyle === "shadow") {
+        ctx.save();
+        ctx.shadowColor = "rgba(0,0,0,0.85)";
+        ctx.shadowBlur = size * 0.25;
+        ctx.shadowOffsetX = size * 0.06;
+        ctx.shadowOffsetY = size * 0.08;
+        ctx.fillStyle = captionColor;
+        ctx.fillText(text, cx, cy);
+        ctx.restore();
+      } else if (captionStyle === "typewriter") {
+        // Reveal characters over the chunk duration; blinking caret at the tip.
+        const chars = text.length;
+        const shown = Math.max(1, Math.min(chars, Math.ceil(progress * chars)));
+        const visible = text.slice(0, shown);
+        if (captionBgOpacity > 0) {
+          ctx.fillStyle = hexWithAlpha("#000000", (captionBgOpacity / 100) * 0.5);
+          roundRect(ctx, x, y, boxW, boxH, size * 0.15);
+          ctx.fill();
+        }
+        ctx.lineWidth = Math.max(2, captionStrokeWidth * 0.5);
+        ctx.strokeStyle = "#000";
+        ctx.lineJoin = "round";
+        ctx.strokeText(visible, cx, cy);
+        ctx.fillStyle = captionColor;
+        ctx.fillText(visible, cx, cy);
+        const wVis = ctx.measureText(visible).width;
+        const caretVisible = Math.floor(progress * 12) % 2 === 0;
+        if (caretVisible && shown < chars) {
+          ctx.fillStyle = captionAccent;
+          ctx.fillRect(cx + wVis / 2 + 4, cy - size * 0.45, Math.max(3, size * 0.06), size * 0.9);
+        }
+      } else if (captionStyle === "wave") {
+        const words = text.split(" ");
+        const spaceW = ctx.measureText(" ").width;
+        const widths = words.map((wd) => ctx.measureText(wd).width);
+        const total = widths.reduce((s, wv) => s + wv, 0) + spaceW * (words.length - 1);
+        let cursor = cx - total / 2;
+        ctx.textAlign = "left";
+        for (let i = 0; i < words.length; i++) {
+          const phase = progress * Math.PI * 2 + i * 0.9;
+          const dy = Math.sin(phase) * size * 0.18;
+          ctx.lineWidth = Math.max(3, captionStrokeWidth * 0.5);
+          ctx.strokeStyle = "#000";
+          ctx.lineJoin = "round";
+          ctx.strokeText(words[i], cursor, cy + dy);
+          ctx.fillStyle = i % 2 === 0 ? captionColor : captionAccent;
+          ctx.fillText(words[i], cursor, cy + dy);
+          cursor += widths[i] + spaceW;
+        }
+      } else if (captionStyle === "boxed") {
+        // Each word in its own pill.
+        const words = text.split(" ");
+        const gap = size * 0.18;
+        const padX = size * 0.28;
+        const widths = words.map((wd) => ctx.measureText(wd).width);
+        const pillWs = widths.map((wv) => wv + padX * 2);
+        const total = pillWs.reduce((s, wv) => s + wv, 0) + gap * (words.length - 1);
+        let cursor = cx - total / 2;
+        for (let i = 0; i < words.length; i++) {
+          const pw = pillWs[i];
+          const ph = size + paddingY * 1.4;
+          const py = cy - ph / 2;
+          ctx.fillStyle = hexWithAlpha(captionAccent, captionBgOpacity / 100);
+          roundRect(ctx, cursor, py, pw, ph, ph / 2);
+          ctx.fill();
+          ctx.fillStyle = captionColor;
+          ctx.textAlign = "center";
+          ctx.fillText(words[i], cursor + pw / 2, cy);
+          cursor += pw + gap;
+        }
+      } else if (captionStyle === "highlight") {
+        // Marker-style highlight behind text.
+        const highlightH = size * 0.7;
+        ctx.fillStyle = hexWithAlpha(captionAccent, captionBgOpacity / 100);
+        ctx.fillRect(cx - textW / 2 - size * 0.15, cy - highlightH / 2 + size * 0.08, textW + size * 0.3, highlightH);
+        ctx.lineWidth = Math.max(3, captionStrokeWidth * 0.4);
+        ctx.strokeStyle = "#000";
+        ctx.lineJoin = "round";
+        ctx.strokeText(text, cx, cy);
+        ctx.fillStyle = captionColor;
+        ctx.fillText(text, cx, cy);
       } else {
         // clean
         if (captionBgOpacity > 0) {
