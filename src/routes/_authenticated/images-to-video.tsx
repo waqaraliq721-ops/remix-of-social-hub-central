@@ -1217,7 +1217,7 @@ function ImagesToVideoPage() {
       });
 
       recorder.start(200);
-      sources.forEach((s) => s.start());
+      sources.forEach(({ src, offset }) => src.start(0, offset));
 
       const start = performance.now();
       const durMs = totalDuration * 1000;
@@ -1238,9 +1238,9 @@ function ImagesToVideoPage() {
 
       await new Promise((r) => setTimeout(r, 250));
       recorder.stop();
-      sources.forEach((s) => {
+      sources.forEach(({ src }) => {
         try {
-          s.stop();
+          src.stop();
         } catch {
           /* noop */
         }
