@@ -343,6 +343,9 @@ function ImagesToVideoPage() {
   const [musicUrl, setMusicUrl] = useState<string | null>(null);
   const [musicName, setMusicName] = useState<string | null>(null);
   const [musicVolume, setMusicVolume] = useState(20);
+  const [musicDuration, setMusicDuration] = useState(0);
+  const [musicStart, setMusicStart] = useState(0);
+  const [musicEnd, setMusicEnd] = useState(0);
   const [voVolume, setVoVolume] = useState(100);
 
   const [captionsOn, setCaptionsOn] = useState(true);
@@ -368,6 +371,8 @@ function ImagesToVideoPage() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const voAudioRef = useRef<HTMLAudioElement | null>(null);
   const musicAudioRef = useRef<HTMLAudioElement | null>(null);
+  const musicStartRef = useRef(0);
+  const musicEndRef = useRef(0);
   const rafRef = useRef<number>(0);
   const startedAtRef = useRef<number>(0);
   const pausedAtRef = useRef<number>(0);
@@ -1004,9 +1009,12 @@ function ImagesToVideoPage() {
         voAudioRef.current.play().catch(() => {});
       }
       if (musicAudioRef.current) {
-        musicAudioRef.current.currentTime = pausedAtRef.current % (musicAudioRef.current.duration || 1);
+        const region = Math.max(0.01, musicEnd - musicStart);
+        musicAudioRef.current.currentTime = musicStart + (pausedAtRef.current % region);
         musicAudioRef.current.volume = musicVolume / 100;
-        musicAudioRef.current.loop = true;
+        musicAudioRef.current.loop = false;
+        musicStartRef.current = musicStart;
+        musicEndRef.current = musicEnd > musicStart ? musicEnd : musicDuration;
         musicAudioRef.current.play().catch(() => {});
       }
     }
@@ -1107,7 +1115,21 @@ function ImagesToVideoPage() {
     setMusicUrl(url);
     setMusicName(f.name);
     const audio = new Audio(url);
-    audio.loop = true;
+    audio.loop = false;
+    audio.addEventListener("loadedmetadata", () => {
+      const d = isFinite(audio.duration) ? audio.duration : 0;
+      setMusicDuration(d);
+      setMusicStart(0);
+      setMusicEnd(d);
+    });
+    audio.addEventListener("timeupdate", () => {
+      const endRef = musicEndRef.current;
+      const startRef = musicStartRef.current;
+      if (endRef > startRef && audio.currentTime >= endRef) {
+        audio.currentTime = startRef;
+        audio.play().catch(() => {});
+      }
+    });
     musicAudioRef.current = audio;
   };
 
@@ -1115,6 +1137,9 @@ function ImagesToVideoPage() {
     if (musicUrl) URL.revokeObjectURL(musicUrl);
     setMusicUrl(null);
     setMusicName(null);
+    setMusicDuration(0);
+    setMusicStart(0);
+    setMusicEnd(0);
     musicAudioRef.current = null;
   };
 
@@ -1143,22 +1168,35 @@ function ImagesToVideoPage() {
       const audioCtx = new AC();
       const dest = audioCtx.createMediaStreamDestination();
 
-      const attach = async (url: string, volume: number, loop: boolean) => {
+      const attach = async (
+        url: string,
+        volume: number,
+        loop: boolean,
+        offset = 0,
+        loopEnd = 0,
+      ) => {
         const res = await fetch(url);
         const buf = await res.arrayBuffer();
         const audioBuf = await audioCtx.decodeAudioData(buf.slice(0));
         const src = audioCtx.createBufferSource();
         src.buffer = audioBuf;
         src.loop = loop;
+        if (loop && loopEnd > offset) {
+          src.loopStart = offset;
+          src.loopEnd = loopEnd;
+        }
         const gain = audioCtx.createGain();
         gain.gain.value = volume;
         src.connect(gain).connect(dest);
-        return src;
+        return { src, offset };
       };
 
-      const sources: AudioBufferSourceNode[] = [];
+      const sources: { src: AudioBufferSourceNode; offset: number }[] = [];
       if (voUrl) sources.push(await attach(voUrl, voVolume / 100, false));
-      if (musicUrl) sources.push(await attach(musicUrl, musicVolume / 100, true));
+      if (musicUrl) {
+        const end = musicEnd > musicStart ? musicEnd : musicDuration;
+        sources.push(await attach(musicUrl, musicVolume / 100, true, musicStart, end));
+      }
 
       dest.stream.getAudioTracks().forEach((t) => stream.addTrack(t));
 
@@ -1179,7 +1217,7 @@ function ImagesToVideoPage() {
       });
 
       recorder.start(200);
-      sources.forEach((s) => s.start());
+      sources.forEach(({ src, offset }) => src.start(0, offset));
 
       const start = performance.now();
       const durMs = totalDuration * 1000;
@@ -1200,9 +1238,9 @@ function ImagesToVideoPage() {
 
       await new Promise((r) => setTimeout(r, 250));
       recorder.stop();
-      sources.forEach((s) => {
+      sources.forEach(({ src }) => {
         try {
-          s.stop();
+          src.stop();
         } catch {
           /* noop */
         }
@@ -1691,6 +1729,32 @@ function ImagesToVideoPage() {
                     </div>
                     <Slider min={0} max={100} step={1} value={[musicVolume]} onValueChange={(v) => setMusicVolume(v[0])} />
                   </div>
+                  {musicDuration > 0 && (
+                    <div>
+                      <div className="mb-1 flex justify-between text-xs">
+                        <Label>Trim (start / end)</Label>
+                        <span className="text-muted-foreground">
+                          {musicStart.toFixed(1)}s – {musicEnd.toFixed(1)}s
+                        </span>
+                      </div>
+                      <Slider
+                        min={0}
+                        max={musicDuration}
+                        step={0.1}
+                        value={[musicStart, musicEnd]}
+                        onValueChange={(v) => {
+                          const [s, e] = v;
+                          if (e - s >= 0.1) {
+                            setMusicStart(s);
+                            setMusicEnd(e);
+                          }
+                        }}
+                      />
+                      <p className="mt-1 text-[11px] text-muted-foreground">
+                        Music loops within this range for the full video ({totalDuration.toFixed(1)}s).
+                      </p>
+                    </div>
+                  )}
                   <Button variant="ghost" size="sm" onClick={clearMusic}>
                     <X className="mr-1 h-3 w-3" /> Remove
                   </Button>
