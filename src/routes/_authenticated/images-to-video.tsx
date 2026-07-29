@@ -462,6 +462,65 @@ function ImagesToVideoPage() {
 
   const dims = ASPECTS[aspect];
 
+  // Debounced save of serializable settings whenever they change post-hydration.
+  useEffect(() => {
+    if (!hydratedRef.current) return;
+    const h = setTimeout(() => {
+      saveDraftSettings({
+        aspect,
+        perImageDuration,
+        defaultMotion,
+        defaultTransition,
+        transitionMs,
+        transitionEasing,
+        script,
+        provider,
+        voice,
+        model,
+        captionsOn,
+        captionStyle,
+        captionPos,
+        captionWords,
+        captionSize,
+        captionColor,
+        captionAccent,
+        captionFont,
+        captionUppercase,
+        captionWeight,
+        captionMargin,
+        captionStrokeWidth,
+        captionBgOpacity,
+        musicVolume,
+        voVolume,
+      });
+    }, 400);
+    return () => clearTimeout(h);
+  }, [
+    aspect, perImageDuration, defaultMotion, defaultTransition, transitionMs, transitionEasing,
+    script, provider, voice, model,
+    captionsOn, captionStyle, captionPos, captionWords, captionSize, captionColor, captionAccent,
+    captionFont, captionUppercase, captionWeight, captionMargin, captionStrokeWidth, captionBgOpacity,
+    musicVolume, voVolume,
+  ]);
+
+  // Persist images (with their original blobs) on any change.
+  useEffect(() => {
+    if (!hydratedRef.current) return;
+    const h = setTimeout(() => {
+      const payload: DraftImage[] = images
+        .filter((i) => i.blob)
+        .map((i) => ({
+          id: i.id,
+          name: i.name,
+          motion: i.motion,
+          transition: i.transition,
+          blob: i.blob as Blob,
+        }));
+      saveDraftImages(payload);
+    }, 500);
+    return () => clearTimeout(h);
+  }, [images]);
+
   const totalDuration = useMemo(() => {
     if (images.length === 0) return 0;
     if (voDuration > 0) return Math.max(voDuration, images.length * 1.2);
