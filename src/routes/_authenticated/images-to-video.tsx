@@ -1168,22 +1168,35 @@ function ImagesToVideoPage() {
       const audioCtx = new AC();
       const dest = audioCtx.createMediaStreamDestination();
 
-      const attach = async (url: string, volume: number, loop: boolean) => {
+      const attach = async (
+        url: string,
+        volume: number,
+        loop: boolean,
+        offset = 0,
+        loopEnd = 0,
+      ) => {
         const res = await fetch(url);
         const buf = await res.arrayBuffer();
         const audioBuf = await audioCtx.decodeAudioData(buf.slice(0));
         const src = audioCtx.createBufferSource();
         src.buffer = audioBuf;
         src.loop = loop;
+        if (loop && loopEnd > offset) {
+          src.loopStart = offset;
+          src.loopEnd = loopEnd;
+        }
         const gain = audioCtx.createGain();
         gain.gain.value = volume;
         src.connect(gain).connect(dest);
-        return src;
+        return { src, offset };
       };
 
-      const sources: AudioBufferSourceNode[] = [];
+      const sources: { src: AudioBufferSourceNode; offset: number }[] = [];
       if (voUrl) sources.push(await attach(voUrl, voVolume / 100, false));
-      if (musicUrl) sources.push(await attach(musicUrl, musicVolume / 100, true));
+      if (musicUrl) {
+        const end = musicEnd > musicStart ? musicEnd : musicDuration;
+        sources.push(await attach(musicUrl, musicVolume / 100, true, musicStart, end));
+      }
 
       dest.stream.getAudioTracks().forEach((t) => stream.addTrack(t));
 
