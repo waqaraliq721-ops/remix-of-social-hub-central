@@ -1110,7 +1110,21 @@ function ImagesToVideoPage() {
     setMusicUrl(url);
     setMusicName(f.name);
     const audio = new Audio(url);
-    audio.loop = true;
+    audio.loop = false;
+    audio.addEventListener("loadedmetadata", () => {
+      const d = isFinite(audio.duration) ? audio.duration : 0;
+      setMusicDuration(d);
+      setMusicStart(0);
+      setMusicEnd(d);
+    });
+    audio.addEventListener("timeupdate", () => {
+      const endRef = musicEndRef.current;
+      const startRef = musicStartRef.current;
+      if (endRef > startRef && audio.currentTime >= endRef) {
+        audio.currentTime = startRef;
+        audio.play().catch(() => {});
+      }
+    });
     musicAudioRef.current = audio;
   };
 
@@ -1118,6 +1132,9 @@ function ImagesToVideoPage() {
     if (musicUrl) URL.revokeObjectURL(musicUrl);
     setMusicUrl(null);
     setMusicName(null);
+    setMusicDuration(0);
+    setMusicStart(0);
+    setMusicEnd(0);
     musicAudioRef.current = null;
   };
 
