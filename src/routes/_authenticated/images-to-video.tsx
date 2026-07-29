@@ -290,16 +290,20 @@ function ImagesToVideoPage() {
     if (!captionsGenerated || voDuration <= 0) return [] as { start: number; end: number; text: string }[];
     const chunks = buildCaptionChunks(script, captionWords);
     if (!chunks.length) return [];
+    // Align chunks to the audible span of the voiceover, not the raw file length.
+    const spanStart = Math.max(0, speechStart);
+    const spanEnd = speechEnd > spanStart ? speechEnd : voDuration;
+    const span = Math.max(0.001, spanEnd - spanStart);
     const totalWeight = chunks.reduce((s, c) => s + c.weight, 0);
-    let cursor = 0;
+    let cursor = spanStart;
     const out: { start: number; end: number; text: string }[] = [];
     for (const c of chunks) {
-      const dur = (c.weight / totalWeight) * voDuration;
+      const dur = (c.weight / totalWeight) * span;
       out.push({ start: cursor, end: cursor + dur, text: c.text });
       cursor += dur;
     }
     return out;
-  }, [script, captionWords, voDuration, captionsGenerated]);
+  }, [script, captionWords, voDuration, captionsGenerated, speechStart, speechEnd]);
 
   // -------- Image loading --------
   const addFiles = useCallback(
