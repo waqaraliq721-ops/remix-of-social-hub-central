@@ -371,6 +371,8 @@ function ImagesToVideoPage() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const voAudioRef = useRef<HTMLAudioElement | null>(null);
   const musicAudioRef = useRef<HTMLAudioElement | null>(null);
+  const musicStartRef = useRef(0);
+  const musicEndRef = useRef(0);
   const rafRef = useRef<number>(0);
   const startedAtRef = useRef<number>(0);
   const pausedAtRef = useRef<number>(0);
