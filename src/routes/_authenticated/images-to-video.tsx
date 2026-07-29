@@ -387,6 +387,79 @@ function ImagesToVideoPage() {
   const timeRef = useRef<number>(0);
   const drawRef = useRef<(canvas: HTMLCanvasElement, t: number) => void>(() => {});
 
+  // -------- Draft persistence (survives tab refresh) --------
+  const hydratedRef = useRef(false);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const [settings, imgs] = await Promise.all([
+          loadDraftSettings<Record<string, unknown>>(),
+          loadDraftImages(),
+        ]);
+        if (cancelled) return;
+        if (settings) {
+          const s = settings as Record<string, unknown>;
+          if (typeof s.aspect === "string") setAspect(s.aspect as AspectKey);
+          if (typeof s.perImageDuration === "number") setPerImageDuration(s.perImageDuration);
+          if (typeof s.defaultMotion === "string") setDefaultMotion(s.defaultMotion as MotionKind);
+          if (typeof s.defaultTransition === "string") setDefaultTransition(s.defaultTransition as TransitionKind);
+          if (typeof s.transitionMs === "number") setTransitionMs(s.transitionMs);
+          if (typeof s.transitionEasing === "string") setTransitionEasing(s.transitionEasing as EasingKind);
+          if (typeof s.script === "string") setScript(s.script);
+          if (typeof s.provider === "string") setProvider(s.provider as TtsProvider);
+          if (typeof s.voice === "string") setVoice(s.voice);
+          if (typeof s.model === "string") setModel(s.model);
+          if (typeof s.captionsOn === "boolean") setCaptionsOn(s.captionsOn);
+          if (typeof s.captionStyle === "string") setCaptionStyle(s.captionStyle as CaptionStyle);
+          if (typeof s.captionPos === "string") setCaptionPos(s.captionPos as CaptionPosition);
+          if (typeof s.captionWords === "number") setCaptionWords(s.captionWords);
+          if (typeof s.captionSize === "number") setCaptionSize(s.captionSize);
+          if (typeof s.captionColor === "string") setCaptionColor(s.captionColor);
+          if (typeof s.captionAccent === "string") setCaptionAccent(s.captionAccent);
+          if (typeof s.captionFont === "string") setCaptionFont(s.captionFont);
+          if (typeof s.captionUppercase === "boolean") setCaptionUppercase(s.captionUppercase);
+          if (typeof s.captionWeight === "number") setCaptionWeight(s.captionWeight);
+          if (typeof s.captionMargin === "number") setCaptionMargin(s.captionMargin);
+          if (typeof s.captionStrokeWidth === "number") setCaptionStrokeWidth(s.captionStrokeWidth);
+          if (typeof s.captionBgOpacity === "number") setCaptionBgOpacity(s.captionBgOpacity);
+          if (typeof s.musicVolume === "number") setMusicVolume(s.musicVolume);
+          if (typeof s.voVolume === "number") setVoVolume(s.voVolume);
+        }
+        if (imgs.length) {
+          const restored: ImgItem[] = [];
+          for (const it of imgs) {
+            try {
+              const src = URL.createObjectURL(it.blob);
+              const bmp = await loadImageFromUrl(src);
+              restored.push({
+                id: it.id,
+                src,
+                bitmap: bmp,
+                name: it.name,
+                motion: it.motion as MotionKind,
+                transition: it.transition as TransitionKind,
+                blob: it.blob,
+              });
+            } catch {
+              /* skip broken entry */
+            }
+          }
+          if (!cancelled && restored.length) {
+            setImages(restored);
+            toast.success(`Restored draft (${restored.length} image${restored.length > 1 ? "s" : ""})`);
+          }
+        }
+      } finally {
+        if (!cancelled) hydratedRef.current = true;
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const dims = ASPECTS[aspect];
 
   const totalDuration = useMemo(() => {
