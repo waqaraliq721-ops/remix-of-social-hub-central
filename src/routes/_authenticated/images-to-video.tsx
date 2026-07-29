@@ -720,8 +720,28 @@ function ImagesToVideoPage() {
       const audio = new Audio(url);
       audio.addEventListener("loadedmetadata", () => {
         setVoDuration(audio.duration);
+        // Default span = whole file until silence analysis finishes.
+        setSpeechStart(0);
+        setSpeechEnd(audio.duration);
       });
       voAudioRef.current = audio;
+
+      // Detect leading/trailing silence so captions start with the first spoken word.
+      try {
+        const ab = await blob.arrayBuffer();
+        const AC: typeof AudioContext =
+          window.AudioContext ||
+          (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+        const ctx = new AC();
+        const buf = await ctx.decodeAudioData(ab.slice(0));
+        const { start, end } = detectSpeechSpan(buf);
+        setSpeechStart(start);
+        setSpeechEnd(end);
+        ctx.close().catch(() => {});
+      } catch {
+        // Silence detection is best-effort — fall back to full-file range.
+      }
+
       toast.success("Voiceover ready — now generate captions to sync them");
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : "TTS failed");
