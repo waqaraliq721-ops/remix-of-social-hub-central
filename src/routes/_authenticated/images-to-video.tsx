@@ -207,15 +207,17 @@ function loadImageFromUrl(src: string): Promise<HTMLImageElement> {
   });
 }
 
-/** Split script into caption chunks with weights based on word/char counts. */
+/** Split script into caption chunks with weights based on syllable counts. */
 function buildCaptionChunks(script: string, wordsPer: number) {
   const words = script.replace(/\s+/g, " ").trim().split(" ").filter(Boolean);
   const chunks: { text: string; weight: number }[] = [];
   for (let i = 0; i < words.length; i += wordsPer) {
     const slice = words.slice(i, i + wordsPer);
     const text = slice.join(" ");
-    // weight by character count (roughly proportional to spoken duration)
-    chunks.push({ text, weight: Math.max(1, text.length) });
+    // syllables ~ spoken duration; add small trailing-punctuation pause
+    const syll = slice.reduce((s, w) => s + estimateSyllables(w), 0);
+    const pausePad = /[,.;:!?]$/.test(text) ? 0.6 : 0;
+    chunks.push({ text, weight: Math.max(0.5, syll + pausePad) });
   }
   return chunks;
 }
