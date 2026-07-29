@@ -1058,6 +1058,19 @@ function ImagesToVideoPage() {
                 </div>
                 <Slider min={150} max={1500} step={50} value={[transitionMs]} onValueChange={(v) => setTransitionMs(v[0])} />
               </div>
+              <div>
+                <Label className="mb-1 block text-[11px]">Transition easing</Label>
+                <Select value={transitionEasing} onValueChange={(v) => setTransitionEasing(v as EasingKind)}>
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {EASING_OPTIONS.map((o) => (
+                      <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
             <div className="max-h-[540px] space-y-2 overflow-y-auto pr-1">
