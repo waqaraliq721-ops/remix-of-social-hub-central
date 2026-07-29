@@ -607,13 +607,51 @@ function ImagesToVideoPage() {
             drawImageWithMotion(ctx, img, local, cw, ch);
             drawImageWithMotion(ctx, nextImg, 0, cw, ch, { alpha: p });
             break;
+          case "cross-blur":
+            drawImageWithMotion(ctx, img, local, cw, ch, { alpha: 1 - p, blur: 10 * p });
+            drawImageWithMotion(ctx, nextImg, 0, cw, ch, { alpha: p, blur: 10 * (1 - p) });
+            break;
           case "slide":
             drawImageWithMotion(ctx, img, local, cw, ch, { ox: -cw * p });
             drawImageWithMotion(ctx, nextImg, 0, cw, ch, { ox: cw * (1 - p) });
             break;
+          case "slide-right":
+            drawImageWithMotion(ctx, img, local, cw, ch, { ox: cw * p });
+            drawImageWithMotion(ctx, nextImg, 0, cw, ch, { ox: -cw * (1 - p) });
+            break;
           case "slide-up":
             drawImageWithMotion(ctx, img, local, cw, ch, { oy: -ch * p });
             drawImageWithMotion(ctx, nextImg, 0, cw, ch, { oy: ch * (1 - p) });
+            break;
+          case "slide-down":
+            drawImageWithMotion(ctx, img, local, cw, ch, { oy: ch * p });
+            drawImageWithMotion(ctx, nextImg, 0, cw, ch, { oy: -ch * (1 - p) });
+            break;
+          case "push-up":
+            // Outgoing slides up, incoming rises into place — no gap.
+            drawImageWithMotion(ctx, img, local, cw, ch, { oy: -ch * p });
+            drawImageWithMotion(ctx, nextImg, 0, cw, ch, { oy: ch * (1 - p), scaleMul: 0.95 + 0.05 * p });
+            break;
+          case "wipe-left":
+            drawImageWithMotion(ctx, img, local, cw, ch);
+            drawImageWithMotion(ctx, nextImg, 0, cw, ch, {
+              clip: (c) => c.rect(cw - cw * p, 0, cw * p, ch),
+            });
+            break;
+          case "wipe-right":
+            drawImageWithMotion(ctx, img, local, cw, ch);
+            drawImageWithMotion(ctx, nextImg, 0, cw, ch, {
+              clip: (c) => c.rect(0, 0, cw * p, ch),
+            });
+            break;
+          case "iris":
+            drawImageWithMotion(ctx, img, local, cw, ch);
+            drawImageWithMotion(ctx, nextImg, 0, cw, ch, {
+              clip: (c) => {
+                const r = Math.hypot(cw, ch) / 2 * p;
+                c.arc(cw / 2, ch / 2, Math.max(1, r), 0, Math.PI * 2);
+              },
+            });
             break;
           case "zoom-blur":
             drawImageWithMotion(ctx, img, local, cw, ch, {
@@ -625,6 +663,33 @@ function ImagesToVideoPage() {
               scaleMul: 1.3 - 0.3 * p,
               alpha: p,
               blur: 8 * (1 - p),
+            });
+            break;
+          case "whip": {
+            // Motion-blurred horizontal whip pan.
+            const dir = idx % 2 === 0 ? 1 : -1;
+            drawImageWithMotion(ctx, img, local, cw, ch, {
+              ox: -cw * p * dir,
+              blur: 14 * p,
+              alpha: 1 - p * 0.5,
+            });
+            drawImageWithMotion(ctx, nextImg, 0, cw, ch, {
+              ox: cw * (1 - p) * dir,
+              blur: 14 * (1 - p),
+              alpha: 0.5 + 0.5 * p,
+            });
+            break;
+          }
+          case "rotate-fade":
+            drawImageWithMotion(ctx, img, local, cw, ch, {
+              rotate: 0.15 * p,
+              scaleMul: 1 - 0.1 * p,
+              alpha: 1 - p,
+            });
+            drawImageWithMotion(ctx, nextImg, 0, cw, ch, {
+              rotate: -0.15 * (1 - p),
+              scaleMul: 0.9 + 0.1 * p,
+              alpha: p,
             });
             break;
           default:
