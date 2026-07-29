@@ -17,6 +17,7 @@ import {
   Captions,
   Volume2,
   Wand,
+  Shuffle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -205,6 +206,7 @@ function ImagesToVideoPage() {
   const [voVolume, setVoVolume] = useState(100);
 
   const [captionsOn, setCaptionsOn] = useState(true);
+  const [captionsGenerated, setCaptionsGenerated] = useState(false);
   const [captionStyle, setCaptionStyle] = useState<CaptionStyle>("pop");
   const [captionPos, setCaptionPos] = useState<CaptionPosition>("bottom");
   const [captionWords, setCaptionWords] = useState(3);
@@ -240,22 +242,22 @@ function ImagesToVideoPage() {
     return images.length * perImageDuration;
   }, [images.length, perImageDuration, voDuration]);
 
-  /** Captions scheduled by weight, aligned to voice-over span if present. */
+  /** Captions scheduled by weight, aligned to voice-over span. Only active once the
+   * user has generated captions from an existing voiceover. */
   const captionSchedule = useMemo(() => {
+    if (!captionsGenerated || voDuration <= 0) return [] as { start: number; end: number; text: string }[];
     const chunks = buildCaptionChunks(script, captionWords);
-    if (!chunks.length || totalDuration <= 0) return [] as { start: number; end: number; text: string }[];
+    if (!chunks.length) return [];
     const totalWeight = chunks.reduce((s, c) => s + c.weight, 0);
-    const span = voDuration > 0 ? voDuration : totalDuration;
-    const offset = 0;
-    let cursor = offset;
+    let cursor = 0;
     const out: { start: number; end: number; text: string }[] = [];
     for (const c of chunks) {
-      const dur = (c.weight / totalWeight) * span;
+      const dur = (c.weight / totalWeight) * voDuration;
       out.push({ start: cursor, end: cursor + dur, text: c.text });
       cursor += dur;
     }
     return out;
-  }, [script, captionWords, totalDuration, voDuration]);
+  }, [script, captionWords, voDuration, captionsGenerated]);
 
   // -------- Image loading --------
   const addFiles = useCallback(
@@ -309,6 +311,20 @@ function ImagesToVideoPage() {
 
   const applyTransitionToAll = (t: TransitionKind) =>
     setImages((prev) => prev.map((p) => ({ ...p, transition: t })));
+
+  const randomizeAll = () => {
+    // exclude "none" so randomization always produces visible motion/transitions
+    const motions = MOTION_OPTIONS.filter((o) => o.value !== "none").map((o) => o.value);
+    const transitions = TRANSITION_OPTIONS.filter((o) => o.value !== "none").map((o) => o.value);
+    setImages((prev) =>
+      prev.map((p) => ({
+        ...p,
+        motion: motions[Math.floor(Math.random() * motions.length)],
+        transition: transitions[Math.floor(Math.random() * transitions.length)],
+      })),
+    );
+    toast.success("Randomized motion & transitions");
+  };
 
   // -------- Rendering (draws image with motion, handles transition to next) --------
   const drawImageWithMotion = (
@@ -544,6 +560,11 @@ function ImagesToVideoPage() {
     ctx.closePath();
   }
 
+  // Re-sync required if script or chunking changes
+  useEffect(() => {
+    setCaptionsGenerated(false);
+  }, [script, captionWords]);
+
   // Redraw preview when paused-state deps change
   useEffect(() => {
     if (playing) return;
@@ -648,12 +669,13 @@ function ImagesToVideoPage() {
       const url = URL.createObjectURL(blob);
       if (voUrl) URL.revokeObjectURL(voUrl);
       setVoUrl(url);
+      setCaptionsGenerated(false); // require re-generate to match the new audio
       const audio = new Audio(url);
       audio.addEventListener("loadedmetadata", () => {
         setVoDuration(audio.duration);
       });
       voAudioRef.current = audio;
-      toast.success("Voiceover generated — captions now match its length");
+      toast.success("Voiceover ready — now generate captions to sync them");
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : "TTS failed");
     } finally {
@@ -665,7 +687,21 @@ function ImagesToVideoPage() {
     if (voUrl) URL.revokeObjectURL(voUrl);
     setVoUrl(null);
     setVoDuration(0);
+    setCaptionsGenerated(false);
     voAudioRef.current = null;
+  };
+
+  const generateCaptions = () => {
+    if (!voUrl || voDuration <= 0) {
+      toast("Generate a voiceover first — captions align to it");
+      return;
+    }
+    if (!script.trim()) {
+      toast("Write a script first");
+      return;
+    }
+    setCaptionsGenerated(true);
+    toast.success("Captions synced to voiceover");
   };
 
   // -------- Music --------
@@ -911,6 +947,15 @@ function ImagesToVideoPage() {
                   <Wand className="mr-1 h-3 w-3" /> Transition to all
                 </Button>
               </div>
+              <Button
+                size="sm"
+                variant="secondary"
+                className="h-7 w-full text-[11px]"
+                onClick={randomizeAll}
+                disabled={!images.length}
+              >
+                <Shuffle className="mr-1 h-3 w-3" /> Randomize each clip
+              </Button>
               <div>
                 <div className="mb-1 flex justify-between text-[11px]">
                   <Label>Transition length</Label>
@@ -1259,9 +1304,34 @@ function ImagesToVideoPage() {
             </CardHeader>
             <CardContent className="space-y-3">
               <p className="text-xs text-muted-foreground">
-                Captions come from your script. When a voiceover is generated they're timed to
-                match its length, with per-chunk weighting by word length.
+                Captions are generated <strong>after</strong> your voiceover so they line up
+                exactly with the spoken audio. Regenerate them any time the script or voiceover changes.
               </p>
+              <div className="flex items-center gap-2 rounded-lg border bg-muted/20 p-2">
+                <Button
+                  size="sm"
+                  onClick={generateCaptions}
+                  disabled={!voUrl || voDuration <= 0 || !script.trim()}
+                  className="flex-1"
+                >
+                  <Captions className="mr-1 h-3.5 w-3.5" />
+                  {captionsGenerated ? "Re-sync captions" : "Generate captions"}
+                </Button>
+                <span
+                  className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                    captionsGenerated
+                      ? "bg-emerald-500/15 text-emerald-500"
+                      : "bg-muted text-muted-foreground"
+                  }`}
+                >
+                  {captionsGenerated ? `Synced · ${voDuration.toFixed(1)}s` : "Not synced"}
+                </span>
+              </div>
+              {!voUrl && (
+                <p className="text-[10px] text-muted-foreground">
+                  Generate a voiceover in the panel above to enable captions.
+                </p>
+              )}
               <Tabs value={captionStyle} onValueChange={(v) => setCaptionStyle(v as CaptionStyle)}>
                 <TabsList className="grid w-full grid-cols-5">
                   <TabsTrigger value="pop" className="text-[11px]">Pop</TabsTrigger>
