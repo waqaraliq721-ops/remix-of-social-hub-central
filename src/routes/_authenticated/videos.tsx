@@ -1,7 +1,8 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Video, Wand2, Film, Mic, Sparkles, Upload, Clapperboard } from "lucide-react";
+
 
 export const Route = createFileRoute("/_authenticated/videos")({
   head: () => ({
@@ -43,12 +44,15 @@ function VideosPage() {
               connected platform. Pick the flow you want us to build first — we'll wire it up next.
             </p>
             <div className="mt-5 flex flex-wrap gap-2">
-              <Button disabled>
-                <Wand2 className="mr-1 h-4 w-4" /> Start a video
+              <Button asChild>
+                <Link to="/images-to-video">
+                  <Wand2 className="mr-1 h-4 w-4" /> Images to Video
+                </Link>
               </Button>
               <Button variant="outline" disabled>
                 <Upload className="mr-1 h-4 w-4" /> Upload footage
               </Button>
+
             </div>
           </div>
         </div>
