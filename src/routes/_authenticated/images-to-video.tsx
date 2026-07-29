@@ -1729,6 +1729,32 @@ function ImagesToVideoPage() {
                     </div>
                     <Slider min={0} max={100} step={1} value={[musicVolume]} onValueChange={(v) => setMusicVolume(v[0])} />
                   </div>
+                  {musicDuration > 0 && (
+                    <div>
+                      <div className="mb-1 flex justify-between text-xs">
+                        <Label>Trim (start / end)</Label>
+                        <span className="text-muted-foreground">
+                          {musicStart.toFixed(1)}s – {musicEnd.toFixed(1)}s
+                        </span>
+                      </div>
+                      <Slider
+                        min={0}
+                        max={musicDuration}
+                        step={0.1}
+                        value={[musicStart, musicEnd]}
+                        onValueChange={(v) => {
+                          const [s, e] = v;
+                          if (e - s >= 0.1) {
+                            setMusicStart(s);
+                            setMusicEnd(e);
+                          }
+                        }}
+                      />
+                      <p className="mt-1 text-[11px] text-muted-foreground">
+                        Music loops within this range for the full video ({totalDuration.toFixed(1)}s).
+                      </p>
+                    </div>
+                  )}
                   <Button variant="ghost" size="sm" onClick={clearMusic}>
                     <X className="mr-1 h-3 w-3" /> Remove
                   </Button>
