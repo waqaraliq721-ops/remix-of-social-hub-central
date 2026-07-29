@@ -16,6 +16,7 @@ import {
   MoveDown,
   Captions,
   Volume2,
+  Wand,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -49,11 +50,16 @@ export const Route = createFileRoute("/_authenticated/images-to-video")({
   component: ImagesToVideoPage,
 });
 
+type TransitionKind = "none" | "fade" | "slide" | "slide-up" | "zoom-blur";
+type MotionKind = "none" | "kenburns" | "zoom-in" | "zoom-out" | "pan-left" | "pan-right";
+
 type ImgItem = {
   id: string;
   src: string; // object URL
   bitmap: HTMLImageElement;
   name: string;
+  motion: MotionKind;
+  transition: TransitionKind; // transition OUT to next image
 };
 
 type AspectKey = "9:16" | "1:1" | "16:9";
@@ -63,10 +69,25 @@ const ASPECTS: Record<AspectKey, { w: number; h: number; label: string }> = {
   "16:9": { w: 1920, h: 1080, label: "Widescreen · YouTube" },
 };
 
-type TransitionKind = "none" | "fade" | "slide";
-type MotionKind = "none" | "kenburns" | "zoom-in" | "zoom-out";
 type CaptionPosition = "top" | "middle" | "bottom";
-type CaptionStyle = "pop" | "clean" | "bold" | "underline";
+type CaptionStyle = "pop" | "clean" | "bold" | "underline" | "karaoke";
+
+const MOTION_OPTIONS: { value: MotionKind; label: string }[] = [
+  { value: "none", label: "None" },
+  { value: "kenburns", label: "Ken Burns" },
+  { value: "zoom-in", label: "Zoom in" },
+  { value: "zoom-out", label: "Zoom out" },
+  { value: "pan-left", label: "Pan left" },
+  { value: "pan-right", label: "Pan right" },
+];
+
+const TRANSITION_OPTIONS: { value: TransitionKind; label: string }[] = [
+  { value: "none", label: "None" },
+  { value: "fade", label: "Fade" },
+  { value: "slide", label: "Slide" },
+  { value: "slide-up", label: "Slide up" },
+  { value: "zoom-blur", label: "Zoom" },
+];
 
 const VOICES = [
   { id: "alloy", label: "Alloy — neutral" },
@@ -83,6 +104,15 @@ const MODELS = [
   { id: "google/gemini-2.5-pro-tts", label: "Gemini 2.5 Pro TTS" },
 ];
 
+const CAPTION_FONTS = [
+  { id: "Inter, system-ui, sans-serif", label: "Inter" },
+  { id: "'Impact', 'Anton', system-ui, sans-serif", label: "Impact" },
+  { id: "'Poppins', system-ui, sans-serif", label: "Poppins" },
+  { id: "'Bebas Neue', Impact, sans-serif", label: "Bebas" },
+  { id: "Georgia, 'Times New Roman', serif", label: "Serif" },
+  { id: "'Courier New', monospace", label: "Mono" },
+];
+
 function uid() {
   return Math.random().toString(36).slice(2, 10);
 }
@@ -97,11 +127,15 @@ function loadImageFromUrl(src: string): Promise<HTMLImageElement> {
   });
 }
 
-function splitCaptions(script: string, wordsPer: number) {
+/** Split script into caption chunks with weights based on word/char counts. */
+function buildCaptionChunks(script: string, wordsPer: number) {
   const words = script.replace(/\s+/g, " ").trim().split(" ").filter(Boolean);
-  const chunks: string[] = [];
+  const chunks: { text: string; weight: number }[] = [];
   for (let i = 0; i < words.length; i += wordsPer) {
-    chunks.push(words.slice(i, i + wordsPer).join(" "));
+    const slice = words.slice(i, i + wordsPer);
+    const text = slice.join(" ");
+    // weight by character count (roughly proportional to spoken duration)
+    chunks.push({ text, weight: Math.max(1, text.length) });
   }
   return chunks;
 }
@@ -110,8 +144,8 @@ function ImagesToVideoPage() {
   const [images, setImages] = useState<ImgItem[]>([]);
   const [aspect, setAspect] = useState<AspectKey>("9:16");
   const [perImageDuration, setPerImageDuration] = useState(3);
-  const [motion, setMotion] = useState<MotionKind>("kenburns");
-  const [transition, setTransition] = useState<TransitionKind>("fade");
+  const [defaultMotion, setDefaultMotion] = useState<MotionKind>("kenburns");
+  const [defaultTransition, setDefaultTransition] = useState<TransitionKind>("fade");
   const [transitionMs, setTransitionMs] = useState(500);
 
   const [script, setScript] = useState("");
@@ -133,6 +167,12 @@ function ImagesToVideoPage() {
   const [captionSize, setCaptionSize] = useState(72);
   const [captionColor, setCaptionColor] = useState("#ffffff");
   const [captionAccent, setCaptionAccent] = useState("#c084fc");
+  const [captionFont, setCaptionFont] = useState(CAPTION_FONTS[0].id);
+  const [captionUppercase, setCaptionUppercase] = useState(true);
+  const [captionWeight, setCaptionWeight] = useState(800);
+  const [captionMargin, setCaptionMargin] = useState(140);
+  const [captionStrokeWidth, setCaptionStrokeWidth] = useState(12);
+  const [captionBgOpacity, setCaptionBgOpacity] = useState(100);
 
   const [playing, setPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -145,6 +185,8 @@ function ImagesToVideoPage() {
   const rafRef = useRef<number>(0);
   const startedAtRef = useRef<number>(0);
   const pausedAtRef = useRef<number>(0);
+  const timeRef = useRef<number>(0);
+  const drawRef = useRef<(canvas: HTMLCanvasElement, t: number) => void>(() => {});
 
   const dims = ASPECTS[aspect];
 
@@ -154,28 +196,48 @@ function ImagesToVideoPage() {
     return images.length * perImageDuration;
   }, [images.length, perImageDuration, voDuration]);
 
-  const captionChunks = useMemo(() => splitCaptions(script, captionWords), [script, captionWords]);
+  /** Captions scheduled by weight, aligned to voice-over span if present. */
   const captionSchedule = useMemo(() => {
-    if (!captionChunks.length || totalDuration <= 0) return [] as { start: number; end: number; text: string }[];
-    const per = totalDuration / captionChunks.length;
-    return captionChunks.map((text, i) => ({ start: i * per, end: (i + 1) * per, text }));
-  }, [captionChunks, totalDuration]);
+    const chunks = buildCaptionChunks(script, captionWords);
+    if (!chunks.length || totalDuration <= 0) return [] as { start: number; end: number; text: string }[];
+    const totalWeight = chunks.reduce((s, c) => s + c.weight, 0);
+    const span = voDuration > 0 ? voDuration : totalDuration;
+    const offset = 0;
+    let cursor = offset;
+    const out: { start: number; end: number; text: string }[] = [];
+    for (const c of chunks) {
+      const dur = (c.weight / totalWeight) * span;
+      out.push({ start: cursor, end: cursor + dur, text: c.text });
+      cursor += dur;
+    }
+    return out;
+  }, [script, captionWords, totalDuration, voDuration]);
 
   // -------- Image loading --------
-  const addFiles = useCallback(async (files: FileList | File[]) => {
-    const arr = Array.from(files).filter((f) => f.type.startsWith("image/"));
-    const items: ImgItem[] = [];
-    for (const f of arr) {
-      const src = URL.createObjectURL(f);
-      try {
-        const bmp = await loadImageFromUrl(src);
-        items.push({ id: uid(), src, bitmap: bmp, name: f.name });
-      } catch {
-        URL.revokeObjectURL(src);
+  const addFiles = useCallback(
+    async (files: FileList | File[]) => {
+      const arr = Array.from(files).filter((f) => f.type.startsWith("image/"));
+      const items: ImgItem[] = [];
+      for (const f of arr) {
+        const src = URL.createObjectURL(f);
+        try {
+          const bmp = await loadImageFromUrl(src);
+          items.push({
+            id: uid(),
+            src,
+            bitmap: bmp,
+            name: f.name,
+            motion: defaultMotion,
+            transition: defaultTransition,
+          });
+        } catch {
+          URL.revokeObjectURL(src);
+        }
       }
-    }
-    if (items.length) setImages((prev) => [...prev, ...items]);
-  }, []);
+      if (items.length) setImages((prev) => [...prev, ...items]);
+    },
+    [defaultMotion, defaultTransition],
+  );
 
   const removeImage = (id: string) =>
     setImages((prev) => {
@@ -195,7 +257,65 @@ function ImagesToVideoPage() {
       return next;
     });
 
-  // -------- Rendering --------
+  const updateImage = (id: string, patch: Partial<ImgItem>) =>
+    setImages((prev) => prev.map((p) => (p.id === id ? { ...p, ...patch } : p)));
+
+  const applyMotionToAll = (m: MotionKind) =>
+    setImages((prev) => prev.map((p) => ({ ...p, motion: m })));
+
+  const applyTransitionToAll = (t: TransitionKind) =>
+    setImages((prev) => prev.map((p) => ({ ...p, transition: t })));
+
+  // -------- Rendering (draws image with motion, handles transition to next) --------
+  const drawImageWithMotion = (
+    ctx: CanvasRenderingContext2D,
+    img: ImgItem,
+    local: number,
+    cw: number,
+    ch: number,
+    extra: { ox?: number; oy?: number; scaleMul?: number; alpha?: number; blur?: number } = {},
+  ) => {
+    let scale = 1;
+    let mx = 0;
+    let my = 0;
+    switch (img.motion) {
+      case "kenburns":
+        scale = 1.05 + 0.12 * local;
+        mx = -40 * local;
+        my = -30 * local;
+        break;
+      case "zoom-in":
+        scale = 1 + 0.18 * local;
+        break;
+      case "zoom-out":
+        scale = 1.18 - 0.18 * local;
+        break;
+      case "pan-left":
+        scale = 1.1;
+        mx = 60 * (0.5 - local);
+        break;
+      case "pan-right":
+        scale = 1.1;
+        mx = -60 * (0.5 - local);
+        break;
+    }
+    scale *= extra.scaleMul ?? 1;
+
+    const iw = img.bitmap.naturalWidth;
+    const ih = img.bitmap.naturalHeight;
+    const ratio = Math.max(cw / iw, ch / ih) * scale;
+    const dw = iw * ratio;
+    const dh = ih * ratio;
+    const dx = (cw - dw) / 2 + mx + (extra.ox ?? 0);
+    const dy = (ch - dh) / 2 + my + (extra.oy ?? 0);
+
+    ctx.save();
+    if (extra.alpha !== undefined) ctx.globalAlpha = extra.alpha;
+    if (extra.blur) ctx.filter = `blur(${extra.blur}px)`;
+    ctx.drawImage(img.bitmap, dx, dy, dw, dh);
+    ctx.restore();
+  };
+
   const drawFrame = useCallback(
     (canvas: HTMLCanvasElement, t: number) => {
       const ctx = canvas.getContext("2d");
@@ -208,119 +328,167 @@ function ImagesToVideoPage() {
       const idx = Math.min(images.length - 1, Math.floor(t / per));
       const local = (t - idx * per) / per; // 0..1
       const img = images[idx];
-
-      // Motion effect: scale factor and offset
-      let scale = 1;
-      let ox = 0;
-      let oy = 0;
-      if (motion === "kenburns") {
-        scale = 1 + 0.12 * local;
-        ox = (idx % 2 === 0 ? -1 : 1) * 40 * local;
-        oy = -30 * local;
-      } else if (motion === "zoom-in") {
-        scale = 1 + 0.15 * local;
-      } else if (motion === "zoom-out") {
-        scale = 1.15 - 0.15 * local;
-      }
-
-      // Cover-fit
+      const transDur = transitionMs / 1000;
       const cw = canvas.width;
       const ch = canvas.height;
-      const iw = img.bitmap.naturalWidth;
-      const ih = img.bitmap.naturalHeight;
-      const ratio = Math.max(cw / iw, ch / ih) * scale;
-      const dw = iw * ratio;
-      const dh = ih * ratio;
-      const dx = (cw - dw) / 2 + ox;
-      const dy = (ch - dh) / 2 + oy;
 
-      ctx.save();
-      // Transition: fade with previous image at end of clip
-      const transDur = transitionMs / 1000;
-      if (transition === "fade" && idx < images.length - 1 && per - (t - idx * per) < transDur) {
-        const nextImg = images[idx + 1];
-        const fadeProgress = 1 - (per - (t - idx * per)) / transDur;
-        ctx.globalAlpha = 1;
-        ctx.drawImage(img.bitmap, dx, dy, dw, dh);
-        const niw = nextImg.bitmap.naturalWidth;
-        const nih = nextImg.bitmap.naturalHeight;
-        const nratio = Math.max(cw / niw, ch / nih);
-        const ndw = niw * nratio;
-        const ndh = nih * nratio;
-        ctx.globalAlpha = fadeProgress;
-        ctx.drawImage(nextImg.bitmap, (cw - ndw) / 2, (ch - ndh) / 2, ndw, ndh);
-        ctx.globalAlpha = 1;
-      } else if (transition === "slide" && idx < images.length - 1 && per - (t - idx * per) < transDur) {
-        const nextImg = images[idx + 1];
-        const p = 1 - (per - (t - idx * per)) / transDur;
-        ctx.drawImage(img.bitmap, dx - cw * p, dy, dw, dh);
-        const niw = nextImg.bitmap.naturalWidth;
-        const nih = nextImg.bitmap.naturalHeight;
-        const nratio = Math.max(cw / niw, ch / nih);
-        const ndw = niw * nratio;
-        const ndh = nih * nratio;
-        ctx.drawImage(nextImg.bitmap, cw + (cw - ndw) / 2 - cw * p, (ch - ndh) / 2, ndw, ndh);
+      const remaining = per - (t - idx * per);
+      const inTransition =
+        idx < images.length - 1 && remaining < transDur && img.transition !== "none";
+      const p = inTransition ? 1 - remaining / transDur : 0; // 0..1 across transition
+
+      if (!inTransition) {
+        drawImageWithMotion(ctx, img, local, cw, ch);
       } else {
-        ctx.drawImage(img.bitmap, dx, dy, dw, dh);
+        const nextImg = images[idx + 1];
+        switch (img.transition) {
+          case "fade":
+            drawImageWithMotion(ctx, img, local, cw, ch);
+            drawImageWithMotion(ctx, nextImg, 0, cw, ch, { alpha: p });
+            break;
+          case "slide":
+            drawImageWithMotion(ctx, img, local, cw, ch, { ox: -cw * p });
+            drawImageWithMotion(ctx, nextImg, 0, cw, ch, { ox: cw * (1 - p) });
+            break;
+          case "slide-up":
+            drawImageWithMotion(ctx, img, local, cw, ch, { oy: -ch * p });
+            drawImageWithMotion(ctx, nextImg, 0, cw, ch, { oy: ch * (1 - p) });
+            break;
+          case "zoom-blur":
+            drawImageWithMotion(ctx, img, local, cw, ch, {
+              scaleMul: 1 + 0.3 * p,
+              alpha: 1 - p,
+              blur: 8 * p,
+            });
+            drawImageWithMotion(ctx, nextImg, 0, cw, ch, {
+              scaleMul: 1.3 - 0.3 * p,
+              alpha: p,
+              blur: 8 * (1 - p),
+            });
+            break;
+          default:
+            drawImageWithMotion(ctx, img, local, cw, ch);
+        }
       }
-      ctx.restore();
 
       // Captions
       if (captionsOn && captionSchedule.length) {
         const active = captionSchedule.find((c) => t >= c.start && t < c.end);
         if (active) {
-          drawCaption(ctx, active.text, canvas.width, canvas.height);
+          const progress = (t - active.start) / Math.max(0.001, active.end - active.start);
+          drawCaption(ctx, active.text, cw, ch, progress);
         }
       }
     },
-    [images, totalDuration, motion, transition, transitionMs, captionsOn, captionSchedule],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [images, totalDuration, transitionMs, captionsOn, captionSchedule, captionStyle, captionPos, captionSize, captionColor, captionAccent, captionFont, captionUppercase, captionWeight, captionMargin, captionStrokeWidth, captionBgOpacity],
   );
 
+  // Keep latest drawFrame in a ref so the RAF loop is not recreated every state change.
+  useEffect(() => {
+    drawRef.current = drawFrame;
+  }, [drawFrame]);
+
   const drawCaption = useCallback(
-    (ctx: CanvasRenderingContext2D, text: string, w: number, h: number) => {
+    (ctx: CanvasRenderingContext2D, rawText: string, w: number, h: number, progress: number) => {
+      const text = captionUppercase ? rawText.toUpperCase() : rawText;
       const size = captionSize;
-      const paddingX = size * 0.6;
-      const paddingY = size * 0.35;
-      ctx.font = `800 ${size}px Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif`;
+      const paddingX = size * 0.55;
+      const paddingY = size * 0.32;
+      ctx.font = `${captionWeight} ${size}px ${captionFont}`;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       const metrics = ctx.measureText(text);
       const textW = metrics.width;
       const boxW = Math.min(w - 80, textW + paddingX * 2);
       const boxH = size + paddingY * 2;
-      let y = h - boxH - size;
-      if (captionPos === "top") y = size;
+      let y = h - boxH - captionMargin;
+      if (captionPos === "top") y = captionMargin;
       if (captionPos === "middle") y = (h - boxH) / 2;
       const x = (w - boxW) / 2;
+      const cx = w / 2;
+      const cy = y + boxH / 2;
+
+      // subtle pop-in scale for readability
+      const pop = Math.min(1, progress * 6);
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.scale(0.92 + 0.08 * pop, 0.92 + 0.08 * pop);
+      ctx.translate(-cx, -cy);
 
       if (captionStyle === "pop") {
-        ctx.fillStyle = captionAccent;
+        const bg = hexWithAlpha(captionAccent, captionBgOpacity / 100);
+        ctx.fillStyle = bg;
         roundRect(ctx, x, y, boxW, boxH, size * 0.25);
         ctx.fill();
         ctx.fillStyle = captionColor;
-        ctx.fillText(text, w / 2, y + boxH / 2);
+        ctx.fillText(text, cx, cy);
       } else if (captionStyle === "bold") {
-        ctx.lineWidth = size * 0.15;
+        ctx.lineWidth = captionStrokeWidth;
         ctx.strokeStyle = "#000";
-        ctx.strokeText(text, w / 2, y + boxH / 2);
+        ctx.lineJoin = "round";
+        ctx.strokeText(text, cx, cy);
         ctx.fillStyle = captionColor;
-        ctx.fillText(text, w / 2, y + boxH / 2);
+        ctx.fillText(text, cx, cy);
       } else if (captionStyle === "underline") {
+        if (captionBgOpacity > 0) {
+          ctx.fillStyle = hexWithAlpha("#000000", (captionBgOpacity / 100) * 0.4);
+          roundRect(ctx, x, y, boxW, boxH, size * 0.2);
+          ctx.fill();
+        }
         ctx.fillStyle = captionColor;
-        ctx.fillText(text, w / 2, y + boxH / 2);
+        ctx.fillText(text, cx, cy);
         ctx.strokeStyle = captionAccent;
         ctx.lineWidth = size * 0.08;
         ctx.beginPath();
-        ctx.moveTo(w / 2 - textW / 2, y + boxH / 2 + size * 0.55);
-        ctx.lineTo(w / 2 + textW / 2, y + boxH / 2 + size * 0.55);
+        ctx.moveTo(cx - textW / 2, cy + size * 0.55);
+        ctx.lineTo(cx + textW / 2, cy + size * 0.55);
         ctx.stroke();
+      } else if (captionStyle === "karaoke") {
+        // Word-by-word highlight across the chunk
+        const words = text.split(" ");
+        const activeIdx = Math.min(words.length - 1, Math.floor(progress * words.length));
+        const spaceW = ctx.measureText(" ").width;
+        const widths = words.map((wd) => ctx.measureText(wd).width);
+        const total = widths.reduce((s, wv) => s + wv, 0) + spaceW * (words.length - 1);
+        let cursor = cx - total / 2;
+        if (captionBgOpacity > 0) {
+          ctx.fillStyle = hexWithAlpha("#000000", (captionBgOpacity / 100) * 0.5);
+          roundRect(ctx, x, y, boxW, boxH, size * 0.2);
+          ctx.fill();
+        }
+        ctx.textAlign = "left";
+        for (let i = 0; i < words.length; i++) {
+          ctx.fillStyle = i <= activeIdx ? captionAccent : captionColor;
+          ctx.lineWidth = Math.max(4, captionStrokeWidth * 0.6);
+          ctx.strokeStyle = "#000";
+          ctx.lineJoin = "round";
+          ctx.strokeText(words[i], cursor, cy);
+          ctx.fillText(words[i], cursor, cy);
+          cursor += widths[i] + spaceW;
+        }
       } else {
+        // clean
+        if (captionBgOpacity > 0) {
+          ctx.fillStyle = hexWithAlpha("#000000", (captionBgOpacity / 100) * 0.55);
+          roundRect(ctx, x, y, boxW, boxH, size * 0.2);
+          ctx.fill();
+        }
         ctx.fillStyle = captionColor;
-        ctx.fillText(text, w / 2, y + boxH / 2);
+        ctx.fillText(text, cx, cy);
       }
+      ctx.restore();
     },
-    [captionAccent, captionColor, captionPos, captionSize, captionStyle],
+    [captionAccent, captionBgOpacity, captionColor, captionFont, captionMargin, captionPos, captionSize, captionStrokeWidth, captionStyle, captionUppercase, captionWeight],
   );
+
+  function hexWithAlpha(hex: string, alpha: number) {
+    const h = hex.replace("#", "");
+    const r = parseInt(h.slice(0, 2), 16);
+    const g = parseInt(h.slice(2, 4), 16);
+    const b = parseInt(h.slice(4, 6), 16);
+    return `rgba(${r},${g},${b},${alpha})`;
+  }
 
   function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
     ctx.beginPath();
@@ -332,23 +500,28 @@ function ImagesToVideoPage() {
     ctx.closePath();
   }
 
-  // Redraw preview when state changes
+  // Redraw preview when paused-state deps change
   useEffect(() => {
+    if (playing) return;
     const c = canvasRef.current;
     if (!c) return;
-    drawFrame(c, playing ? currentTime : Math.min(currentTime, totalDuration));
+    drawFrame(c, Math.min(currentTime, totalDuration));
   }, [drawFrame, currentTime, playing, totalDuration]);
 
-  // Playback loop
+  // Playback loop — draws directly and throttles React state updates for smoothness
   useEffect(() => {
     if (!playing) {
       cancelAnimationFrame(rafRef.current);
       return;
     }
     startedAtRef.current = performance.now() - pausedAtRef.current * 1000;
+    let lastUiUpdate = 0;
     const tick = () => {
       const t = (performance.now() - startedAtRef.current) / 1000;
+      timeRef.current = t;
       if (t >= totalDuration) {
+        const c = canvasRef.current;
+        if (c) drawRef.current(c, totalDuration);
         setCurrentTime(totalDuration);
         setPlaying(false);
         pausedAtRef.current = 0;
@@ -356,7 +529,13 @@ function ImagesToVideoPage() {
         if (musicAudioRef.current) musicAudioRef.current.pause();
         return;
       }
-      setCurrentTime(t);
+      const c = canvasRef.current;
+      if (c) drawRef.current(c, t);
+      // update slider ~10Hz to avoid re-render thrash
+      if (t - lastUiUpdate > 0.1) {
+        lastUiUpdate = t;
+        setCurrentTime(t);
+      }
       rafRef.current = requestAnimationFrame(tick);
     };
     rafRef.current = requestAnimationFrame(tick);
@@ -369,7 +548,8 @@ function ImagesToVideoPage() {
       return;
     }
     if (playing) {
-      pausedAtRef.current = currentTime;
+      pausedAtRef.current = timeRef.current;
+      setCurrentTime(timeRef.current);
       setPlaying(false);
       voAudioRef.current?.pause();
       musicAudioRef.current?.pause();
@@ -419,7 +599,7 @@ function ImagesToVideoPage() {
         setVoDuration(audio.duration);
       });
       voAudioRef.current = audio;
-      toast.success("Voiceover generated");
+      toast.success("Voiceover generated — captions now match its length");
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : "TTS failed");
     } finally {
@@ -470,7 +650,6 @@ function ImagesToVideoPage() {
       const fps = 30;
       const stream = c.captureStream(fps);
 
-      // Audio mix
       const AC: typeof AudioContext =
         (window as unknown as { AudioContext?: typeof AudioContext; webkitAudioContext?: typeof AudioContext })
           .AudioContext ||
@@ -533,7 +712,6 @@ function ImagesToVideoPage() {
         step();
       });
 
-      // Give recorder a beat to flush
       await new Promise((r) => setTimeout(r, 250));
       recorder.stop();
       sources.forEach((s) => {
@@ -564,7 +742,7 @@ function ImagesToVideoPage() {
     }
   };
 
-  // -------- Drag & drop for images --------
+  // -------- Drag & drop --------
   const [dragOver, setDragOver] = useState(false);
   const onDrop = (e: React.DragEvent) => {
     e.preventDefault();
@@ -581,8 +759,8 @@ function ImagesToVideoPage() {
           </div>
           <h1 className="text-3xl font-semibold tracking-tight">Images to Video</h1>
           <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-            Drop images, add an AI voiceover, layer background music and animated captions, then
-            export a ready-to-post short — all in your browser.
+            Drop images, tune motion &amp; transitions per clip, add an AI voiceover, layer music,
+            style your captions and export a ready-to-post short — all in your browser.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -601,13 +779,13 @@ function ImagesToVideoPage() {
         </div>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(280px,340px)_1fr_minmax(300px,380px)]">
-        {/* LEFT — Images */}
+      <div className="grid gap-4 lg:grid-cols-[minmax(320px,380px)_1fr_minmax(320px,400px)]">
+        {/* LEFT — Images with per-clip motion/transition */}
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center justify-between text-sm font-semibold uppercase tracking-wider text-muted-foreground">
               <span className="flex items-center gap-2">
-                <ImagePlus className="h-4 w-4" /> Images
+                <ImagePlus className="h-4 w-4" /> Clips
               </span>
               <span className="text-xs normal-case text-muted-foreground">{images.length}</span>
             </CardTitle>
@@ -638,47 +816,133 @@ function ImagesToVideoPage() {
               <div className="text-xs text-muted-foreground">Drag &amp; drop or click to browse</div>
             </label>
 
-            <div className="max-h-[520px] space-y-2 overflow-y-auto pr-1">
+            {/* Defaults + apply-to-all */}
+            <div className="rounded-lg border bg-muted/20 p-3 space-y-2">
+              <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Defaults (applied to new clips)
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <Label className="mb-1 block text-[11px]">Motion</Label>
+                  <Select value={defaultMotion} onValueChange={(v) => setDefaultMotion(v as MotionKind)}>
+                    <SelectTrigger className="h-8 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {MOTION_OPTIONS.map((o) => (
+                        <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label className="mb-1 block text-[11px]">Transition</Label>
+                  <Select value={defaultTransition} onValueChange={(v) => setDefaultTransition(v as TransitionKind)}>
+                    <SelectTrigger className="h-8 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {TRANSITION_OPTIONS.map((o) => (
+                        <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Button size="sm" variant="outline" className="h-7 flex-1 text-[11px]" onClick={() => applyMotionToAll(defaultMotion)} disabled={!images.length}>
+                  <Wand className="mr-1 h-3 w-3" /> Motion to all
+                </Button>
+                <Button size="sm" variant="outline" className="h-7 flex-1 text-[11px]" onClick={() => applyTransitionToAll(defaultTransition)} disabled={!images.length}>
+                  <Wand className="mr-1 h-3 w-3" /> Transition to all
+                </Button>
+              </div>
+              <div>
+                <div className="mb-1 flex justify-between text-[11px]">
+                  <Label>Transition length</Label>
+                  <span className="text-muted-foreground">{transitionMs}ms</span>
+                </div>
+                <Slider min={150} max={1500} step={50} value={[transitionMs]} onValueChange={(v) => setTransitionMs(v[0])} />
+              </div>
+            </div>
+
+            <div className="max-h-[540px] space-y-2 overflow-y-auto pr-1">
               {images.map((img, i) => (
                 <div
                   key={img.id}
-                  className="group flex items-center gap-2 rounded-lg border bg-card p-2"
+                  className="group rounded-lg border bg-card p-2 space-y-2"
                 >
-                  <img src={img.src} alt={img.name} className="h-14 w-14 rounded-md object-cover" />
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate text-xs font-medium">{img.name}</div>
-                    <div className="text-[10px] text-muted-foreground">#{i + 1}</div>
-                  </div>
-                  <div className="flex flex-col">
+                  <div className="flex items-center gap-2">
+                    <img src={img.src} alt={img.name} className="h-12 w-12 rounded-md object-cover" />
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-xs font-medium">{img.name}</div>
+                      <div className="text-[10px] text-muted-foreground">Clip #{i + 1}</div>
+                    </div>
+                    <div className="flex flex-col">
+                      <button
+                        className="p-1 text-muted-foreground hover:text-foreground disabled:opacity-30"
+                        onClick={() => move(img.id, -1)}
+                        disabled={i === 0}
+                        aria-label="Move up"
+                      >
+                        <MoveUp className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        className="p-1 text-muted-foreground hover:text-foreground disabled:opacity-30"
+                        onClick={() => move(img.id, 1)}
+                        disabled={i === images.length - 1}
+                        aria-label="Move down"
+                      >
+                        <MoveDown className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
                     <button
-                      className="p-1 text-muted-foreground hover:text-foreground disabled:opacity-30"
-                      onClick={() => move(img.id, -1)}
-                      disabled={i === 0}
-                      aria-label="Move up"
+                      className="p-1 text-muted-foreground hover:text-destructive"
+                      onClick={() => removeImage(img.id)}
+                      aria-label="Remove"
                     >
-                      <MoveUp className="h-3.5 w-3.5" />
-                    </button>
-                    <button
-                      className="p-1 text-muted-foreground hover:text-foreground disabled:opacity-30"
-                      onClick={() => move(img.id, 1)}
-                      disabled={i === images.length - 1}
-                      aria-label="Move down"
-                    >
-                      <MoveDown className="h-3.5 w-3.5" />
+                      <Trash2 className="h-4 w-4" />
                     </button>
                   </div>
-                  <button
-                    className="p-1 text-muted-foreground hover:text-destructive"
-                    onClick={() => removeImage(img.id)}
-                    aria-label="Remove"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <Label className="mb-1 block text-[10px] uppercase tracking-wider text-muted-foreground">Motion</Label>
+                      <Select value={img.motion} onValueChange={(v) => updateImage(img.id, { motion: v as MotionKind })}>
+                        <SelectTrigger className="h-8 text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {MOTION_OPTIONS.map((o) => (
+                            <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label className="mb-1 block text-[10px] uppercase tracking-wider text-muted-foreground">
+                        {i === images.length - 1 ? "Transition (last)" : "→ Next"}
+                      </Label>
+                      <Select
+                        value={img.transition}
+                        onValueChange={(v) => updateImage(img.id, { transition: v as TransitionKind })}
+                        disabled={i === images.length - 1}
+                      >
+                        <SelectTrigger className="h-8 text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {TRANSITION_OPTIONS.map((o) => (
+                            <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
                 </div>
               ))}
             </div>
 
-            <div className="space-y-3 border-t pt-3">
+            <div className="space-y-2 border-t pt-3">
               <div>
                 <div className="mb-1 flex justify-between text-xs">
                   <Label>Per-image duration</Label>
@@ -697,35 +961,6 @@ function ImagesToVideoPage() {
                     Auto-fit to voiceover ({voDuration.toFixed(1)}s)
                   </p>
                 )}
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <Label className="mb-1 block text-xs">Motion</Label>
-                  <Select value={motion} onValueChange={(v) => setMotion(v as MotionKind)}>
-                    <SelectTrigger className="h-9">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">None</SelectItem>
-                      <SelectItem value="kenburns">Ken Burns</SelectItem>
-                      <SelectItem value="zoom-in">Zoom in</SelectItem>
-                      <SelectItem value="zoom-out">Zoom out</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label className="mb-1 block text-xs">Transition</Label>
-                  <Select value={transition} onValueChange={(v) => setTransition(v as TransitionKind)}>
-                    <SelectTrigger className="h-9">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">None</SelectItem>
-                      <SelectItem value="fade">Fade</SelectItem>
-                      <SelectItem value="slide">Slide</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
               </div>
             </div>
           </CardContent>
@@ -772,6 +1007,7 @@ function ImagesToVideoPage() {
                     onValueChange={(v) => {
                       setCurrentTime(v[0]);
                       pausedAtRef.current = v[0];
+                      timeRef.current = v[0];
                       if (voAudioRef.current) voAudioRef.current.currentTime = Math.min(v[0], voAudioRef.current.duration || 0);
                     }}
                   />
@@ -946,14 +1182,16 @@ function ImagesToVideoPage() {
             </CardHeader>
             <CardContent className="space-y-3">
               <p className="text-xs text-muted-foreground">
-                Captions are generated from your script and timed across the video.
+                Captions come from your script. When a voiceover is generated they're timed to
+                match its length, with per-chunk weighting by word length.
               </p>
               <Tabs value={captionStyle} onValueChange={(v) => setCaptionStyle(v as CaptionStyle)}>
-                <TabsList className="grid w-full grid-cols-4">
-                  <TabsTrigger value="pop">Pop</TabsTrigger>
-                  <TabsTrigger value="clean">Clean</TabsTrigger>
-                  <TabsTrigger value="bold">Bold</TabsTrigger>
-                  <TabsTrigger value="underline">Under</TabsTrigger>
+                <TabsList className="grid w-full grid-cols-5">
+                  <TabsTrigger value="pop" className="text-[11px]">Pop</TabsTrigger>
+                  <TabsTrigger value="clean" className="text-[11px]">Clean</TabsTrigger>
+                  <TabsTrigger value="bold" className="text-[11px]">Bold</TabsTrigger>
+                  <TabsTrigger value="underline" className="text-[11px]">Under</TabsTrigger>
+                  <TabsTrigger value="karaoke" className="text-[11px]">Karaoke</TabsTrigger>
                 </TabsList>
                 <TabsContent value={captionStyle} />
               </Tabs>
@@ -972,7 +1210,22 @@ function ImagesToVideoPage() {
                   </Select>
                 </div>
                 <div>
-                  <Label className="mb-1 block text-xs">Words per caption</Label>
+                  <Label className="mb-1 block text-xs">Font</Label>
+                  <Select value={captionFont} onValueChange={setCaptionFont}>
+                    <SelectTrigger className="h-9">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {CAPTION_FONTS.map((f) => (
+                        <SelectItem key={f.id} value={f.id}>{f.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <Label className="mb-1 block text-xs">Words / caption</Label>
                   <Input
                     type="number"
                     min={1}
@@ -982,13 +1235,52 @@ function ImagesToVideoPage() {
                     className="h-9"
                   />
                 </div>
+                <div>
+                  <Label className="mb-1 block text-xs">Weight</Label>
+                  <Select value={String(captionWeight)} onValueChange={(v) => setCaptionWeight(Number(v))}>
+                    <SelectTrigger className="h-9">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="500">Medium</SelectItem>
+                      <SelectItem value="700">Bold</SelectItem>
+                      <SelectItem value="800">Extrabold</SelectItem>
+                      <SelectItem value="900">Black</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
               <div>
                 <div className="mb-1 flex justify-between text-xs">
                   <Label>Font size</Label>
                   <span className="text-muted-foreground">{captionSize}px</span>
                 </div>
-                <Slider min={32} max={140} step={2} value={[captionSize]} onValueChange={(v) => setCaptionSize(v[0])} />
+                <Slider min={32} max={160} step={2} value={[captionSize]} onValueChange={(v) => setCaptionSize(v[0])} />
+              </div>
+              <div>
+                <div className="mb-1 flex justify-between text-xs">
+                  <Label>Margin from edge</Label>
+                  <span className="text-muted-foreground">{captionMargin}px</span>
+                </div>
+                <Slider min={20} max={400} step={10} value={[captionMargin]} onValueChange={(v) => setCaptionMargin(v[0])} />
+              </div>
+              <div>
+                <div className="mb-1 flex justify-between text-xs">
+                  <Label>Outline width</Label>
+                  <span className="text-muted-foreground">{captionStrokeWidth}px</span>
+                </div>
+                <Slider min={0} max={30} step={1} value={[captionStrokeWidth]} onValueChange={(v) => setCaptionStrokeWidth(v[0])} />
+              </div>
+              <div>
+                <div className="mb-1 flex justify-between text-xs">
+                  <Label>Background opacity</Label>
+                  <span className="text-muted-foreground">{captionBgOpacity}%</span>
+                </div>
+                <Slider min={0} max={100} step={5} value={[captionBgOpacity]} onValueChange={(v) => setCaptionBgOpacity(v[0])} />
+              </div>
+              <div className="flex items-center justify-between rounded-md border bg-muted/20 p-2">
+                <Label className="text-xs">UPPERCASE</Label>
+                <Switch checked={captionUppercase} onCheckedChange={setCaptionUppercase} />
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div>
