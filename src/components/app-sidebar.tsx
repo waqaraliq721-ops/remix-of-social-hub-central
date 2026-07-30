@@ -1,5 +1,5 @@
 import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
-import { LayoutDashboard, PenSquare, CalendarDays, BarChart3, Inbox, PlugZap, LogOut, Sparkles, Video, Music4 } from "lucide-react";
+import { LayoutDashboard, PenSquare, CalendarDays, BarChart3, Inbox, PlugZap, LogOut, Sparkles, Video, Music4, Quote } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Sidebar,
