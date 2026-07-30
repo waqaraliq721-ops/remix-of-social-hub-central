@@ -15,7 +15,9 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiTtsGoogleRouteImport } from './routes/api/tts-google'
 import { Route as ApiTtsElevenlabsRouteImport } from './routes/api/tts-elevenlabs'
 import { Route as ApiTtsRouteImport } from './routes/api/tts'
+import { Route as ApiTranscribeRouteImport } from './routes/api/transcribe'
 import { Route as AuthenticatedVideosRouteImport } from './routes/_authenticated/videos'
+import { Route as AuthenticatedMotivationalVideosRouteImport } from './routes/_authenticated/motivational-videos'
 import { Route as AuthenticatedLyricalVideosRouteImport } from './routes/_authenticated/lyrical-videos'
 import { Route as AuthenticatedInboxRouteImport } from './routes/_authenticated/inbox'
 import { Route as AuthenticatedImagesToVideoRouteImport } from './routes/_authenticated/images-to-video'
@@ -54,11 +56,22 @@ const ApiTtsRoute = ApiTtsRouteImport.update({
   path: '/api/tts',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiTranscribeRoute = ApiTranscribeRouteImport.update({
+  id: '/api/transcribe',
+  path: '/api/transcribe',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedVideosRoute = AuthenticatedVideosRouteImport.update({
   id: '/videos',
   path: '/videos',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedMotivationalVideosRoute =
+  AuthenticatedMotivationalVideosRouteImport.update({
+    id: '/motivational-videos',
+    path: '/motivational-videos',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedLyricalVideosRoute =
   AuthenticatedLyricalVideosRouteImport.update({
     id: '/lyrical-videos',
@@ -113,7 +126,9 @@ export interface FileRoutesByFullPath {
   '/images-to-video': typeof AuthenticatedImagesToVideoRoute
   '/inbox': typeof AuthenticatedInboxRoute
   '/lyrical-videos': typeof AuthenticatedLyricalVideosRoute
+  '/motivational-videos': typeof AuthenticatedMotivationalVideosRoute
   '/videos': typeof AuthenticatedVideosRoute
+  '/api/transcribe': typeof ApiTranscribeRoute
   '/api/tts': typeof ApiTtsRoute
   '/api/tts-elevenlabs': typeof ApiTtsElevenlabsRoute
   '/api/tts-google': typeof ApiTtsGoogleRoute
@@ -129,7 +144,9 @@ export interface FileRoutesByTo {
   '/images-to-video': typeof AuthenticatedImagesToVideoRoute
   '/inbox': typeof AuthenticatedInboxRoute
   '/lyrical-videos': typeof AuthenticatedLyricalVideosRoute
+  '/motivational-videos': typeof AuthenticatedMotivationalVideosRoute
   '/videos': typeof AuthenticatedVideosRoute
+  '/api/transcribe': typeof ApiTranscribeRoute
   '/api/tts': typeof ApiTtsRoute
   '/api/tts-elevenlabs': typeof ApiTtsElevenlabsRoute
   '/api/tts-google': typeof ApiTtsGoogleRoute
@@ -147,7 +164,9 @@ export interface FileRoutesById {
   '/_authenticated/images-to-video': typeof AuthenticatedImagesToVideoRoute
   '/_authenticated/inbox': typeof AuthenticatedInboxRoute
   '/_authenticated/lyrical-videos': typeof AuthenticatedLyricalVideosRoute
+  '/_authenticated/motivational-videos': typeof AuthenticatedMotivationalVideosRoute
   '/_authenticated/videos': typeof AuthenticatedVideosRoute
+  '/api/transcribe': typeof ApiTranscribeRoute
   '/api/tts': typeof ApiTtsRoute
   '/api/tts-elevenlabs': typeof ApiTtsElevenlabsRoute
   '/api/tts-google': typeof ApiTtsGoogleRoute
@@ -165,7 +184,9 @@ export interface FileRouteTypes {
     | '/images-to-video'
     | '/inbox'
     | '/lyrical-videos'
+    | '/motivational-videos'
     | '/videos'
+    | '/api/transcribe'
     | '/api/tts'
     | '/api/tts-elevenlabs'
     | '/api/tts-google'
@@ -181,7 +202,9 @@ export interface FileRouteTypes {
     | '/images-to-video'
     | '/inbox'
     | '/lyrical-videos'
+    | '/motivational-videos'
     | '/videos'
+    | '/api/transcribe'
     | '/api/tts'
     | '/api/tts-elevenlabs'
     | '/api/tts-google'
@@ -198,7 +221,9 @@ export interface FileRouteTypes {
     | '/_authenticated/images-to-video'
     | '/_authenticated/inbox'
     | '/_authenticated/lyrical-videos'
+    | '/_authenticated/motivational-videos'
     | '/_authenticated/videos'
+    | '/api/transcribe'
     | '/api/tts'
     | '/api/tts-elevenlabs'
     | '/api/tts-google'
@@ -208,6 +233,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
+  ApiTranscribeRoute: typeof ApiTranscribeRoute
   ApiTtsRoute: typeof ApiTtsRoute
   ApiTtsElevenlabsRoute: typeof ApiTtsElevenlabsRoute
   ApiTtsGoogleRoute: typeof ApiTtsGoogleRoute
@@ -257,11 +283,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiTtsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/transcribe': {
+      id: '/api/transcribe'
+      path: '/api/transcribe'
+      fullPath: '/api/transcribe'
+      preLoaderRoute: typeof ApiTranscribeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/videos': {
       id: '/_authenticated/videos'
       path: '/videos'
       fullPath: '/videos'
       preLoaderRoute: typeof AuthenticatedVideosRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/motivational-videos': {
+      id: '/_authenticated/motivational-videos'
+      path: '/motivational-videos'
+      fullPath: '/motivational-videos'
+      preLoaderRoute: typeof AuthenticatedMotivationalVideosRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/lyrical-videos': {
@@ -332,6 +372,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedImagesToVideoRoute: typeof AuthenticatedImagesToVideoRoute
   AuthenticatedInboxRoute: typeof AuthenticatedInboxRoute
   AuthenticatedLyricalVideosRoute: typeof AuthenticatedLyricalVideosRoute
+  AuthenticatedMotivationalVideosRoute: typeof AuthenticatedMotivationalVideosRoute
   AuthenticatedVideosRoute: typeof AuthenticatedVideosRoute
 }
 
@@ -344,6 +385,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedImagesToVideoRoute: AuthenticatedImagesToVideoRoute,
   AuthenticatedInboxRoute: AuthenticatedInboxRoute,
   AuthenticatedLyricalVideosRoute: AuthenticatedLyricalVideosRoute,
+  AuthenticatedMotivationalVideosRoute: AuthenticatedMotivationalVideosRoute,
   AuthenticatedVideosRoute: AuthenticatedVideosRoute,
 }
 
@@ -354,6 +396,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
+  ApiTranscribeRoute: ApiTranscribeRoute,
   ApiTtsRoute: ApiTtsRoute,
   ApiTtsElevenlabsRoute: ApiTtsElevenlabsRoute,
   ApiTtsGoogleRoute: ApiTtsGoogleRoute,

@@ -1,5 +1,5 @@
 import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
-import { LayoutDashboard, PenSquare, CalendarDays, BarChart3, Inbox, PlugZap, LogOut, Sparkles, Video, Music4 } from "lucide-react";
+import { LayoutDashboard, PenSquare, CalendarDays, BarChart3, Inbox, PlugZap, LogOut, Sparkles, Video, Music4, Quote } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Sidebar,
@@ -22,6 +22,8 @@ const items = [
   { title: "Videos", url: "/videos", icon: Video },
   { title: "Images to Video", url: "/images-to-video", icon: Video },
   { title: "Lyrical Videos", url: "/lyrical-videos", icon: Music4 },
+  { title: "Motivational Videos", url: "/motivational-videos", icon: Quote },
+
   { title: "Calendar", url: "/calendar", icon: CalendarDays },
   { title: "Analytics", url: "/analytics", icon: BarChart3 },
   { title: "Inbox", url: "/inbox", icon: Inbox },
