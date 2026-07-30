@@ -15,6 +15,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiTtsGoogleRouteImport } from './routes/api/tts-google'
 import { Route as ApiTtsElevenlabsRouteImport } from './routes/api/tts-elevenlabs'
 import { Route as ApiTtsRouteImport } from './routes/api/tts'
+import { Route as ApiTranscribeRouteImport } from './routes/api/transcribe'
 import { Route as AuthenticatedVideosRouteImport } from './routes/_authenticated/videos'
 import { Route as AuthenticatedLyricalVideosRouteImport } from './routes/_authenticated/lyrical-videos'
 import { Route as AuthenticatedInboxRouteImport } from './routes/_authenticated/inbox'
@@ -52,6 +53,11 @@ const ApiTtsElevenlabsRoute = ApiTtsElevenlabsRouteImport.update({
 const ApiTtsRoute = ApiTtsRouteImport.update({
   id: '/api/tts',
   path: '/api/tts',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiTranscribeRoute = ApiTranscribeRouteImport.update({
+  id: '/api/transcribe',
+  path: '/api/transcribe',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedVideosRoute = AuthenticatedVideosRouteImport.update({
@@ -114,6 +120,7 @@ export interface FileRoutesByFullPath {
   '/inbox': typeof AuthenticatedInboxRoute
   '/lyrical-videos': typeof AuthenticatedLyricalVideosRoute
   '/videos': typeof AuthenticatedVideosRoute
+  '/api/transcribe': typeof ApiTranscribeRoute
   '/api/tts': typeof ApiTtsRoute
   '/api/tts-elevenlabs': typeof ApiTtsElevenlabsRoute
   '/api/tts-google': typeof ApiTtsGoogleRoute
@@ -130,6 +137,7 @@ export interface FileRoutesByTo {
   '/inbox': typeof AuthenticatedInboxRoute
   '/lyrical-videos': typeof AuthenticatedLyricalVideosRoute
   '/videos': typeof AuthenticatedVideosRoute
+  '/api/transcribe': typeof ApiTranscribeRoute
   '/api/tts': typeof ApiTtsRoute
   '/api/tts-elevenlabs': typeof ApiTtsElevenlabsRoute
   '/api/tts-google': typeof ApiTtsGoogleRoute
@@ -148,6 +156,7 @@ export interface FileRoutesById {
   '/_authenticated/inbox': typeof AuthenticatedInboxRoute
   '/_authenticated/lyrical-videos': typeof AuthenticatedLyricalVideosRoute
   '/_authenticated/videos': typeof AuthenticatedVideosRoute
+  '/api/transcribe': typeof ApiTranscribeRoute
   '/api/tts': typeof ApiTtsRoute
   '/api/tts-elevenlabs': typeof ApiTtsElevenlabsRoute
   '/api/tts-google': typeof ApiTtsGoogleRoute
@@ -166,6 +175,7 @@ export interface FileRouteTypes {
     | '/inbox'
     | '/lyrical-videos'
     | '/videos'
+    | '/api/transcribe'
     | '/api/tts'
     | '/api/tts-elevenlabs'
     | '/api/tts-google'
@@ -182,6 +192,7 @@ export interface FileRouteTypes {
     | '/inbox'
     | '/lyrical-videos'
     | '/videos'
+    | '/api/transcribe'
     | '/api/tts'
     | '/api/tts-elevenlabs'
     | '/api/tts-google'
@@ -199,6 +210,7 @@ export interface FileRouteTypes {
     | '/_authenticated/inbox'
     | '/_authenticated/lyrical-videos'
     | '/_authenticated/videos'
+    | '/api/transcribe'
     | '/api/tts'
     | '/api/tts-elevenlabs'
     | '/api/tts-google'
@@ -208,6 +220,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
+  ApiTranscribeRoute: typeof ApiTranscribeRoute
   ApiTtsRoute: typeof ApiTtsRoute
   ApiTtsElevenlabsRoute: typeof ApiTtsElevenlabsRoute
   ApiTtsGoogleRoute: typeof ApiTtsGoogleRoute
@@ -255,6 +268,13 @@ declare module '@tanstack/react-router' {
       path: '/api/tts'
       fullPath: '/api/tts'
       preLoaderRoute: typeof ApiTtsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/transcribe': {
+      id: '/api/transcribe'
+      path: '/api/transcribe'
+      fullPath: '/api/transcribe'
+      preLoaderRoute: typeof ApiTranscribeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/videos': {
@@ -354,6 +374,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
+  ApiTranscribeRoute: ApiTranscribeRoute,
   ApiTtsRoute: ApiTtsRoute,
   ApiTtsElevenlabsRoute: ApiTtsElevenlabsRoute,
   ApiTtsGoogleRoute: ApiTtsGoogleRoute,
@@ -361,3 +382,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
