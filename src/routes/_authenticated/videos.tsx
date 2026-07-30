@@ -54,6 +54,12 @@ function VideosPage() {
                   <Music4 className="mr-1 h-4 w-4" /> Lyrical Videos
                 </Link>
               </Button>
+              <Button asChild variant="secondary">
+                <Link to="/motivational-videos">
+                  <Sparkles className="mr-1 h-4 w-4" /> Motivational Quotes
+                </Link>
+              </Button>
+
               <Button variant="outline" disabled>
                 <Upload className="mr-1 h-4 w-4" /> Upload footage
               </Button>
