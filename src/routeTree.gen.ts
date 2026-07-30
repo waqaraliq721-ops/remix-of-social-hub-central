@@ -17,6 +17,7 @@ import { Route as ApiTtsElevenlabsRouteImport } from './routes/api/tts-elevenlab
 import { Route as ApiTtsRouteImport } from './routes/api/tts'
 import { Route as ApiTranscribeRouteImport } from './routes/api/transcribe'
 import { Route as AuthenticatedVideosRouteImport } from './routes/_authenticated/videos'
+import { Route as AuthenticatedMotivationalVideosRouteImport } from './routes/_authenticated/motivational-videos'
 import { Route as AuthenticatedLyricalVideosRouteImport } from './routes/_authenticated/lyrical-videos'
 import { Route as AuthenticatedInboxRouteImport } from './routes/_authenticated/inbox'
 import { Route as AuthenticatedImagesToVideoRouteImport } from './routes/_authenticated/images-to-video'
@@ -65,6 +66,12 @@ const AuthenticatedVideosRoute = AuthenticatedVideosRouteImport.update({
   path: '/videos',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedMotivationalVideosRoute =
+  AuthenticatedMotivationalVideosRouteImport.update({
+    id: '/motivational-videos',
+    path: '/motivational-videos',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedLyricalVideosRoute =
   AuthenticatedLyricalVideosRouteImport.update({
     id: '/lyrical-videos',
@@ -119,6 +126,7 @@ export interface FileRoutesByFullPath {
   '/images-to-video': typeof AuthenticatedImagesToVideoRoute
   '/inbox': typeof AuthenticatedInboxRoute
   '/lyrical-videos': typeof AuthenticatedLyricalVideosRoute
+  '/motivational-videos': typeof AuthenticatedMotivationalVideosRoute
   '/videos': typeof AuthenticatedVideosRoute
   '/api/transcribe': typeof ApiTranscribeRoute
   '/api/tts': typeof ApiTtsRoute
@@ -136,6 +144,7 @@ export interface FileRoutesByTo {
   '/images-to-video': typeof AuthenticatedImagesToVideoRoute
   '/inbox': typeof AuthenticatedInboxRoute
   '/lyrical-videos': typeof AuthenticatedLyricalVideosRoute
+  '/motivational-videos': typeof AuthenticatedMotivationalVideosRoute
   '/videos': typeof AuthenticatedVideosRoute
   '/api/transcribe': typeof ApiTranscribeRoute
   '/api/tts': typeof ApiTtsRoute
@@ -155,6 +164,7 @@ export interface FileRoutesById {
   '/_authenticated/images-to-video': typeof AuthenticatedImagesToVideoRoute
   '/_authenticated/inbox': typeof AuthenticatedInboxRoute
   '/_authenticated/lyrical-videos': typeof AuthenticatedLyricalVideosRoute
+  '/_authenticated/motivational-videos': typeof AuthenticatedMotivationalVideosRoute
   '/_authenticated/videos': typeof AuthenticatedVideosRoute
   '/api/transcribe': typeof ApiTranscribeRoute
   '/api/tts': typeof ApiTtsRoute
@@ -174,6 +184,7 @@ export interface FileRouteTypes {
     | '/images-to-video'
     | '/inbox'
     | '/lyrical-videos'
+    | '/motivational-videos'
     | '/videos'
     | '/api/transcribe'
     | '/api/tts'
@@ -191,6 +202,7 @@ export interface FileRouteTypes {
     | '/images-to-video'
     | '/inbox'
     | '/lyrical-videos'
+    | '/motivational-videos'
     | '/videos'
     | '/api/transcribe'
     | '/api/tts'
@@ -209,6 +221,7 @@ export interface FileRouteTypes {
     | '/_authenticated/images-to-video'
     | '/_authenticated/inbox'
     | '/_authenticated/lyrical-videos'
+    | '/_authenticated/motivational-videos'
     | '/_authenticated/videos'
     | '/api/transcribe'
     | '/api/tts'
@@ -284,6 +297,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedVideosRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/motivational-videos': {
+      id: '/_authenticated/motivational-videos'
+      path: '/motivational-videos'
+      fullPath: '/motivational-videos'
+      preLoaderRoute: typeof AuthenticatedMotivationalVideosRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/lyrical-videos': {
       id: '/_authenticated/lyrical-videos'
       path: '/lyrical-videos'
@@ -352,6 +372,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedImagesToVideoRoute: typeof AuthenticatedImagesToVideoRoute
   AuthenticatedInboxRoute: typeof AuthenticatedInboxRoute
   AuthenticatedLyricalVideosRoute: typeof AuthenticatedLyricalVideosRoute
+  AuthenticatedMotivationalVideosRoute: typeof AuthenticatedMotivationalVideosRoute
   AuthenticatedVideosRoute: typeof AuthenticatedVideosRoute
 }
 
@@ -364,6 +385,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedImagesToVideoRoute: AuthenticatedImagesToVideoRoute,
   AuthenticatedInboxRoute: AuthenticatedInboxRoute,
   AuthenticatedLyricalVideosRoute: AuthenticatedLyricalVideosRoute,
+  AuthenticatedMotivationalVideosRoute: AuthenticatedMotivationalVideosRoute,
   AuthenticatedVideosRoute: AuthenticatedVideosRoute,
 }
 
