@@ -29,7 +29,14 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { transcribeFile, wordsToLines, linesToLrc } from "@/lib/transcribe";
+import {
+  transcribeFile,
+  wordsToLines,
+  linesToLrc,
+  STT_PROVIDERS,
+  type SttProvider,
+} from "@/lib/transcribe";
+
 
 export const Route = createFileRoute("/_authenticated/lyrical-videos")({
   head: () => ({
@@ -70,7 +77,18 @@ type EngineId =
   | "neon"
   | "waveform"
   | "typewriter"
-  | "cinebar";
+  | "cinebar"
+  | "typo-serif"
+  | "typo-stack"
+  | "typo-marquee"
+  | "typo-gradient"
+  | "typo-outline"
+  | "typo-justify"
+  | "typo-mono"
+  | "typo-vertical"
+  | "typo-poster"
+  | "typo-ticker";
+
 
 type Palette = {
   id: string;
@@ -101,7 +119,18 @@ const ENGINES: { id: EngineId; name: string; desc: string }[] = [
   { id: "waveform", name: "Waveform Pulse", desc: "Reactive bars with a big centred lyric." },
   { id: "typewriter", name: "Typewriter", desc: "Lyrics typed out in sync with the vocal." },
   { id: "cinebar", name: "Cinematic Bars", desc: "Letterboxed film look with lower-third lyrics." },
+  { id: "typo-serif", name: "Typo · Editorial Serif", desc: "Magazine serif lyric set with a hairline rule." },
+  { id: "typo-stack", name: "Typo · Word Stack", desc: "Words stacked left, lighting up as they're sung." },
+  { id: "typo-marquee", name: "Typo · Marquee", desc: "Condensed lyric scrolling between two rules." },
+  { id: "typo-gradient", name: "Typo · Gradient Fill", desc: "Huge gradient-filled uppercase lyric." },
+  { id: "typo-outline", name: "Typo · Outline Fill", desc: "Outlined letters filling with colour as sung." },
+  { id: "typo-justify", name: "Typo · Justified Block", desc: "Words justified edge to edge, alternating colour." },
+  { id: "typo-mono", name: "Typo · Mono Terminal", desc: "Monospace lyric typed with a blinking caret." },
+  { id: "typo-vertical", name: "Typo · Vertical Column", desc: "Letters stacked vertically, shimmering." },
+  { id: "typo-poster", name: "Typo · Poster Block", desc: "Condensed poster block, one phrase per line." },
+  { id: "typo-ticker", name: "Typo · Kinetic Ticker", desc: "Alternating left/right lyric ticker." },
 ];
+
 
 type Template = { id: string; name: string; engine: EngineId; palette: Palette };
 
@@ -443,7 +472,13 @@ function drawLyricRoll(
     const span = Math.max(0.2, next.time - cur.time);
     progress = Math.max(0, Math.min(1, (t - cur.time) / span));
   }
-  const offset = easeOutCubic(Math.min(1, progress * 1.6));
+  // Continuous scroll: the column keeps drifting but slows to a hold while the
+  // sung line sits on the focus point, then accelerates into the next line.
+  const hold = 0.5;
+  const ramp = Math.max(0, Math.min(1, (progress - hold) / (1 - hold)));
+  const offset = ramp * ramp * (3 - 2 * ramp) * 0.9 + progress * 0.1;
+
+
 
   ctx.save();
   ctx.beginPath();
@@ -916,7 +951,318 @@ function renderCinebar(ctx: CanvasRenderingContext2D, r: RenderCtx) {
   ctx.globalAlpha = 1;
 }
 
+// -------------------- Typography engines --------------------
+
+const SERIF = `Georgia, "Times New Roman", serif`;
+const MONO = `"JetBrains Mono", "SFMono-Regular", Menlo, monospace`;
+const COND = `"Arial Narrow", "Helvetica Neue Condensed", Impact, sans-serif`;
+
+function typoContext(r: RenderCtx) {
+  const idx = findLineIndex(r.lyrics, r.t);
+  const cur = idx >= 0 ? r.lyrics[idx] : undefined;
+  const nxt = r.lyrics[idx + 1];
+  const end = cur?.end ?? nxt?.time ?? (cur ? cur.time + 3 : 0);
+  const span = Math.max(0.35, end - (cur?.time ?? 0));
+  const frac = cur ? Math.max(0, Math.min(1, (r.t - cur.time) / span)) : 0;
+  const appear = easeOutCubic(Math.min(1, (r.t - (cur?.time ?? 0)) / 0.32));
+  return { idx, cur, nxt, frac, appear, text: cur?.text ?? "" };
+}
+
+function typoFooter(ctx: CanvasRenderingContext2D, r: RenderCtx, font: string) {
+  const { w, h, palette: p, title, artist, duration, t } = r;
+  ctx.save();
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.font = `500 ${Math.round(h * 0.016)}px ${font}`;
+  ctx.fillStyle = hexA(p.muted, 0.9);
+  tracked(ctx, `${title || "Untitled"}${artist ? "  ·  " + artist : ""}`.toUpperCase(), w / 2, h * 0.955, h * 0.005);
+  ctx.restore();
+  const prog = duration > 0 ? Math.min(1, t / duration) : 0;
+  ctx.fillStyle = hexA(p.text, 0.12);
+  ctx.fillRect(w * 0.1, h * 0.98, w * 0.8, Math.max(2, h * 0.002));
+  ctx.fillStyle = p.primary;
+  ctx.fillRect(w * 0.1, h * 0.98, w * 0.8 * prog, Math.max(2, h * 0.002));
+}
+
+function renderTypoSerif(ctx: CanvasRenderingContext2D, r: RenderCtx) {
+  const { w, h, palette: p } = r;
+  drawBg(ctx, w, h, p, r.t);
+  const { text, appear } = typoContext(r);
+  ctx.save();
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  const size = Math.round(h * (r.aspect === "9:16" ? 0.052 : 0.07));
+  ctx.font = `400 ${size}px ${SERIF}`;
+  const rows = wrapText(ctx, text, w * 0.78);
+  let y = h * 0.5 - ((rows.length - 1) * size * 1.3) / 2;
+  ctx.globalAlpha = appear;
+  for (const row of rows) {
+    ctx.fillStyle = p.text;
+    ctx.fillText(row, w / 2, y + (1 - appear) * size * 0.25);
+    y += size * 1.3;
+  }
+  ctx.globalAlpha = 1;
+  ctx.strokeStyle = hexA(p.primary, 0.65);
+  ctx.lineWidth = Math.max(1, h * 0.0012);
+  ctx.beginPath();
+  ctx.moveTo(w / 2 - w * 0.1, y + size * 0.2);
+  ctx.lineTo(w / 2 + w * 0.1, y + size * 0.2);
+  ctx.stroke();
+  ctx.restore();
+  typoFooter(ctx, r, SERIF);
+}
+
+function renderTypoStack(ctx: CanvasRenderingContext2D, r: RenderCtx) {
+  const { w, h, palette: p } = r;
+  drawBg(ctx, w, h, p, r.t);
+  const { text, frac, appear } = typoContext(r);
+  const words = text.split(" ").filter(Boolean).slice(0, 5);
+  ctx.save();
+  ctx.textAlign = "left";
+  ctx.textBaseline = "middle";
+  const size = Math.round(h * (r.aspect === "9:16" ? 0.085 : 0.11));
+  const total = words.length * size * 1.02;
+  let y = h * 0.5 - total / 2 + size * 0.5;
+  words.forEach((word, i) => {
+    const lit = frac >= i / Math.max(1, words.length);
+    ctx.font = `900 ${size}px ${FONT}`;
+    ctx.globalAlpha = appear;
+    ctx.fillStyle = lit ? p.text : hexA(p.text, 0.22);
+    ctx.fillText(word.toUpperCase(), w * 0.1 + (lit ? 0 : -w * 0.01), y);
+    if (lit) {
+      ctx.fillStyle = p.primary;
+      ctx.fillRect(w * 0.06, y - size * 0.32, Math.max(3, w * 0.006), size * 0.64);
+    }
+    y += size * 1.02;
+  });
+  ctx.restore();
+  typoFooter(ctx, r, FONT);
+}
+
+function renderTypoMarquee(ctx: CanvasRenderingContext2D, r: RenderCtx) {
+  const { w, h, palette: p } = r;
+  drawBg(ctx, w, h, p, r.t);
+  const { text } = typoContext(r);
+  const size = Math.round(h * (r.aspect === "9:16" ? 0.09 : 0.12));
+  ctx.save();
+  ctx.textBaseline = "middle";
+  ctx.textAlign = "left";
+  ctx.font = `900 ${size}px ${COND}`;
+  const label = `${text.toUpperCase()}   ✦   `;
+  const tw = Math.max(1, ctx.measureText(label).width);
+  const shift = (r.t * w * 0.09) % tw;
+  ctx.fillStyle = hexA(p.text, 0.95);
+  for (let x = -shift; x < w; x += tw) ctx.fillText(label, x, h * 0.5);
+  ctx.restore();
+  ctx.fillStyle = hexA(p.primary, 0.5);
+  ctx.fillRect(0, h * 0.5 - size * 0.75, w, Math.max(2, h * 0.002));
+  ctx.fillRect(0, h * 0.5 + size * 0.75, w, Math.max(2, h * 0.002));
+  typoFooter(ctx, r, COND);
+}
+
+function renderTypoGradient(ctx: CanvasRenderingContext2D, r: RenderCtx) {
+  const { w, h, palette: p } = r;
+  drawBg(ctx, w, h, p, r.t);
+  const { text, appear } = typoContext(r);
+  ctx.save();
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  const size = Math.round(h * (r.aspect === "9:16" ? 0.075 : 0.1));
+  ctx.font = `900 ${size}px ${FONT}`;
+  const rows = wrapText(ctx, text.toUpperCase(), w * 0.86);
+  let y = h * 0.5 - ((rows.length - 1) * size * 1.1) / 2;
+  const g = ctx.createLinearGradient(0, y - size, 0, y + rows.length * size * 1.1);
+  g.addColorStop(0, p.accent);
+  g.addColorStop(1, p.primary);
+  ctx.globalAlpha = appear;
+  for (const row of rows) {
+    ctx.fillStyle = g;
+    ctx.fillText(row, w / 2, y);
+    y += size * 1.1;
+  }
+  ctx.restore();
+  typoFooter(ctx, r, FONT);
+}
+
+function renderTypoOutline(ctx: CanvasRenderingContext2D, r: RenderCtx) {
+  const { w, h, palette: p } = r;
+  drawBg(ctx, w, h, p, r.t);
+  const { text, frac } = typoContext(r);
+  ctx.save();
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  const size = Math.round(h * (r.aspect === "9:16" ? 0.08 : 0.105));
+  ctx.font = `900 ${size}px ${FONT}`;
+  const rows = wrapText(ctx, text.toUpperCase(), w * 0.86);
+  let y = h * 0.5 - ((rows.length - 1) * size * 1.12) / 2;
+  for (const row of rows) {
+    ctx.lineWidth = Math.max(2, size * 0.035);
+    ctx.strokeStyle = hexA(p.text, 0.85);
+    ctx.strokeText(row, w / 2, y);
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(w / 2 - ctx.measureText(row).width / 2, y - size * 0.6, ctx.measureText(row).width * frac, size * 1.2);
+    ctx.clip();
+    ctx.fillStyle = p.primary;
+    ctx.fillText(row, w / 2, y);
+    ctx.restore();
+    y += size * 1.12;
+  }
+  ctx.restore();
+  typoFooter(ctx, r, FONT);
+}
+
+function renderTypoJustify(ctx: CanvasRenderingContext2D, r: RenderCtx) {
+  const { w, h, palette: p } = r;
+  drawBg(ctx, w, h, p, r.t);
+  const { text, appear } = typoContext(r);
+  const words = text.split(" ").filter(Boolean);
+  ctx.save();
+  ctx.textBaseline = "middle";
+  ctx.textAlign = "left";
+  const rows: string[][] = [];
+  let row: string[] = [];
+  const size = Math.round(h * (r.aspect === "9:16" ? 0.062 : 0.08));
+  ctx.font = `800 ${size}px ${FONT}`;
+  for (const word of words) {
+    const test = [...row, word].join(" ");
+    if (ctx.measureText(test).width > w * 0.82 && row.length) {
+      rows.push(row);
+      row = [word];
+    } else row.push(word);
+  }
+  if (row.length) rows.push(row);
+  let y = h * 0.5 - ((rows.length - 1) * size * 1.2) / 2;
+  ctx.globalAlpha = appear;
+  rows.forEach((rw, ri) => {
+    const widths = rw.map((x) => ctx.measureText(x.toUpperCase()).width);
+    const sum = widths.reduce((a, b) => a + b, 0);
+    const gapW = rw.length > 1 && ri < rows.length - 1 ? (w * 0.82 - sum) / (rw.length - 1) : size * 0.3;
+    let x = w * 0.09;
+    rw.forEach((word, i) => {
+      ctx.fillStyle = ri % 2 ? p.primary : p.text;
+      ctx.fillText(word.toUpperCase(), x, y);
+      x += widths[i] + gapW;
+    });
+    y += size * 1.2;
+  });
+  ctx.restore();
+  typoFooter(ctx, r, FONT);
+}
+
+function renderTypoMono(ctx: CanvasRenderingContext2D, r: RenderCtx) {
+  const { w, h, palette: p } = r;
+  drawBg(ctx, w, h, p, r.t);
+  const { idx, text, frac } = typoContext(r);
+  ctx.save();
+  ctx.textAlign = "left";
+  ctx.textBaseline = "middle";
+  const size = Math.round(h * (r.aspect === "9:16" ? 0.032 : 0.042));
+  ctx.font = `500 ${size}px ${MONO}`;
+  const shown = text.slice(0, Math.ceil(text.length * Math.min(1, frac * 1.6)));
+  const rows = wrapText(ctx, shown, w * 0.76);
+  let y = h * 0.5 - ((rows.length - 1) * size * 1.5) / 2;
+  ctx.fillStyle = hexA(p.primary, 0.75);
+  ctx.fillText(`> line ${String(idx + 1).padStart(2, "0")}`, w * 0.12, y - size * 1.9);
+  for (const row of rows) {
+    ctx.fillStyle = p.text;
+    ctx.fillText(row, w * 0.12, y);
+    y += size * 1.5;
+  }
+  if (Math.floor(r.t * 2) % 2 === 0) {
+    ctx.fillStyle = p.primary;
+    ctx.fillRect(w * 0.12 + ctx.measureText(rows[rows.length - 1] ?? "").width + size * 0.2, y - size * 1.9, size * 0.5, size * 0.12);
+  }
+  ctx.restore();
+  typoFooter(ctx, r, MONO);
+}
+
+function renderTypoVertical(ctx: CanvasRenderingContext2D, r: RenderCtx) {
+  const { w, h, palette: p } = r;
+  drawBg(ctx, w, h, p, r.t);
+  const { text, appear } = typoContext(r);
+  const chars = [...text.toUpperCase()].slice(0, 14);
+  ctx.save();
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  const size = Math.round(Math.min(h / Math.max(6, chars.length + 2), h * 0.09));
+  let y = h * 0.5 - (chars.length - 1) * size * 0.5;
+  chars.forEach((c, i) => {
+    ctx.globalAlpha = appear * (0.5 + 0.5 * Math.abs(Math.sin(r.t * 2 + i * 0.4)));
+    ctx.font = `900 ${size}px ${FONT}`;
+    ctx.fillStyle = i % 2 ? p.primary : p.text;
+    ctx.fillText(c === " " ? "·" : c, w / 2, y);
+    y += size;
+  });
+  ctx.restore();
+  typoFooter(ctx, r, FONT);
+}
+
+function renderTypoPoster(ctx: CanvasRenderingContext2D, r: RenderCtx) {
+  const { w, h, palette: p } = r;
+  drawBg(ctx, w, h, p, r.t);
+  const { text, appear } = typoContext(r);
+  ctx.save();
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  const rows = text.toUpperCase().split(" ").reduce<string[]>((acc, word) => {
+    if (!acc.length) return [word];
+    const last = acc[acc.length - 1];
+    if ((last + " " + word).length <= 12) acc[acc.length - 1] = last + " " + word;
+    else acc.push(word);
+    return acc;
+  }, []);
+  const size = Math.round(h * (r.aspect === "9:16" ? 0.11 : 0.14) / Math.max(1, rows.length * 0.6));
+  let y = h * 0.5 - ((rows.length - 1) * size * 0.94) / 2;
+  ctx.globalAlpha = appear;
+  rows.forEach((row, i) => {
+    const s = fitTextLocal(ctx, row, w * 0.9, size);
+    ctx.font = `900 ${s}px ${COND}`;
+    ctx.fillStyle = i % 2 ? p.primary : p.text;
+    ctx.fillText(row, w / 2, y);
+    y += size * 0.94;
+  });
+  ctx.restore();
+  typoFooter(ctx, r, COND);
+}
+
+function fitTextLocal(ctx: CanvasRenderingContext2D, text: string, maxW: number, start: number) {
+  let s = start;
+  ctx.font = `900 ${s}px ${COND}`;
+  while (ctx.measureText(text).width > maxW && s > 16) {
+    s -= 2;
+    ctx.font = `900 ${s}px ${COND}`;
+  }
+  return s;
+}
+
+function renderTypoTicker(ctx: CanvasRenderingContext2D, r: RenderCtx) {
+  const { w, h, palette: p, lyrics } = r;
+  drawBg(ctx, w, h, p, r.t);
+  const { idx, appear } = typoContext(r);
+  ctx.save();
+  ctx.textBaseline = "middle";
+  const size = Math.round(h * (r.aspect === "9:16" ? 0.045 : 0.058));
+  for (let i = Math.max(0, idx - 2); i <= Math.min(lyrics.length - 1, idx + 2); i++) {
+    const off = i - idx;
+    const y = h * 0.5 + off * size * 1.9;
+    const active = off === 0;
+    ctx.globalAlpha = active ? appear : 0.25;
+    ctx.font = `${active ? 900 : 500} ${Math.round(active ? size * 1.15 : size)}px ${FONT}`;
+    ctx.textAlign = i % 2 ? "right" : "left";
+    ctx.fillStyle = active ? p.text : hexA(p.text, 0.8);
+    ctx.fillText(lyrics[i].text.toUpperCase(), i % 2 ? w * 0.92 : w * 0.08, y);
+    if (active) {
+      ctx.fillStyle = p.primary;
+      ctx.fillRect(i % 2 ? w * 0.92 : w * 0.08 - w * 0.03, y + size * 0.75, w * 0.03, Math.max(2, h * 0.003));
+    }
+  }
+  ctx.restore();
+  typoFooter(ctx, r, FONT);
+}
+
 function renderEngine(ctx: CanvasRenderingContext2D, engine: EngineId, r: RenderCtx) {
+
   switch (engine) {
     case "vinyl":
       return renderVinyl(ctx, r);
@@ -934,7 +1280,28 @@ function renderEngine(ctx: CanvasRenderingContext2D, engine: EngineId, r: Render
       return renderTypewriter(ctx, r);
     case "cinebar":
       return renderCinebar(ctx, r);
+    case "typo-serif":
+      return renderTypoSerif(ctx, r);
+    case "typo-stack":
+      return renderTypoStack(ctx, r);
+    case "typo-marquee":
+      return renderTypoMarquee(ctx, r);
+    case "typo-gradient":
+      return renderTypoGradient(ctx, r);
+    case "typo-outline":
+      return renderTypoOutline(ctx, r);
+    case "typo-justify":
+      return renderTypoJustify(ctx, r);
+    case "typo-mono":
+      return renderTypoMono(ctx, r);
+    case "typo-vertical":
+      return renderTypoVertical(ctx, r);
+    case "typo-poster":
+      return renderTypoPoster(ctx, r);
+    case "typo-ticker":
+      return renderTypoTicker(ctx, r);
   }
+
 }
 
 // -------------------- Component --------------------
@@ -957,6 +1324,8 @@ function LyricalVideosPage() {
   const [exporting, setExporting] = useState(false);
   const [exportProgress, setExportProgress] = useState(0);
   const [detecting, setDetecting] = useState(false);
+  const [sttProvider, setSttProvider] = useState<SttProvider>("auto");
+
   const [lineLen, setLineLen] = useState(7);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -1027,7 +1396,10 @@ function LyricalVideosPage() {
     }
     setDetecting(true);
     try {
-      const { words, text, provider } = await transcribeFile(audioFile);
+      const { words, text, provider } = await transcribeFile(audioFile, {
+        provider: sttProvider,
+      });
+
       if (words.length) {
         const lines = wordsToLines(words, { maxWords: lineLen, maxChars: lineLen * 7 });
         setLyricsText(linesToLrc(lines));
@@ -1319,7 +1691,29 @@ function LyricalVideosPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
+              <div>
+                <Label className="text-xs">Detection model</Label>
+                <Select
+                  value={sttProvider}
+                  onValueChange={(v) => setSttProvider(v as SttProvider)}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {STT_PROVIDERS.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>
+                        {p.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {STT_PROVIDERS.find((p) => p.id === sttProvider)?.note}
+                </p>
+              </div>
               <div className="flex items-center gap-2">
+
                 <Button onClick={detectLyrics} disabled={detecting || !audioFile} className="flex-1">
                   {detecting ? (
                     <>

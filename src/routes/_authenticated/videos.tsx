@@ -60,9 +60,23 @@ function VideosPage() {
                 </Link>
               </Button>
 
-              <Button variant="outline" disabled>
-                <Upload className="mr-1 h-4 w-4" /> Upload footage
+              <Button asChild variant="secondary">
+                <Link to="/wyr">
+                  <Film className="mr-1 h-4 w-4" /> Would You Rather
+                </Link>
               </Button>
+              <Button asChild variant="secondary">
+                <Link to="/repurpose">
+                  <Clapperboard className="mr-1 h-4 w-4" /> Repurpose Long-form
+                </Link>
+              </Button>
+              <Button asChild variant="outline">
+                <Link to="/presets">
+                  <Sparkles className="mr-1 h-4 w-4" /> Templates & Presets
+                </Link>
+              </Button>
+
+
 
             </div>
           </div>

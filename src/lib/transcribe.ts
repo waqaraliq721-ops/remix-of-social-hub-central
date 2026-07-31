@@ -3,14 +3,24 @@
 export type TranscriptWord = { text: string; start: number; end: number };
 export type TimedLine = { time: number; end: number; text: string; words: TranscriptWord[] };
 
+export type SttProvider = "auto" | "elevenlabs" | "google" | "lovable";
+
+export const STT_PROVIDERS: { id: SttProvider; name: string; note: string }[] = [
+  { id: "auto", name: "Auto (best available)", note: "Tries ElevenLabs → Google → Lovable AI" },
+  { id: "elevenlabs", name: "ElevenLabs Scribe", note: "Most accurate word timings" },
+  { id: "google", name: "Google AI Studio", note: "Gemini — free tier friendly" },
+  { id: "lovable", name: "Lovable AI", note: "Uses Lovable credits" },
+];
+
 export async function transcribeFile(
   file: File | Blob,
-  opts: { language?: string; filename?: string } = {},
+  opts: { language?: string; filename?: string; provider?: SttProvider } = {},
 ): Promise<{ text: string; words: TranscriptWord[]; provider: string }> {
   const fd = new FormData();
   const name = opts.filename ?? (file instanceof File ? file.name : "audio.wav");
   fd.append("file", file, name);
   if (opts.language) fd.append("language_code", opts.language);
+  fd.append("provider", opts.provider ?? "auto");
   const res = await fetch("/api/transcribe", { method: "POST", body: fd });
   const data = (await res.json().catch(() => ({}))) as {
     text?: string;
