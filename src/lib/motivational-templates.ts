@@ -875,14 +875,10 @@ export const EXTRA_MOTIVATIONAL_ENGINES: Engine[] = [
   filmGrain,
   tickerRail,
   marqueeBand,
-  gritPoster,
-  neonStack,
-  paperPress,
-  boldBlock,
-  railStack,
 ];
 
 export const EXTRA_MOTIVATIONAL_MAP = new Map(EXTRA_MOTIVATIONAL_ENGINES.map((e) => [e.id, e]));
+
 
 // -------------------- grit poster --------------------
 
