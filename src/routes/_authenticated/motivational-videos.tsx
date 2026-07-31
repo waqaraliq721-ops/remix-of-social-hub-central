@@ -909,6 +909,10 @@ function MotivationalVideosPage() {
   const [accentColor, setAccentColor] = useState("");
   const [textColor, setTextColor] = useState("");
   const [uppercase, setUppercase] = useState(false);
+  const [style, setStyle] = useState<TemplateStyle>(DEFAULT_STYLE);
+  const setStyleKey = <K extends keyof TemplateStyle>(k: K, v: TemplateStyle[K]) =>
+    setStyle((s) => ({ ...s, [k]: v }));
+
   const [intro, setIntro] = useState<CardConfig>({ ...defaultIntro, id: "none" });
   const [outro, setOutro] = useState<CardConfig>({ ...defaultOutro, id: "none" });
 
