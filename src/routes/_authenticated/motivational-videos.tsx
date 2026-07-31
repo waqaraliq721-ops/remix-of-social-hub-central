@@ -1150,7 +1150,7 @@ function MotivationalVideosPage() {
         await new Promise<void>((res) => {
           renderVideo!.addEventListener("loadeddata", () => res(), { once: true });
         });
-        await renderVideo.play().catch(() => {});
+        if (introSec <= 0) await renderVideo.play().catch(() => {});
         exportBackdrop = { kind: "video", el: renderVideo };
       }
 
@@ -1180,6 +1180,10 @@ function MotivationalVideosPage() {
       const loop = () => {
         if (!running) return;
         const t = (performance.now() - t0) / 1000;
+        if (renderVideo && renderVideo.paused && t >= introSec && t < introSec + duration) {
+          renderVideo.currentTime = Math.max(0, t - introSec);
+          renderVideo.play().catch(() => {});
+        }
         setExportProgress(Math.min(100, (t / totalDuration) * 100));
         paint(octx, off.width, off.height, t, exportBackdrop);
         if (t >= totalDuration) {
