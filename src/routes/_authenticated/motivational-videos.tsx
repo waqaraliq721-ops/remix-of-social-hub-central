@@ -1256,6 +1256,25 @@ function MotivationalVideosPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
+              <div>
+                <Label className="text-xs">Transcription model</Label>
+                <Select value={sttProvider} onValueChange={(v) => setSttProvider(v as SttProvider)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {STT_PROVIDERS.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>
+                        {p.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {STT_PROVIDERS.find((p) => p.id === sttProvider)?.note}
+                </p>
+              </div>
+
               <Button onClick={runTranscribe} disabled={transcribing || !mediaFile} className="w-full">
                 {transcribing ? (
                   <>
