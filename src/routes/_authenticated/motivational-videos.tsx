@@ -797,6 +797,12 @@ function MotivationalVideosPage() {
   const [dim, setDim] = useState(0.35);
   const [wordsPerLine, setWordsPerLine] = useState(6);
   const [slidePer, setSlidePer] = useState(4);
+  // template customisation
+  const [accentColor, setAccentColor] = useState("");
+  const [textColor, setTextColor] = useState("");
+  const [uppercase, setUppercase] = useState(false);
+  const [intro, setIntro] = useState<CardConfig>({ ...defaultIntro, id: "none" });
+  const [outro, setOutro] = useState<CardConfig>({ ...defaultOutro, id: "none" });
 
   const [mediaKind, setMediaKind] = useState<"none" | "video" | "audio">("none");
   const [mediaName, setMediaName] = useState<string | null>(null);
