@@ -36,6 +36,16 @@ import {
   type TranscriptWord,
   type TimedLine,
 } from "@/lib/transcribe";
+import { Switch } from "@/components/ui/switch";
+import {
+  IntroOutroCard,
+  defaultIntro,
+  defaultOutro,
+  paletteOf,
+  type CardConfig,
+} from "@/components/intro-outro-card";
+import { INTRO_ANIMATIONS, OUTRO_ANIMATIONS } from "@/lib/video-fx";
+
 
 
 export const Route = createFileRoute("/_authenticated/motivational-videos")({
