@@ -14,9 +14,9 @@ export const Route = createFileRoute("/_authenticated/gaming-videos/")({
 });
 
 const sections = [
-  { icon: Trophy, title: "Ranking", desc: "Tier lists and ranking videos for games, characters and loadouts.", to: "/gaming-videos/ranking" as const },
-  { icon: Newspaper, title: "News", desc: "Fast-turnaround gaming news recaps and update roundups.", to: "/gaming-videos/news" as const },
-  { icon: Laugh, title: "Memes", desc: "Meme compilations and reaction clips for the gaming community.", to: "/gaming-videos/memes" as const },
+  { icon: Trophy, title: "Ranking", desc: "Build animated tier-list and top-N ranking videos with drag-in entries, reveal counters and podium finishes.", to: "/gaming-videos/ranking" as const },
+  { icon: Newspaper, title: "News", desc: "Broadcast-style news recap videos with anchor-desk layouts, lower-third headlines and ticker updates.", to: "/gaming-videos/news" as const },
+  { icon: Laugh, title: "Memes", desc: "Auto-timed meme compilation reels stitching clips, captions and stinger transitions with a beat-synced soundtrack.", to: "/gaming-videos/memes" as const },
 ];
 
 function GamingVideosPage() {

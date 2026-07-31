@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Video, Wand2, Film, Mic, Sparkles, Upload, Clapperboard, Music4, Gamepad2, Baby } from "lucide-react";
+import { Video, Wand2, Film, Mic, Sparkles, Upload, Clapperboard, Music4, Gamepad2, Baby, Clock3 } from "lucide-react";
 
 
 export const Route = createFileRoute("/_authenticated/videos")({
@@ -15,6 +15,7 @@ export const Route = createFileRoute("/_authenticated/videos")({
 });
 
 const ideas = [
+  { icon: Clock3, title: "Documentary Style", desc: "Narration-driven cinematic docs with letterboxing, grain and chapter cards.", to: "/documentary-videos" as const },
   { icon: Wand2, title: "AI text-to-video", desc: "Turn a caption or script into a short video clip." },
   { icon: Film, title: "Reels & Shorts editor", desc: "Trim, caption and format for vertical feeds." },
   { icon: Mic, title: "Voiceover & subtitles", desc: "Auto-generate voiceovers and burned-in captions." },
@@ -60,6 +61,11 @@ function VideosPage() {
                 </Link>
               </Button>
 
+              <Button asChild variant="secondary">
+                <Link to="/documentary-videos">
+                  <Clock3 className="mr-1 h-4 w-4" /> Documentary Style
+                </Link>
+              </Button>
               <Button asChild variant="secondary">
                 <Link to="/gaming-videos">
                   <Gamepad2 className="mr-1 h-4 w-4" /> Gaming Videos

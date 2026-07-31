@@ -54,6 +54,13 @@ import {
   paletteOf,
   type CardConfig,
 } from "@/components/intro-outro-card";
+import {
+  AnimControlGroup,
+  computeAnim,
+  defaultAnim,
+  applyAnim,
+  type ElementAnimSpec,
+} from "@/lib/kid-anim";
 
 export const Route = createFileRoute("/_authenticated/kid-videos/wyr")({
   head: () => ({
@@ -77,12 +84,41 @@ export const Route = createFileRoute("/_authenticated/kid-videos/wyr")({
   component: WyrPage,
 });
 
-type AspectKey = "9:16" | "1:1" | "16:9";
+type AspectKey = "9:16" | "1:1" | "16:9" | "16:9-hq";
 const ASPECTS: Record<AspectKey, { w: number; h: number; label: string }> = {
   "9:16": { w: 1080, h: 1920, label: "Vertical · TikTok/Reels/Shorts" },
   "1:1": { w: 1080, h: 1080, label: "Square · Feed" },
   "16:9": { w: 1920, h: 1080, label: "Widescreen · YouTube" },
+  "16:9-hq": { w: 1920, h: 1080, label: "16:9 HQ · Quiz-show layout" },
 };
+
+const ANIM_ELEMENTS: { key: string; label: string }[] = [
+  { key: "background", label: "Background" },
+  { key: "title", label: "Heading" },
+  { key: "imageA", label: "Option A image" },
+  { key: "imageB", label: "Option B image" },
+  { key: "labelA", label: "Option A text" },
+  { key: "labelB", label: "Option B text" },
+  { key: "timer", label: "Timer" },
+  { key: "timebar", label: "Time bar" },
+  { key: "roundNo", label: "Round numbering" },
+  { key: "badge", label: "VS / badges" },
+];
+
+function defaultAnimMap(): Record<string, ElementAnimSpec> {
+  return {
+    background: defaultAnim({ preset: "none", loop: "none" }),
+    title: defaultAnim({ preset: "slide-down", duration: 0.5, loop: "none" }),
+    imageA: defaultAnim({ preset: "slide-left", duration: 0.55 }),
+    imageB: defaultAnim({ preset: "slide-right", duration: 0.55 }),
+    labelA: defaultAnim({ preset: "pop", delay: 0.15 }),
+    labelB: defaultAnim({ preset: "pop", delay: 0.2 }),
+    timer: defaultAnim({ preset: "zoom-in", loop: "pulse", intensity: 0.6 }),
+    timebar: defaultAnim({ preset: "fade", duration: 0.3 }),
+    roundNo: defaultAnim({ preset: "fade", loop: "none" }),
+    badge: defaultAnim({ preset: "bounce-in", duration: 0.6, loop: "float", intensity: 0.5 }),
+  };
+}
 
 type Round = {
   id: string;
@@ -164,6 +200,9 @@ function WyrPage() {
   const [tint, setTint] = useState(0.35);
   const [zoom, setZoom] = useState(1.04);
   const [uppercase, setUppercase] = useState(true);
+  const [anims, setAnims] = useState<Record<string, ElementAnimSpec>>(defaultAnimMap());
+  const setAnim = (key: string, spec: ElementAnimSpec) =>
+    setAnims((a) => ({ ...a, [key]: spec }));
 
   const [provider, setProvider] = useState<TtsProvider>("elevenlabs");
   const [voice, setVoice] = useState(TTS_VOICES.elevenlabs[0].id);
@@ -228,7 +267,7 @@ function WyrPage() {
       local: number,
       dur: number,
     ) => {
-      const vertical = aspect !== "16:9";
+      const vertical = aspect !== "16:9" && aspect !== "16:9-hq";
       const halfW = vertical ? w : w / 2;
       const halfH = vertical ? h / 2 : h;
       const seam = Math.max(4, (vertical ? h : w) * 0.005);
@@ -248,9 +287,11 @@ function WyrPage() {
 
       sides.forEach((s, i) => {
         ctx.save();
+        const imgAnim = computeAnim(anims[i === 0 ? "imageA" : "imageB"] ?? defaultAnim(), local);
         ctx.beginPath();
         ctx.rect(s.x, s.y, halfW, halfH);
         ctx.clip();
+        applyAnim(ctx, imgAnim, s.x + halfW / 2, s.y + halfH / 2);
         const slide = (1 - intro01) * (vertical ? halfH : halfW) * 0.25 * s.dir;
         ctx.translate(vertical ? 0 : slide, vertical ? slide : 0);
         if (s.img) {
@@ -276,7 +317,9 @@ function WyrPage() {
         const cy = s.y + halfH * (vertical ? (i === 0 ? 0.58 : 0.42) : 0.5);
         const label = uppercase ? s.text.toUpperCase() : s.text;
         if (!label) return;
+        const labelAnim = computeAnim(anims[i === 0 ? "labelA" : "labelB"] ?? defaultAnim(), local);
         ctx.save();
+        applyAnim(ctx, labelAnim, cx, cy);
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
         const base = Math.round(Math.min(halfW, halfH) * (vertical ? 0.11 : 0.14));
@@ -334,14 +377,16 @@ function WyrPage() {
 
       // heading
       if (heading) {
+        const titleAnim = computeAnim(anims.title ?? defaultAnim(), local);
         ctx.save();
+        applyAnim(ctx, titleAnim, w / 2, h * 0.045);
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
         const hs = Math.round(h * 0.032);
         ctx.font = `800 ${hs}px ${FX_FONT}`;
         const pad = hs * 0.7;
         const tw = ctx.measureText(heading.toUpperCase()).width;
-        ctx.globalAlpha = intro01;
+        ctx.globalAlpha *= intro01;
         ctx.fillStyle = "rgba(0,0,0,0.6)";
         roundRect(ctx, w / 2 - tw / 2 - pad, h * 0.045 - hs * 0.9, tw + pad * 2, hs * 1.8, hs);
         ctx.fill();
@@ -356,7 +401,9 @@ function WyrPage() {
         const cy = vertical ? h / 2 : h / 2;
         const rr = Math.min(w, h) * 0.085;
         const pop = ease.back(Math.min(1, local / 0.5));
+        const badgeAnim = computeAnim(anims.badge ?? defaultAnim(), local);
         ctx.save();
+        applyAnim(ctx, badgeAnim, cx, cy);
         ctx.translate(cx, cy);
         ctx.scale(pop, pop);
         ctx.beginPath();
@@ -382,7 +429,9 @@ function WyrPage() {
         const rr = Math.min(w, h) * 0.06;
         const cx = w - rr * 1.8;
         const cy = h - rr * 1.8;
+        const timerAnim = computeAnim(anims.timer ?? defaultAnim(), local);
         ctx.save();
+        applyAnim(ctx, timerAnim, cx, cy);
         ctx.beginPath();
         ctx.arc(cx, cy, rr, 0, Math.PI * 2);
         ctx.fillStyle = "rgba(0,0,0,0.55)";
@@ -431,7 +480,232 @@ function WyrPage() {
         for (let y = 0; y < h; y += 5) ctx.fillRect(0, y, w, 2);
       }
     },
-    [aspect, colors, heading, showPct, showTimer, showVs, style, timerSecs, tint, uppercase, zoom],
+    [aspect, colors, heading, showPct, showTimer, showVs, style, timerSecs, tint, uppercase, zoom, anims],
+  );
+
+  const drawRoundHQ = useCallback(
+    (ctx: CanvasRenderingContext2D, w: number, h: number, r: Round, local: number, dur: number, absT: number) => {
+      const bgAnim = computeAnim(anims.background ?? defaultAnim(), local);
+      // animated ray-burst / gradient background
+      ctx.save();
+      const g = ctx.createLinearGradient(0, 0, w, h);
+      g.addColorStop(0, "#1e0b4e");
+      g.addColorStop(0.5, "#4c1d95");
+      g.addColorStop(1, "#0b0a2e");
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, w, h);
+      ctx.translate(w / 2, h / 2);
+      ctx.rotate(absT * 0.15 * Math.max(0.2, bgAnim.opacity));
+      const rays = 16;
+      for (let i = 0; i < rays; i++) {
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        const a0 = (i / rays) * Math.PI * 2;
+        const a1 = a0 + Math.PI / rays;
+        const rad = Math.max(w, h);
+        ctx.arc(0, 0, rad, a0, a1);
+        ctx.closePath();
+        ctx.fillStyle = i % 2 === 0 ? "rgba(255,255,255,0.035)" : "rgba(255,255,255,0.0)";
+        ctx.fill();
+      }
+      ctx.restore();
+      const v = ctx.createRadialGradient(w / 2, h / 2, h * 0.2, w / 2, h / 2, h * 0.85);
+      v.addColorStop(0, "rgba(0,0,0,0)");
+      v.addColorStop(1, "rgba(0,0,0,0.5)");
+      ctx.fillStyle = v;
+      ctx.fillRect(0, 0, w, h);
+
+      const intro01 = ease.out(Math.min(1, local / 0.45));
+      const M = h * 0.06;
+
+      // side text
+      ctx.save();
+      ctx.font = `900 ${Math.round(h * 0.03)}px ${FX_FONT}`;
+      ctx.fillStyle = "rgba(255,255,255,0.35)";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.save();
+      ctx.translate(M * 0.55, h / 2);
+      ctx.rotate(-Math.PI / 2);
+      ctx.fillText("QUIZ BLITZ", 0, 0);
+      ctx.restore();
+      ctx.save();
+      ctx.translate(w - M * 0.55, h / 2);
+      ctx.rotate(Math.PI / 2);
+      ctx.fillText("QUIZ BLITZ", 0, 0);
+      ctx.restore();
+      ctx.restore();
+
+      // round badge top-left, lightning top-right
+      const roundAnim = computeAnim(anims.roundNo ?? defaultAnim(), local);
+      ctx.save();
+      applyAnim(ctx, roundAnim, M + h * 0.05, M + h * 0.05);
+      ctx.beginPath();
+      ctx.arc(M + h * 0.05, M + h * 0.05, h * 0.045, 0, Math.PI * 2);
+      ctx.fillStyle = "#fbbf24";
+      ctx.fill();
+      ctx.fillStyle = "#1e0b4e";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.font = `900 ${Math.round(h * 0.035)}px ${FX_FONT}`;
+      ctx.fillText("★", M + h * 0.05, M + h * 0.05);
+      ctx.restore();
+
+      const badgeAnim = computeAnim(anims.badge ?? defaultAnim(), local);
+      ctx.save();
+      applyAnim(ctx, badgeAnim, w - M - h * 0.05, M + h * 0.05);
+      ctx.beginPath();
+      ctx.arc(w - M - h * 0.05, M + h * 0.05, h * 0.045, 0, Math.PI * 2);
+      ctx.fillStyle = "#34d399";
+      ctx.fill();
+      ctx.fillStyle = "#0b0a2e";
+      ctx.font = `900 ${Math.round(h * 0.04)}px ${FX_FONT}`;
+      ctx.fillText("⚡", w - M - h * 0.05, M + h * 0.05);
+      ctx.restore();
+
+      // title
+      if (heading) {
+        const titleAnim = computeAnim(anims.title ?? defaultAnim(), local);
+        ctx.save();
+        applyAnim(ctx, titleAnim, w / 2, M + h * 0.02);
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.font = `900 ${Math.round(h * 0.075)}px ${FX_FONT}`;
+        ctx.globalAlpha *= intro01;
+        ctx.shadowColor = "rgba(0,0,0,0.6)";
+        ctx.shadowBlur = h * 0.02;
+        ctx.fillStyle = "#fff";
+        ctx.fillText(heading.toUpperCase(), w / 2, M + h * 0.02);
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = "#fbbf24";
+        ctx.font = `900 ${Math.round(h * 0.02)}px ${FX_FONT}`;
+        ctx.fillText("WOULD YOU RATHER", w / 2, M + h * 0.07);
+        ctx.restore();
+      }
+
+      // two panels
+      const panelTop = h * 0.2;
+      const panelH = h * 0.58;
+      const gap = w * 0.03;
+      const panelW = (w - M * 2.6 - gap) / 2;
+      const panels = [
+        { img: r.imgA, text: r.textA, color: colors.a, x: M * 1.3, key: "imageA" as const },
+        { img: r.imgB, text: r.textB, color: colors.b, x: M * 1.3 + panelW + gap, key: "imageB" as const },
+      ];
+      panels.forEach((p, i) => {
+        const anim = computeAnim(anims[p.key] ?? defaultAnim(), local);
+        ctx.save();
+        applyAnim(ctx, anim, p.x + panelW / 2, panelTop + panelH / 2);
+        roundRect(ctx, p.x, panelTop, panelW, panelH, h * 0.03);
+        ctx.save();
+        ctx.clip();
+        if (p.img) {
+          drawCover(ctx, p.img, p.x, panelTop, panelW, panelH, zoom);
+        } else {
+          ctx.fillStyle = hexA(p.color, 0.4);
+          ctx.fillRect(p.x, panelTop, panelW, panelH);
+        }
+        ctx.fillStyle = hexA(p.color, 0.16);
+        ctx.fillRect(p.x, panelTop, panelW, panelH);
+        ctx.restore();
+        ctx.lineWidth = h * 0.006;
+        ctx.strokeStyle = p.color;
+        ctx.stroke();
+        ctx.restore();
+
+        // label pill
+        const labelAnim = computeAnim(anims[i === 0 ? "labelA" : "labelB"] ?? defaultAnim(), local);
+        const label = uppercase ? p.text.toUpperCase() : p.text;
+        if (label) {
+          ctx.save();
+          applyAnim(ctx, labelAnim, p.x + panelW / 2, panelTop + panelH + h * 0.05);
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          const base = Math.round(h * 0.04);
+          fitText(ctx, label, panelW * 0.9, base, 800);
+          const size = parseInt(ctx.font, 10);
+          const tw = ctx.measureText(label).width;
+          ctx.fillStyle = "#fff";
+          roundRect(
+            ctx,
+            p.x + panelW / 2 - tw / 2 - size * 0.6,
+            panelTop + panelH + h * 0.02,
+            tw + size * 1.2,
+            size * 1.6,
+            size * 0.8,
+          );
+          ctx.fill();
+          ctx.fillStyle = p.color;
+          ctx.fillText(label, p.x + panelW / 2, panelTop + panelH + h * 0.05);
+          ctx.restore();
+        }
+      });
+
+      // VS badge
+      if (showVs) {
+        const pop = ease.back(Math.min(1, local / 0.5));
+        const badgeAnim2 = computeAnim(anims.badge ?? defaultAnim(), local);
+        ctx.save();
+        applyAnim(ctx, badgeAnim2, w / 2, panelTop + panelH / 2);
+        ctx.translate(w / 2, panelTop + panelH / 2);
+        ctx.scale(pop, pop);
+        ctx.beginPath();
+        ctx.arc(0, 0, h * 0.05, 0, Math.PI * 2);
+        ctx.fillStyle = "#0b0a2e";
+        ctx.fill();
+        ctx.lineWidth = h * 0.006;
+        ctx.strokeStyle = "#fff";
+        ctx.stroke();
+        ctx.fillStyle = "#fff";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.font = `900 ${Math.round(h * 0.045)}px ${FX_FONT}`;
+        ctx.fillText("VS", 0, h * 0.002);
+        ctx.restore();
+      }
+
+      // timer
+      if (showTimer) {
+        const left = Math.max(0, Math.min(timerSecs, dur - local));
+        const timerAnim = computeAnim(anims.timer ?? defaultAnim(), local);
+        const rr = h * 0.055;
+        const tcx = w / 2;
+        const tcy = h - M * 0.7;
+        ctx.save();
+        applyAnim(ctx, timerAnim, tcx, tcy);
+        ctx.beginPath();
+        ctx.arc(tcx, tcy, rr, 0, Math.PI * 2);
+        ctx.fillStyle = "rgba(0,0,0,0.5)";
+        ctx.fill();
+        ctx.fillStyle = "#fff";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.font = `900 ${Math.round(rr * 0.8)}px ${FX_FONT}`;
+        ctx.fillText(String(Math.ceil(left)), tcx, tcy);
+        ctx.restore();
+      }
+
+      // bottom progress bar
+      const timebarAnim = computeAnim(anims.timebar ?? defaultAnim(), local);
+      const barW = w - M * 2.6;
+      const barH = h * 0.02;
+      const barY = h - M * 0.32;
+      const frac = Math.max(0, Math.min(1, local / Math.max(0.01, dur)));
+      ctx.save();
+      ctx.globalAlpha *= timebarAnim.opacity;
+      roundRect(ctx, M * 1.3, barY, barW, barH, barH / 2);
+      ctx.fillStyle = "rgba(255,255,255,0.15)";
+      ctx.fill();
+      roundRect(ctx, M * 1.3, barY, barW * frac, barH, barH / 2);
+      ctx.fillStyle = "#34d399";
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(M * 1.3 + barW * frac, barY + barH / 2, barH * 0.9, 0, Math.PI * 2);
+      ctx.fillStyle = "#fff";
+      ctx.fill();
+      ctx.restore();
+    },
+    [anims, colors, heading, showTimer, showVs, timerSecs, uppercase, zoom],
   );
 
   const drawFrame = useCallback(
@@ -470,9 +744,13 @@ function WyrPage() {
         timeline.segs.find((s) => t >= s.start && t < s.start + s.dur) ??
         timeline.segs[timeline.segs.length - 1];
       if (!seg) return;
-      drawRound(ctx, w, h, seg.round, Math.max(0, t - seg.start), seg.dur);
+      if (aspect === "16:9-hq") {
+        drawRoundHQ(ctx, w, h, seg.round, Math.max(0, t - seg.start), seg.dur, t);
+      } else {
+        drawRound(ctx, w, h, seg.round, Math.max(0, t - seg.start), seg.dur);
+      }
     },
-    [dims, drawRound, intro, outro, timeline],
+    [aspect, dims, drawRound, drawRoundHQ, intro, outro, timeline],
   );
 
   // preview loop
@@ -912,6 +1190,16 @@ function WyrPage() {
                 )}
                 Generate voiceover for all rounds
               </Button>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Animations</CardTitle>
+              <CardDescription>Entrance and looping motion per element.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <AnimControlGroup items={ANIM_ELEMENTS} values={anims} onChange={setAnim} />
             </CardContent>
           </Card>
 
