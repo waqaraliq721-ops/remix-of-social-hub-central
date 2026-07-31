@@ -1637,14 +1637,13 @@ function LyricalVideosPage() {
     }
   };
 
-  const drawAt = useCallback(
-    (canvas: HTMLCanvasElement, t: number) => {
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return;
+  /** Engine frame plus optional intro / outro cards. */
+  const paint = useCallback(
+    (ctx: CanvasRenderingContext2D, w: number, h: number, t: number) => {
       renderEngine(ctx, template.engine, {
         t,
-        w: canvas.width,
-        h: canvas.height,
+        w,
+        h,
         aspect,
         palette: template.palette,
         title,
@@ -1653,8 +1652,41 @@ function LyricalVideosPage() {
         lyrics: parsedLyrics,
         duration: audioDuration,
       });
+      if (intro.id !== "none" && t < intro.seconds) {
+        INTRO_ANIMATIONS.find((a) => a.id === intro.id)?.draw({
+          ctx,
+          w,
+          h,
+          p: Math.min(1, t / Math.max(0.2, intro.seconds)),
+          palette: paletteOf(intro.paletteId),
+          title: intro.title || title,
+          subtitle: intro.subtitle || artist,
+          logo: null,
+        });
+      }
+      if (outro.id !== "none" && audioDuration > 0 && t > audioDuration - outro.seconds) {
+        OUTRO_ANIMATIONS.find((a) => a.id === outro.id)?.draw({
+          ctx,
+          w,
+          h,
+          p: Math.min(1, (t - (audioDuration - outro.seconds)) / Math.max(0.2, outro.seconds)),
+          palette: paletteOf(outro.paletteId),
+          title: outro.title,
+          subtitle: outro.subtitle,
+          logo: null,
+        });
+      }
     },
-    [aspect, template, title, artist, coverImg, parsedLyrics, audioDuration],
+    [aspect, template, title, artist, coverImg, parsedLyrics, audioDuration, intro, outro],
+  );
+
+  const drawAt = useCallback(
+    (canvas: HTMLCanvasElement, t: number) => {
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+      paint(ctx, canvas.width, canvas.height, t);
+    },
+    [paint],
   );
 
   useEffect(() => {
