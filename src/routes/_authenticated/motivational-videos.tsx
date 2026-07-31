@@ -1158,18 +1158,7 @@ function MotivationalVideosPage() {
         if (!running) return;
         const t = (performance.now() - t0) / 1000;
         setExportProgress(Math.min(100, (t / duration) * 100));
-        renderEngine(octx, template.engine, {
-          t,
-          w: off.width,
-          h: off.height,
-          aspect,
-          palette: template.palette,
-          lines,
-          duration,
-          author,
-          dim,
-          backdrop: exportBackdrop,
-        });
+        paint(octx, off.width, off.height, t, exportBackdrop);
         if (t >= duration) {
           running = false;
           try {
