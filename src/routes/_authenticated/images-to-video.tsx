@@ -1933,6 +1933,13 @@ function ImagesToVideoPage() {
             </CardContent>
           </Card>
 
+          <IntroOutroCard
+            intro={intro}
+            outro={outro}
+            onIntro={setIntro}
+            onOutro={setOutro}
+          />
+
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center justify-between text-sm font-semibold uppercase tracking-wider text-muted-foreground">
