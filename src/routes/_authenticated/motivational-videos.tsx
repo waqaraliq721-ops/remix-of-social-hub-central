@@ -100,7 +100,18 @@ const ENGINES: { id: EngineId; name: string; desc: string }[] = [
   { id: "quoteframe", name: "Quote Frame", desc: "Framed centre quote with rule lines and attribution." },
   { id: "kinetic", name: "Kinetic Stack", desc: "Lines stack and slide with a progress rail." },
   { id: "spotlight", name: "Spotlight", desc: "Vignette spotlight with karaoke word highlight." },
+  { id: "typo-serif", name: "Typo · Editorial Serif", desc: "Italic serif quote, magazine styling." },
+  { id: "typo-stack", name: "Typo · Word Stack", desc: "Words stacked and lit word-by-word." },
+  { id: "typo-outline", name: "Typo · Outline Fill", desc: "Outlined caps filling with colour as spoken." },
+  { id: "typo-gradient", name: "Typo · Gradient Fill", desc: "Bold gradient-filled statement type." },
+  { id: "typo-poster", name: "Typo · Poster Block", desc: "Condensed poster block, alternating colour." },
+  { id: "typo-mono", name: "Typo · Mono Terminal", desc: "Monospace quote typed in sync." },
+  { id: "typo-band", name: "Typo · Colour Bands", desc: "Each line set on a solid colour band." },
+  { id: "typo-ticker", name: "Typo · Kinetic Ticker", desc: "Alternating left/right line ticker." },
+  { id: "typo-vertical", name: "Typo · Vertical Column", desc: "Letters stacked vertically with shimmer." },
+  { id: "typo-split", name: "Typo · Split Slide", desc: "Alternating lines sliding in with a rail." },
 ];
+
 
 type Template = { id: string; name: string; engine: EngineId; palette: Palette };
 const TEMPLATES: Template[] = ENGINES.flatMap((e) =>
