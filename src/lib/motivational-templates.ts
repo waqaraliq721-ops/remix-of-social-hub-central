@@ -29,7 +29,9 @@ export type RenderCtx = {
   duration: number;
   author: string;
   dim: number;
-  backdrop: unknown;
+  // The route owns the backdrop; engines never read it.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  backdrop: any;
 };
 
 type C = CanvasRenderingContext2D;
