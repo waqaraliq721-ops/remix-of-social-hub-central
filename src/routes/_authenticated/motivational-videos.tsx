@@ -102,7 +102,10 @@ const PALETTES: Palette[] = [
   { id: "steel", name: "Steel Blue", bg: ["#050a12", "#10243d"], primary: "#5aa9f0", accent: "#c7e4ff", text: "#f5faff", dim: "#8fa5bb" },
   { id: "ember", name: "Ember Red", bg: ["#100405", "#3b0c10"], primary: "#f2554a", accent: "#ffc9b0", text: "#fff6f4", dim: "#b8867f" },
   { id: "pure", name: "Pure Contrast", bg: ["#000000", "#141414"], primary: "#ffffff", accent: "#d9d9d9", text: "#ffffff", dim: "#8a8a8a" },
+  { id: "sage", name: "Sage Stone", bg: ["#0b0f0d", "#1d2a24"], primary: "#9ec7a8", accent: "#e3f0e6", text: "#f4f8f5", dim: "#8b9a90" },
+  { id: "ivory", name: "Ivory Ink", bg: ["#141210", "#2b241d"], primary: "#e8ded0", accent: "#fbf6ee", text: "#fffdf9", dim: "#a2988a" },
 ];
+
 
 const ENGINES: { id: EngineId; name: string; desc: string }[] = [
   { id: "wordpop", name: "Word Pop", desc: "One power word at a time, punched in sync with the voice." },
@@ -110,7 +113,9 @@ const ENGINES: { id: EngineId; name: string; desc: string }[] = [
   { id: "quoteframe", name: "Quote Frame", desc: "Framed centre quote with rule lines and attribution." },
   { id: "kinetic", name: "Kinetic Stack", desc: "Lines stack and slide with a progress rail." },
   { id: "spotlight", name: "Spotlight", desc: "Vignette spotlight with karaoke word highlight." },
+  ...EXTRA_MOTIVATIONAL_ENGINES.map((e) => ({ id: e.id, name: e.name, desc: e.desc })),
   { id: "typo-serif", name: "Typo · Editorial Serif", desc: "Italic serif quote, magazine styling." },
+
   { id: "typo-stack", name: "Typo · Word Stack", desc: "Words stacked and lit word-by-word." },
   { id: "typo-outline", name: "Typo · Outline Fill", desc: "Outlined caps filling with colour as spoken." },
   { id: "typo-gradient", name: "Typo · Gradient Fill", desc: "Bold gradient-filled statement type." },
@@ -141,7 +146,26 @@ function fmtTime(s: number) {
   if (!isFinite(s) || s < 0) s = 0;
   return `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
 }
-const FONT = `"Inter", "Helvetica Neue", Arial, sans-serif`;
+/** Typeface options exposed to the user. */
+const FONT_CHOICES = [
+  { id: "inter", name: "Inter · Modern sans", stack: `"Inter", "Helvetica Neue", Arial, sans-serif` },
+  { id: "serif", name: "Editorial serif", stack: `Georgia, "Times New Roman", serif` },
+  { id: "cond", name: "Condensed poster", stack: `"Arial Narrow", "Helvetica Neue Condensed", Impact, sans-serif` },
+  { id: "mono", name: "Mono terminal", stack: `"JetBrains Mono", "SFMono-Regular", Menlo, monospace` },
+  { id: "system", name: "System grotesk", stack: `system-ui, "Segoe UI", Roboto, sans-serif` },
+];
+
+/**
+ * Live typography knobs. These are module-level because every engine renders
+ * through the shared helpers below, so the user's choices apply everywhere
+ * without threading a prop through 30 draw routines.
+ */
+let FONT = FONT_CHOICES[0].stack;
+/** Multiplies every safe-area width used for wrapping. */
+let SAFE_W = 1;
+/** Set while renderEngine owns the backdrop so engines don't repaint it. */
+let SKIP_BG = false;
+
 
 function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
   const words = text.split(" ");
