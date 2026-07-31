@@ -791,26 +791,29 @@ function renderVinyl(ctx: CanvasRenderingContext2D, r: RenderCtx) {
   const vertical = aspect === "9:16";
 
   if (vertical) {
-    drawHeader(ctx, r, h * 0.055, h * 0.042);
-    const vr = w * 0.29;
-    const vy = h * 0.28;
+    drawHeader(ctx, r, h * 0.055, h * 0.038);
+    // Disc sits fully between the header rule and the lyric column so nothing
+    // overlaps: ring outer edge stays above the roll's top boundary.
+    const vr = w * 0.25;
+    const vy = h * 0.3;
     drawVinyl(ctx, w / 2, vy, vr, t, coverImg, p);
-    drawProgressRing(ctx, w / 2, vy, vr * 1.22, duration > 0 ? t / duration : 0, p);
+    drawProgressRing(ctx, w / 2, vy, vr * 1.16, duration > 0 ? t / duration : 0, p);
     drawLyricRoll(ctx, r, {
-      top: h * 0.42,
-      bottom: h * 0.94,
-      focusY: h * 0.66,
+      top: h * 0.48,
+      bottom: h * 0.93,
+      focusY: h * 0.685,
       size: h * 0.028,
       showRule: true,
     });
     drawFooterBar(ctx, r, h * 0.955);
   } else {
     // side-by-side layout for 16:9
-    const vr = h * 0.3;
-    const vx = w * 0.26;
-    const vy = h * 0.52;
+    const vr = h * 0.25;
+    const vx = w * 0.19;
+    const vy = h * 0.5;
     drawVinyl(ctx, vx, vy, vr, t, coverImg, p);
-    drawProgressRing(ctx, vx, vy, vr * 1.22, duration > 0 ? t / duration : 0, p);
+    drawProgressRing(ctx, vx, vy, vr * 1.16, duration > 0 ? t / duration : 0, p);
+
     ctx.save();
     ctx.translate(w * 0.36, 0);
     const sub: RenderCtx = { ...r, w: w * 0.62 };
