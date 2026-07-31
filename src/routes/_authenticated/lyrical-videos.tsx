@@ -44,7 +44,7 @@ import {
   STT_PROVIDERS,
   type SttProvider,
 } from "@/lib/transcribe";
-
+import { EXTRA_LYRIC_ENGINES, EXTRA_LYRIC_MAP, type Kit as LyricKit } from "@/lib/lyric-templates";
 
 export const Route = createFileRoute("/_authenticated/lyrical-videos")({
   head: () => ({
@@ -77,26 +77,7 @@ const ASPECTS: Record<AspectKey, { w: number; h: number; label: string }> = {
 };
 
 type LyricLine = { time: number; text: string; end?: number };
-type EngineId =
-  | "vinyl"
-  | "rolling"
-  | "karaoke"
-  | "spotify"
-  | "neon"
-  | "waveform"
-  | "typewriter"
-  | "cinebar"
-  | "typo-serif"
-  | "typo-stack"
-  | "typo-marquee"
-  | "typo-gradient"
-  | "typo-outline"
-  | "typo-justify"
-  | "typo-mono"
-  | "typo-vertical"
-  | "typo-poster"
-  | "typo-ticker";
-
+type EngineId = string;
 
 type Palette = {
   id: string;
@@ -109,36 +90,145 @@ type Palette = {
 };
 
 const PALETTES: Palette[] = [
-  { id: "gold", name: "Vinyl Gold", bg: ["#0b0906", "#241a0e"], primary: "#e8c07a", accent: "#f3d9a4", text: "#ffffff", muted: "#8b8377" },
-  { id: "purple", name: "Neon Purple", bg: ["#120a20", "#3d1a5c"], primary: "#c084fc", accent: "#f0abfc", text: "#ffffff", muted: "#9c92b8" },
-  { id: "sunset", name: "Sunset Orange", bg: ["#1c0908", "#5c2410"], primary: "#fb923c", accent: "#fde68a", text: "#fffbeb", muted: "#c39a80" },
-  { id: "ocean", name: "Ocean Teal", bg: ["#04171a", "#0e4a5c"], primary: "#5eead4", accent: "#a5f3fc", text: "#f0fdfa", muted: "#79a8a2" },
-  { id: "cherry", name: "Cherry Red", bg: ["#140407", "#5c0e1f"], primary: "#f43f5e", accent: "#fda4af", text: "#fff1f2", muted: "#c08590" },
-  { id: "mono", name: "Mono White", bg: ["#070707", "#1f1f1f"], primary: "#ffffff", accent: "#d4d4d4", text: "#ffffff", muted: "#7a7a7a" },
-  { id: "forest", name: "Forest Green", bg: ["#03150d", "#0b4f2e"], primary: "#34d399", accent: "#bbf7d0", text: "#f0fdf4", muted: "#7fa691" },
+  {
+    id: "gold",
+    name: "Vinyl Gold",
+    bg: ["#0b0906", "#241a0e"],
+    primary: "#e8c07a",
+    accent: "#f3d9a4",
+    text: "#ffffff",
+    muted: "#8b8377",
+  },
+  {
+    id: "purple",
+    name: "Neon Purple",
+    bg: ["#120a20", "#3d1a5c"],
+    primary: "#c084fc",
+    accent: "#f0abfc",
+    text: "#ffffff",
+    muted: "#9c92b8",
+  },
+  {
+    id: "sunset",
+    name: "Sunset Orange",
+    bg: ["#1c0908", "#5c2410"],
+    primary: "#fb923c",
+    accent: "#fde68a",
+    text: "#fffbeb",
+    muted: "#c39a80",
+  },
+  {
+    id: "ocean",
+    name: "Ocean Teal",
+    bg: ["#04171a", "#0e4a5c"],
+    primary: "#5eead4",
+    accent: "#a5f3fc",
+    text: "#f0fdfa",
+    muted: "#79a8a2",
+  },
+  {
+    id: "cherry",
+    name: "Cherry Red",
+    bg: ["#140407", "#5c0e1f"],
+    primary: "#f43f5e",
+    accent: "#fda4af",
+    text: "#fff1f2",
+    muted: "#c08590",
+  },
+  {
+    id: "mono",
+    name: "Mono White",
+    bg: ["#070707", "#1f1f1f"],
+    primary: "#ffffff",
+    accent: "#d4d4d4",
+    text: "#ffffff",
+    muted: "#7a7a7a",
+  },
+  {
+    id: "forest",
+    name: "Forest Green",
+    bg: ["#03150d", "#0b4f2e"],
+    primary: "#34d399",
+    accent: "#bbf7d0",
+    text: "#f0fdf4",
+    muted: "#7fa691",
+  },
 ];
 
 const ENGINES: { id: EngineId; name: string; desc: string }[] = [
-  { id: "vinyl", name: "Vinyl Classic", desc: "Rotating vinyl with progress ring, lyrics rolling bottom → middle." },
-  { id: "rolling", name: "Rolling Lyrics", desc: "Full-height lyric roll with soft top/bottom fades." },
+  {
+    id: "vinyl",
+    name: "Vinyl Classic",
+    desc: "Rotating vinyl with progress ring, lyrics rolling bottom → middle.",
+  },
+  {
+    id: "rolling",
+    name: "Rolling Lyrics",
+    desc: "Full-height lyric roll with soft top/bottom fades.",
+  },
   { id: "karaoke", name: "Karaoke", desc: "Word-by-word highlight on a huge centred line." },
-  { id: "spotify", name: "Now Playing", desc: "Cover card, track meta and a scrubbing progress bar." },
+  {
+    id: "spotify",
+    name: "Now Playing",
+    desc: "Cover card, track meta and a scrubbing progress bar.",
+  },
   { id: "neon", name: "Neon Glow", desc: "Glowing uppercase lyric roll on a dark backdrop." },
   { id: "waveform", name: "Waveform Pulse", desc: "Reactive bars with a big centred lyric." },
   { id: "typewriter", name: "Typewriter", desc: "Lyrics typed out in sync with the vocal." },
   { id: "cinebar", name: "Cinematic Bars", desc: "Letterboxed film look with lower-third lyrics." },
-  { id: "typo-serif", name: "Typo · Editorial Serif", desc: "Magazine serif lyric set with a hairline rule." },
-  { id: "typo-stack", name: "Typo · Word Stack", desc: "Words stacked left, lighting up as they're sung." },
-  { id: "typo-marquee", name: "Typo · Marquee", desc: "Condensed lyric scrolling between two rules." },
-  { id: "typo-gradient", name: "Typo · Gradient Fill", desc: "Huge gradient-filled uppercase lyric." },
-  { id: "typo-outline", name: "Typo · Outline Fill", desc: "Outlined letters filling with colour as sung." },
-  { id: "typo-justify", name: "Typo · Justified Block", desc: "Words justified edge to edge, alternating colour." },
-  { id: "typo-mono", name: "Typo · Mono Terminal", desc: "Monospace lyric typed with a blinking caret." },
-  { id: "typo-vertical", name: "Typo · Vertical Column", desc: "Letters stacked vertically, shimmering." },
-  { id: "typo-poster", name: "Typo · Poster Block", desc: "Condensed poster block, one phrase per line." },
-  { id: "typo-ticker", name: "Typo · Kinetic Ticker", desc: "Alternating left/right lyric ticker." },
-];
+  ...EXTRA_LYRIC_ENGINES.map((e) => ({ id: e.id, name: e.name, desc: e.desc })),
+  {
+    id: "typo-serif",
+    name: "Typo · Editorial Serif",
+    desc: "Magazine serif lyric set with a hairline rule.",
+  },
 
+  {
+    id: "typo-stack",
+    name: "Typo · Word Stack",
+    desc: "Words stacked left, lighting up as they're sung.",
+  },
+  {
+    id: "typo-marquee",
+    name: "Typo · Marquee",
+    desc: "Condensed lyric scrolling between two rules.",
+  },
+  {
+    id: "typo-gradient",
+    name: "Typo · Gradient Fill",
+    desc: "Huge gradient-filled uppercase lyric.",
+  },
+  {
+    id: "typo-outline",
+    name: "Typo · Outline Fill",
+    desc: "Outlined letters filling with colour as sung.",
+  },
+  {
+    id: "typo-justify",
+    name: "Typo · Justified Block",
+    desc: "Words justified edge to edge, alternating colour.",
+  },
+  {
+    id: "typo-mono",
+    name: "Typo · Mono Terminal",
+    desc: "Monospace lyric typed with a blinking caret.",
+  },
+  {
+    id: "typo-vertical",
+    name: "Typo · Vertical Column",
+    desc: "Letters stacked vertically, shimmering.",
+  },
+  {
+    id: "typo-poster",
+    name: "Typo · Poster Block",
+    desc: "Condensed poster block, one phrase per line.",
+  },
+  {
+    id: "typo-ticker",
+    name: "Typo · Kinetic Ticker",
+    desc: "Alternating left/right lyric ticker.",
+  },
+];
 
 type Template = { id: string; name: string; engine: EngineId; palette: Palette };
 
@@ -154,7 +244,10 @@ const TEMPLATES: Template[] = ENGINES.flatMap((e) =>
 // -------------------- LRC parsing --------------------
 
 function parseLyrics(text: string, audioDuration: number): LyricLine[] {
-  const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  const lines = text
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter(Boolean);
   const lrcRe = /^\[(\d{1,2}):(\d{2})(?:[.:](\d{1,3}))?\]\s*(.*)$/;
   const timed: LyricLine[] = [];
   let anyTimed = false;
@@ -246,8 +339,20 @@ function drawBg(ctx: CanvasRenderingContext2D, w: number, h: number, p: Palette,
 
   if (variant === 0) {
     // Aurora — three slow drifting colour clouds.
-    blob(w * 0.3 + Math.sin(t * 0.21) * w * 0.18, h * 0.28 + Math.cos(t * 0.17) * h * 0.1, Math.max(w, h) * 0.55, p.primary, 0.22);
-    blob(w * 0.75 + Math.cos(t * 0.15) * w * 0.14, h * 0.7 + Math.sin(t * 0.19) * h * 0.12, Math.max(w, h) * 0.5, p.accent, 0.16);
+    blob(
+      w * 0.3 + Math.sin(t * 0.21) * w * 0.18,
+      h * 0.28 + Math.cos(t * 0.17) * h * 0.1,
+      Math.max(w, h) * 0.55,
+      p.primary,
+      0.22,
+    );
+    blob(
+      w * 0.75 + Math.cos(t * 0.15) * w * 0.14,
+      h * 0.7 + Math.sin(t * 0.19) * h * 0.12,
+      Math.max(w, h) * 0.5,
+      p.accent,
+      0.16,
+    );
     blob(w * 0.5, h * 0.5 + Math.sin(t * 0.11) * h * 0.2, Math.max(w, h) * 0.45, p.bg[1], 0.3);
   } else if (variant === 1) {
     // Sweeping diagonal gradient band.
@@ -283,7 +388,7 @@ function drawBg(ctx: CanvasRenderingContext2D, w: number, h: number, p: Palette,
   } else if (variant === 3) {
     // Floating bokeh.
     for (let i = 0; i < 16; i++) {
-      const s = (i * 97) % 100 / 100;
+      const s = ((i * 97) % 100) / 100;
       const cx = ((s * 1.7) % 1) * w + Math.sin(t * (0.12 + s * 0.2) + i) * w * 0.05;
       const cy = ((s * 2.3 + t * 0.02 * (0.5 + s)) % 1) * h;
       blob(cx, cy, Math.max(w, h) * (0.06 + s * 0.1), i % 3 ? p.primary : p.accent, 0.12);
@@ -322,7 +427,14 @@ function drawBg(ctx: CanvasRenderingContext2D, w: number, h: number, p: Palette,
   ctx.restore();
 
   // Even, full-frame vignette keeps the composition unified.
-  const vg = ctx.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.35, w / 2, h / 2, Math.max(w, h) * 0.8);
+  const vg = ctx.createRadialGradient(
+    w / 2,
+    h / 2,
+    Math.min(w, h) * 0.35,
+    w / 2,
+    h / 2,
+    Math.max(w, h) * 0.8,
+  );
   vg.addColorStop(0, "rgba(0,0,0,0)");
   vg.addColorStop(1, "rgba(0,0,0,0.4)");
   ctx.fillStyle = vg;
@@ -455,7 +567,8 @@ function drawVinyl(
   for (let i = r * 0.5; i < r * 0.985; i += r * 0.022) {
     ctx.beginPath();
     ctx.arc(0, 0, i, 0, Math.PI * 2);
-    ctx.strokeStyle = i % (r * 0.11) < r * 0.03 ? "rgba(255,255,255,0.09)" : "rgba(255,255,255,0.035)";
+    ctx.strokeStyle =
+      i % (r * 0.11) < r * 0.03 ? "rgba(255,255,255,0.09)" : "rgba(255,255,255,0.035)";
     ctx.stroke();
   }
 
@@ -567,8 +680,7 @@ function drawWaveBar(
   const bars = Math.max(24, Math.round(w / 8));
   const bw = w / bars;
   for (let i = 0; i < bars; i++) {
-    const n =
-      Math.abs(Math.sin(i * 12.9898 * seed) * 43758.5453) % 1; // static shape
+    const n = Math.abs(Math.sin(i * 12.9898 * seed) * 43758.5453) % 1; // static shape
     const live = 0.55 + 0.45 * Math.abs(Math.sin(t * 5 + i * 0.5));
     const played = i / bars <= progress;
     const bh = h * (0.25 + n * 0.75) * (played ? live : 0.55);
@@ -632,8 +744,6 @@ function drawLyricRoll(
   const ramp = Math.max(0, Math.min(1, (progress - hold) / (1 - hold)));
   const offset = ramp * ramp * (3 - 2 * ramp) * 0.9 + progress * 0.1;
 
-
-
   ctx.save();
   ctx.beginPath();
   ctx.rect(0, top, w, bottom - top);
@@ -694,14 +804,14 @@ function drawLyricRoll(
 
   // No opaque fade bars — the per-line alpha above handles the roll-off so the
   // frame stays one continuous, evenly lit surface.
-
 }
 
 /** Measure a tracked (letter-spaced) string at the current font. */
 function trackedWidth(ctx: CanvasRenderingContext2D, text: string, spacing: number) {
   const chars = [...text];
   return (
-    chars.reduce((a, c) => a + ctx.measureText(c).width, 0) + spacing * Math.max(0, chars.length - 1)
+    chars.reduce((a, c) => a + ctx.measureText(c).width, 0) +
+    spacing * Math.max(0, chars.length - 1)
   );
 }
 
@@ -850,7 +960,13 @@ function renderKaraoke(ctx: CanvasRenderingContext2D, r: RenderCtx) {
   ctx.textBaseline = "middle";
   ctx.fillStyle = hexA(p.muted, 0.9);
   ctx.font = `500 ${Math.round(h * 0.02)}px ${FONT}`;
-  tracked(ctx, `${title || ""}${artist ? "  ·  " + artist : ""}`.toUpperCase(), w / 2, h * 0.09, h * 0.006);
+  tracked(
+    ctx,
+    `${title || ""}${artist ? "  ·  " + artist : ""}`.toUpperCase(),
+    w / 2,
+    h * 0.09,
+    h * 0.006,
+  );
 
   const idx = findLineIndex(lyrics, t);
   const cur = idx >= 0 ? lyrics[idx] : undefined;
@@ -906,7 +1022,14 @@ function renderKaraoke(ctx: CanvasRenderingContext2D, r: RenderCtx) {
   drawFooterBar(ctx, r, h * 0.93);
 }
 
-function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, rr: number) {
+function roundRect(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  rr: number,
+) {
   ctx.beginPath();
   ctx.moveTo(x + rr, y);
   ctx.arcTo(x + w, y, x + w, y + h, rr);
@@ -941,7 +1064,13 @@ function renderSpotify(ctx: CanvasRenderingContext2D, r: RenderCtx) {
     const iw = coverImg.naturalWidth;
     const ih = coverImg.naturalHeight;
     const ratio = Math.max(cardSize / iw, cardSize / ih);
-    ctx.drawImage(coverImg, x0 + (cardSize - iw * ratio) / 2, y0 + bob + (cardSize - ih * ratio) / 2, iw * ratio, ih * ratio);
+    ctx.drawImage(
+      coverImg,
+      x0 + (cardSize - iw * ratio) / 2,
+      y0 + bob + (cardSize - ih * ratio) / 2,
+      iw * ratio,
+      ih * ratio,
+    );
   } else {
     const g = ctx.createLinearGradient(x0, y0, x0 + cardSize, y0 + cardSize);
     g.addColorStop(0, p.primary);
@@ -1035,7 +1164,13 @@ function renderWaveform(ctx: CanvasRenderingContext2D, r: RenderCtx) {
   ctx.textBaseline = "middle";
   ctx.fillStyle = hexA(p.muted, 1);
   ctx.font = `500 ${Math.round(h * 0.022)}px ${FONT}`;
-  tracked(ctx, `${title || ""}${artist ? "  ·  " + artist : ""}`.toUpperCase(), w / 2, h * 0.1, h * 0.006);
+  tracked(
+    ctx,
+    `${title || ""}${artist ? "  ·  " + artist : ""}`.toUpperCase(),
+    w / 2,
+    h * 0.1,
+    h * 0.006,
+  );
 
   const idx = findLineIndex(lyrics, t);
   const cur = idx >= 0 ? lyrics[idx] : undefined;
@@ -1083,7 +1218,12 @@ function renderTypewriter(ctx: CanvasRenderingContext2D, r: RenderCtx) {
     ctx.fillText(rows[i], x, y);
     if (i === rows.length - 1 && Math.floor(t * 2) % 2 === 0) {
       ctx.fillStyle = p.primary;
-      ctx.fillRect(x + ctx.measureText(rows[i]).width + size * 0.12, y - size * 0.5, size * 0.08, size);
+      ctx.fillRect(
+        x + ctx.measureText(rows[i]).width + size * 0.12,
+        y - size * 0.5,
+        size * 0.08,
+        size,
+      );
     }
     y += size * 1.35;
   }
@@ -1122,7 +1262,13 @@ function renderCinebar(ctx: CanvasRenderingContext2D, r: RenderCtx) {
   ctx.textBaseline = "middle";
   ctx.fillStyle = hexA(p.muted, 0.9);
   ctx.font = `500 ${Math.round(h * 0.018)}px ${FONT}`;
-  tracked(ctx, `${title || ""}${artist ? "  ·  " + artist : ""}`.toUpperCase(), w / 2, barH * 0.5, h * 0.005);
+  tracked(
+    ctx,
+    `${title || ""}${artist ? "  ·  " + artist : ""}`.toUpperCase(),
+    w / 2,
+    barH * 0.5,
+    h * 0.005,
+  );
 
   const idx = findLineIndex(lyrics, t);
   const cur = idx >= 0 ? lyrics[idx] : undefined;
@@ -1166,7 +1312,13 @@ function typoFooter(ctx: CanvasRenderingContext2D, r: RenderCtx, font: string) {
   ctx.textBaseline = "middle";
   ctx.font = `500 ${Math.round(h * 0.016)}px ${font}`;
   ctx.fillStyle = hexA(p.muted, 0.9);
-  tracked(ctx, `${title || "Untitled"}${artist ? "  ·  " + artist : ""}`.toUpperCase(), w / 2, h * 0.955, h * 0.005);
+  tracked(
+    ctx,
+    `${title || "Untitled"}${artist ? "  ·  " + artist : ""}`.toUpperCase(),
+    w / 2,
+    h * 0.955,
+    h * 0.005,
+  );
   ctx.restore();
   const prog = duration > 0 ? Math.min(1, t / duration) : 0;
   ctx.fillStyle = hexA(p.text, 0.12);
@@ -1367,7 +1519,10 @@ function renderTypoJustify(ctx: CanvasRenderingContext2D, r: RenderCtx) {
       } else row.push(word);
     }
     if (row.length) rows.push(row);
-    const widest = Math.max(0, ...rows.map((rw) => ctx.measureText(rw.join(" ").toUpperCase()).width));
+    const widest = Math.max(
+      0,
+      ...rows.map((rw) => ctx.measureText(rw.join(" ").toUpperCase()).width),
+    );
     if (rows.length * size * 1.2 <= box.h && widest <= box.w) break;
     size = Math.round(size * 0.93);
   }
@@ -1376,7 +1531,8 @@ function renderTypoJustify(ctx: CanvasRenderingContext2D, r: RenderCtx) {
   rows.forEach((rw, ri) => {
     const widths = rw.map((x) => ctx.measureText(x.toUpperCase()).width);
     const sum = widths.reduce((a, b) => a + b, 0);
-    const gapW = rw.length > 1 && ri < rows.length - 1 ? (box.w - sum) / (rw.length - 1) : size * 0.3;
+    const gapW =
+      rw.length > 1 && ri < rows.length - 1 ? (box.w - sum) / (rw.length - 1) : size * 0.3;
     let x = box.x;
     rw.forEach((word, i) => {
       ctx.fillStyle = ri % 2 ? p.primary : p.text;
@@ -1420,7 +1576,12 @@ function renderTypoMono(ctx: CanvasRenderingContext2D, r: RenderCtx) {
   if (Math.floor(r.t * 2) % 2 === 0) {
     const lastRow = rows[rows.length - 1] ?? "";
     ctx.fillStyle = p.primary;
-    ctx.fillRect(box.x + ctx.measureText(lastRow).width + size * 0.2, lastY + size * 0.42, size * 0.5, size * 0.1);
+    ctx.fillRect(
+      box.x + ctx.measureText(lastRow).width + size * 0.2,
+      lastY + size * 0.42,
+      size * 0.5,
+      size * 0.1,
+    );
   }
   ctx.restore();
   typoFooter(ctx, r, MONO);
@@ -1434,9 +1595,7 @@ function renderTypoVertical(ctx: CanvasRenderingContext2D, r: RenderCtx) {
   ctx.save();
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  const size = Math.round(
-    Math.min((h * 0.72) / Math.max(6, chars.length), h * 0.085, w * 0.2),
-  );
+  const size = Math.round(Math.min((h * 0.72) / Math.max(6, chars.length), h * 0.085, w * 0.2));
   let y = h * 0.48 - (chars.length - 1) * size * 0.5;
   chars.forEach((c, i) => {
     ctx.globalAlpha = appear * (0.55 + 0.45 * Math.abs(Math.sin(r.t * 2 + i * 0.4)));
@@ -1467,13 +1626,16 @@ function renderTypoPoster(ctx: CanvasRenderingContext2D, r: RenderCtx) {
   ctx.save();
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  const rows = text.toUpperCase().split(" ").reduce<string[]>((acc, word) => {
-    if (!acc.length) return [word];
-    const last = acc[acc.length - 1];
-    if ((last + " " + word).length <= 12) acc[acc.length - 1] = last + " " + word;
-    else acc.push(word);
-    return acc;
-  }, []);
+  const rows = text
+    .toUpperCase()
+    .split(" ")
+    .reduce<string[]>((acc, word) => {
+      if (!acc.length) return [word];
+      const last = acc[acc.length - 1];
+      if ((last + " " + word).length <= 12) acc[acc.length - 1] = last + " " + word;
+      else acc.push(word);
+      return acc;
+    }, []);
   const start = Math.min(
     h * (r.aspect === "9:16" ? 0.12 : 0.15),
     (box.h * 1.3) / Math.max(1, rows.length),
@@ -1526,6 +1688,26 @@ function renderTypoTicker(ctx: CanvasRenderingContext2D, r: RenderCtx) {
   typoFooter(ctx, r, FONT);
 }
 
+/** Helpers handed to the extra template library. */
+const LYRIC_KIT: LyricKit = {
+  FONT,
+  hexA,
+  easeOutCubic,
+  fmtTime,
+  findLineIndex,
+  wrapText,
+  tracked,
+  trackedFit,
+  roundRect,
+  drawBg,
+  drawVinyl,
+  drawProgressRing,
+  drawWaveBar,
+  drawLyricRoll,
+  drawHeader,
+  drawFooterBar,
+};
+
 function renderEngine(ctx: CanvasRenderingContext2D, engine: EngineId, r: RenderCtx) {
   BG_SEED = hashSeed(engine);
   switch (engine) {
@@ -1565,8 +1747,9 @@ function renderEngine(ctx: CanvasRenderingContext2D, engine: EngineId, r: Render
       return renderTypoPoster(ctx, r);
     case "typo-ticker":
       return renderTypoTicker(ctx, r);
+    default:
+      return EXTRA_LYRIC_MAP.get(engine)?.draw(ctx, r, LYRIC_KIT);
   }
-
 }
 
 // -------------------- Component --------------------
@@ -1602,7 +1785,6 @@ function LyricalVideosPage() {
 
   const [intro, setIntro] = useState<CardConfig>({ ...defaultIntro, id: "none" });
   const [outro, setOutro] = useState<CardConfig>({ ...defaultOutro, id: "none" });
-
 
   const dims = ASPECTS[aspect];
   const template = TEMPLATES.find((t) => t.id === templateId) ?? TEMPLATES[0];
@@ -1950,17 +2132,29 @@ function LyricalVideosPage() {
             <CardContent className="space-y-3">
               <div>
                 <Label>Title</Label>
-                <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Song title" />
+                <Input
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="Song title"
+                />
               </div>
               <div>
                 <Label>Artist</Label>
-                <Input value={artist} onChange={(e) => setArtist(e.target.value)} placeholder="Artist" />
+                <Input
+                  value={artist}
+                  onChange={(e) => setArtist(e.target.value)}
+                  placeholder="Artist"
+                />
               </div>
               <div>
                 <Label>Cover art</Label>
                 {coverUrl ? (
                   <div className="mt-1 flex items-center gap-2">
-                    <img src={coverUrl} alt="Album cover preview" className="h-14 w-14 rounded object-cover" />
+                    <img
+                      src={coverUrl}
+                      alt="Album cover preview"
+                      className="h-14 w-14 rounded object-cover"
+                    />
                     <Button variant="ghost" size="sm" onClick={clearCover}>
                       <Trash2 className="h-4 w-4" /> Remove
                     </Button>
@@ -1998,7 +2192,9 @@ function LyricalVideosPage() {
                   </label>
                 )}
                 {audioDuration > 0 && (
-                  <p className="mt-1 text-xs text-muted-foreground">{fmtTime(audioDuration)} duration</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {fmtTime(audioDuration)} duration
+                  </p>
                 )}
               </div>
             </CardContent>
@@ -2008,17 +2204,15 @@ function LyricalVideosPage() {
             <CardHeader>
               <CardTitle className="text-base">Lyrics</CardTitle>
               <CardDescription>
-                Type them manually, paste LRC (<code className="rounded bg-muted px-1">[00:12.50] Line</code>
+                Type them manually, paste LRC (
+                <code className="rounded bg-muted px-1">[00:12.50] Line</code>
                 ), or auto-detect them from the uploaded song with word-level timing.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
               <div>
                 <Label className="text-xs">Detection model</Label>
-                <Select
-                  value={sttProvider}
-                  onValueChange={(v) => setSttProvider(v as SttProvider)}
-                >
+                <Select value={sttProvider} onValueChange={(v) => setSttProvider(v as SttProvider)}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -2035,8 +2229,11 @@ function LyricalVideosPage() {
                 </p>
               </div>
               <div className="flex items-center gap-2">
-
-                <Button onClick={detectLyrics} disabled={detecting || !audioFile} className="flex-1">
+                <Button
+                  onClick={detectLyrics}
+                  disabled={detecting || !audioFile}
+                  className="flex-1"
+                >
                   {detecting ? (
                     <>
                       <Loader2 className="mr-1 h-4 w-4 animate-spin" /> Listening to the track…
@@ -2118,7 +2315,10 @@ function LyricalVideosPage() {
                 <div className="text-xs text-muted-foreground">
                   Template: <span className="font-medium text-foreground">{template.name}</span>
                 </div>
-                <Button onClick={exportVideo} disabled={exporting || !audioUrl || !parsedLyrics.length}>
+                <Button
+                  onClick={exportVideo}
+                  disabled={exporting || !audioUrl || !parsedLyrics.length}
+                >
                   {exporting ? (
                     <>
                       <Loader2 className="mr-1 h-4 w-4 animate-spin" /> Rendering…{" "}
