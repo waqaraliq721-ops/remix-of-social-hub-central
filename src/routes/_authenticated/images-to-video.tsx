@@ -19,6 +19,14 @@ import {
   Wand,
   Shuffle,
 } from "lucide-react";
+import {
+  IntroOutroCard,
+  defaultIntro,
+  defaultOutro,
+  paletteOf,
+  type CardConfig,
+} from "@/components/intro-outro-card";
+import { INTRO_ANIMATIONS, OUTRO_ANIMATIONS } from "@/lib/video-fx";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -335,6 +343,8 @@ function ImagesToVideoPage() {
   const [defaultMotion, setDefaultMotion] = useState<MotionKind>("kenburns");
   const [defaultTransition, setDefaultTransition] = useState<TransitionKind>("fade");
   const [transitionMs, setTransitionMs] = useState(500);
+  const [intro, setIntro] = useState<CardConfig>({ ...defaultIntro, id: "none" });
+  const [outro, setOutro] = useState<CardConfig>({ ...defaultOutro, id: "none" });
   const [transitionEasing, setTransitionEasing] = useState<EasingKind>("ease-in-out");
 
   const [script, setScript] = useState("");
@@ -851,9 +861,35 @@ function ImagesToVideoPage() {
           drawCaption(ctx, active.text, cw, ch, progress);
         }
       }
+
+      // Intro / outro cards
+      if (intro.id !== "none" && t < intro.seconds) {
+        INTRO_ANIMATIONS.find((a) => a.id === intro.id)?.draw({
+          ctx,
+          w: cw,
+          h: ch,
+          p: Math.min(1, t / Math.max(0.2, intro.seconds)),
+          palette: paletteOf(intro.paletteId),
+          title: intro.title,
+          subtitle: intro.subtitle,
+          logo: null,
+        });
+      }
+      if (outro.id !== "none" && t > totalDuration - outro.seconds) {
+        OUTRO_ANIMATIONS.find((a) => a.id === outro.id)?.draw({
+          ctx,
+          w: cw,
+          h: ch,
+          p: Math.min(1, (t - (totalDuration - outro.seconds)) / Math.max(0.2, outro.seconds)),
+          palette: paletteOf(outro.paletteId),
+          title: outro.title,
+          subtitle: outro.subtitle,
+          logo: null,
+        });
+      }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [images, totalDuration, transitionMs, transitionEasing, captionsOn, captionSchedule, captionStyle, captionPos, captionSize, captionColor, captionAccent, captionFont, captionUppercase, captionWeight, captionMargin, captionStrokeWidth, captionBgOpacity],
+    [images, totalDuration, transitionMs, transitionEasing, captionsOn, captionSchedule, captionStyle, captionPos, captionSize, captionColor, captionAccent, captionFont, captionUppercase, captionWeight, captionMargin, captionStrokeWidth, captionBgOpacity, intro, outro],
   );
 
   // Keep latest drawFrame in a ref so the RAF loop is not recreated every state change.
@@ -1906,6 +1942,13 @@ function ImagesToVideoPage() {
               </p>
             </CardContent>
           </Card>
+
+          <IntroOutroCard
+            intro={intro}
+            outro={outro}
+            onIntro={setIntro}
+            onOutro={setOutro}
+          />
 
           <Card>
             <CardHeader className="pb-2">

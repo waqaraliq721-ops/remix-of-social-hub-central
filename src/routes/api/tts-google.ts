@@ -52,26 +52,43 @@ export const Route = createFileRoute("/api/tts-google")({
 
         const prompt = styleDirection ? `${styleDirection}: ${text}` : text;
 
-        const upstream = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(key)}`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              contents: [{ parts: [{ text: prompt }] }],
-              generationConfig: {
-                responseModalities: ["AUDIO"],
-                speechConfig: {
-                  voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } },
-                },
-              },
-            }),
+        const body = JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: {
+            responseModalities: ["AUDIO"],
+            speechConfig: {
+              voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } },
+            },
           },
-        );
+        });
 
-        if (!upstream.ok) {
-          const body = await upstream.text();
-          return new Response(body, { status: upstream.status });
+        // Model ids get retired — fall back to other TTS models if one is gone.
+        const candidates = [
+          model,
+          "gemini-2.5-flash-preview-tts",
+          "gemini-2.5-pro-preview-tts",
+          "gemini-3.1-flash-tts-preview",
+        ].filter((m, i, a) => a.indexOf(m) === i);
+
+        let upstream: Response | null = null;
+        let lastBody = "";
+        let lastStatus = 502;
+        for (const m of candidates) {
+          const res = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(m)}:generateContent?key=${encodeURIComponent(key)}`,
+            { method: "POST", headers: { "Content-Type": "application/json" }, body },
+          );
+          if (res.ok) {
+            upstream = res;
+            break;
+          }
+          lastStatus = res.status;
+          lastBody = await res.text();
+          if (res.status !== 404 && res.status !== 403 && res.status !== 400) break;
+        }
+
+        if (!upstream) {
+          return new Response(lastBody || "Google TTS failed", { status: lastStatus });
         }
 
         const json = (await upstream.json()) as {

@@ -42,42 +42,116 @@ async function viaElevenLabs(file: File, languageCode: string, key: string) {
   return { provider: "elevenlabs", text: data.text ?? "", words };
 }
 
-/** Google AI Studio (Gemini) — returns word-level timings via structured output. */
-async function viaGoogle(file: File, languageCode: string, key: string) {
-  const buf = new Uint8Array(await file.arrayBuffer());
-  let bin = "";
-  const CH = 0x8000;
-  for (let i = 0; i < buf.length; i += CH) {
-    bin += String.fromCharCode(...buf.subarray(i, i + CH));
-  }
-  const b64 = btoa(bin);
-  const mime = file.type && file.type.startsWith("audio") ? file.type : "audio/mpeg";
+/** Model ids are rolled/retired often — try newest first, fall back on 404. */
+const GOOGLE_STT_MODELS = [
+  "gemini-flash-latest",
+  "gemini-2.5-flash",
+  "gemini-2.0-flash",
+];
 
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(key)}`,
+/** Resumable upload to the Gemini Files API — required for audio above ~18MB. */
+async function uploadToGoogleFiles(file: File, mime: string, key: string): Promise<string> {
+  const start = await fetch(
+    `https://generativelanguage.googleapis.com/upload/v1beta/files?key=${encodeURIComponent(key)}`,
     {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [
-          {
-            parts: [
-              {
-                text:
-                  "Transcribe this audio word by word with precise timings in seconds." +
-                  (languageCode ? ` The language is ${languageCode}.` : "") +
-                  " Return ONLY JSON: {\"words\":[{\"text\":\"...\",\"start\":0.0,\"end\":0.0}]}." +
-                  " Include every spoken word in order. Do not include music or noise.",
-              },
-              { inlineData: { mimeType: mime, data: b64 } },
-            ],
-          },
-        ],
-        generationConfig: { responseMimeType: "application/json", temperature: 0 },
-      }),
+      headers: {
+        "X-Goog-Upload-Protocol": "resumable",
+        "X-Goog-Upload-Command": "start",
+        "X-Goog-Upload-Header-Content-Length": String(file.size),
+        "X-Goog-Upload-Header-Content-Type": mime,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ file: { display_name: file.name || "audio" } }),
     },
   );
-  if (!res.ok) throw new Error(`Google [${res.status}]: ${await res.text()}`);
+  const uploadUrl = start.headers.get("x-goog-upload-url");
+  if (!start.ok || !uploadUrl) {
+    throw new Error(`Google upload init [${start.status}]: ${await start.text()}`);
+  }
+  const put = await fetch(uploadUrl, {
+    method: "POST",
+    headers: {
+      "Content-Length": String(file.size),
+      "X-Goog-Upload-Offset": "0",
+      "X-Goog-Upload-Command": "upload, finalize",
+    },
+    body: file,
+  });
+  if (!put.ok) throw new Error(`Google upload [${put.status}]: ${await put.text()}`);
+  const info = (await put.json()) as { file?: { uri?: string; name?: string; state?: string } };
+  const uri = info.file?.uri;
+  const name = info.file?.name;
+  if (!uri) throw new Error("Google upload returned no file URI");
+
+  // Wait for the file to finish processing before referencing it.
+  for (let i = 0; i < 60 && name; i++) {
+    const st = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/${name}?key=${encodeURIComponent(key)}`,
+    );
+    const j = (await st.json().catch(() => ({}))) as { state?: string };
+    if (j.state === "ACTIVE") break;
+    if (j.state === "FAILED") throw new Error("Google failed to process the uploaded audio");
+    await new Promise((r) => setTimeout(r, 1500));
+  }
+  return uri;
+}
+
+
+/** Google AI Studio (Gemini) — returns word-level timings via structured output. */
+async function viaGoogle(file: File, languageCode: string, key: string) {
+  const mime = file.type && file.type.startsWith("audio") ? file.type : "audio/mpeg";
+  const INLINE_LIMIT = 18 * 1024 * 1024;
+
+  // Big files can't be inlined — push them through the Files API first.
+  let filePart: Record<string, unknown>;
+  if (file.size > INLINE_LIMIT) {
+    filePart = { fileData: { mimeType: mime, fileUri: await uploadToGoogleFiles(file, mime, key) } };
+  } else {
+    const buf = new Uint8Array(await file.arrayBuffer());
+    let bin = "";
+    const CH = 0x8000;
+    for (let i = 0; i < buf.length; i += CH) {
+      bin += String.fromCharCode(...buf.subarray(i, i + CH));
+    }
+    filePart = { inlineData: { mimeType: mime, data: btoa(bin) } };
+  }
+
+  const body = JSON.stringify({
+    contents: [
+      {
+        parts: [
+          {
+            text:
+              "Transcribe this audio word by word with precise timings in seconds." +
+              (languageCode ? ` The language is ${languageCode}.` : "") +
+              " Return ONLY JSON: {\"words\":[{\"text\":\"...\",\"start\":0.0,\"end\":0.0}]}." +
+              " Include every spoken word in order. Do not include music or noise.",
+          },
+          filePart,
+        ],
+      },
+    ],
+    generationConfig: { responseMimeType: "application/json", temperature: 0 },
+  });
+
+  let res: Response | null = null;
+  let lastErr = "";
+  for (const model of GOOGLE_STT_MODELS) {
+    const attempt = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(key)}`,
+      { method: "POST", headers: { "Content-Type": "application/json" }, body },
+    );
+    if (attempt.ok) {
+      res = attempt;
+      break;
+    }
+    lastErr = `Google ${model} [${attempt.status}]: ${await attempt.text()}`;
+    // Only keep trying when the model itself is unavailable to this key.
+    if (attempt.status !== 404 && attempt.status !== 403 && attempt.status !== 400) break;
+  }
+  if (!res) throw new Error(lastErr || "Google request failed");
+
   const json = (await res.json()) as {
     candidates?: { content?: { parts?: { text?: string }[] } }[];
   };
@@ -128,9 +202,9 @@ export const Route = createFileRoute("/api/transcribe")({
         if (!(file instanceof File) || file.size === 0) {
           return Response.json({ error: "No audio file uploaded" }, { status: 400 });
         }
-        if (file.size > 24 * 1024 * 1024) {
+        if (file.size > 1024 * 1024 * 1024) {
           return Response.json(
-            { error: "File is larger than 24MB. Please upload a shorter or compressed track." },
+            { error: "File is larger than 1GB. Please upload a shorter or compressed track." },
             { status: 413 },
           );
         }

@@ -24,24 +24,30 @@ Rules:
   virality score (0-100) descending. Do not invent content that is not in the source.
 - Timestamps are seconds from the start of the source, with one decimal.`;
 
+const GEMINI_MODELS = ["gemini-flash-latest", "gemini-2.5-flash", "gemini-2.0-flash"];
+
 async function callGemini(key: string, parts: unknown[]) {
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(key)}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        systemInstruction: { parts: [{ text: SYSTEM }] },
-        contents: [{ role: "user", parts }],
-        generationConfig: { responseMimeType: "application/json", temperature: 0.4 },
-      }),
-    },
-  );
-  if (!res.ok) throw new Error(`Gemini [${res.status}]: ${await res.text()}`);
-  const json = (await res.json()) as {
-    candidates?: { content?: { parts?: { text?: string }[] } }[];
-  };
-  return json.candidates?.[0]?.content?.parts?.map((p) => p.text ?? "").join("") ?? "";
+  const body = JSON.stringify({
+    systemInstruction: { parts: [{ text: SYSTEM }] },
+    contents: [{ role: "user", parts }],
+    generationConfig: { responseMimeType: "application/json", temperature: 0.4 },
+  });
+  let lastErr = "";
+  for (const model of GEMINI_MODELS) {
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(key)}`,
+      { method: "POST", headers: { "Content-Type": "application/json" }, body },
+    );
+    if (res.ok) {
+      const json = (await res.json()) as {
+        candidates?: { content?: { parts?: { text?: string }[] } }[];
+      };
+      return json.candidates?.[0]?.content?.parts?.map((p) => p.text ?? "").join("") ?? "";
+    }
+    lastErr = `Gemini ${model} [${res.status}]: ${await res.text()}`;
+    if (res.status !== 404 && res.status !== 403 && res.status !== 400) break;
+  }
+  throw new Error(lastErr || "Gemini request failed");
 }
 
 async function callLovable(key: string, prompt: string) {

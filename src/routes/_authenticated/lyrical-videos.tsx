@@ -13,6 +13,14 @@ import {
   Sparkles,
   Wand2,
 } from "lucide-react";
+import {
+  IntroOutroCard,
+  defaultIntro,
+  defaultOutro,
+  paletteOf,
+  type CardConfig,
+} from "@/components/intro-outro-card";
+import { INTRO_ANIMATIONS, OUTRO_ANIMATIONS } from "@/lib/video-fx";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -202,41 +210,187 @@ function easeOutCubic(x: number) {
   return 1 - Math.pow(1 - x, 3);
 }
 
+/** Set by renderEngine so the background can vary per template. */
+let BG_SEED = 0;
+
+function hashSeed(s: string) {
+  let n = 0;
+  for (let i = 0; i < s.length; i++) n = (n * 31 + s.charCodeAt(i)) >>> 0;
+  return n;
+}
+
+/**
+ * Animated, palette-driven background. Six looks keyed off the template so no
+ * two engines share a backdrop, and everything is painted edge to edge so the
+ * frame reads as one continuous surface (no visible top/bottom banding).
+ */
 function drawBg(ctx: CanvasRenderingContext2D, w: number, h: number, p: Palette, t: number) {
-  ctx.fillStyle = p.bg[0];
+  const variant = BG_SEED % 6;
+  const base = ctx.createLinearGradient(0, 0, w * 0.35, h);
+  base.addColorStop(0, p.bg[0]);
+  base.addColorStop(0.5, p.bg[1]);
+  base.addColorStop(1, p.bg[0]);
+  ctx.fillStyle = base;
   ctx.fillRect(0, 0, w, h);
-  const cx = w / 2 + Math.sin(t * 0.25) * w * 0.04;
-  const cy = h * 0.35 + Math.cos(t * 0.2) * h * 0.03;
-  const rad = Math.max(w, h) * 0.75;
-  const rg = ctx.createRadialGradient(cx, cy, rad * 0.05, cx, cy, rad);
-  rg.addColorStop(0, p.bg[1]);
-  rg.addColorStop(0.55, hexA(p.primary, 0.06));
-  rg.addColorStop(1, p.bg[0]);
-  ctx.fillStyle = rg;
-  ctx.fillRect(0, 0, w, h);
-  // film grain-ish vignette
-  const vg = ctx.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.25, w / 2, h / 2, Math.max(w, h) * 0.75);
+
+  ctx.save();
+  ctx.globalCompositeOperation = "lighter";
+
+  const blob = (cx: number, cy: number, rad: number, color: string, alpha: number) => {
+    const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, rad);
+    g.addColorStop(0, hexA(color, alpha));
+    g.addColorStop(1, hexA(color, 0));
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, w, h);
+  };
+
+  if (variant === 0) {
+    // Aurora — three slow drifting colour clouds.
+    blob(w * 0.3 + Math.sin(t * 0.21) * w * 0.18, h * 0.28 + Math.cos(t * 0.17) * h * 0.1, Math.max(w, h) * 0.55, p.primary, 0.22);
+    blob(w * 0.75 + Math.cos(t * 0.15) * w * 0.14, h * 0.7 + Math.sin(t * 0.19) * h * 0.12, Math.max(w, h) * 0.5, p.accent, 0.16);
+    blob(w * 0.5, h * 0.5 + Math.sin(t * 0.11) * h * 0.2, Math.max(w, h) * 0.45, p.bg[1], 0.3);
+  } else if (variant === 1) {
+    // Sweeping diagonal gradient band.
+    const off = ((t * 0.06) % 1) * 2 - 0.5;
+    const g = ctx.createLinearGradient(-w * off, 0, w * (1.4 - off), h);
+    g.addColorStop(0, hexA(p.primary, 0));
+    g.addColorStop(0.45, hexA(p.primary, 0.2));
+    g.addColorStop(0.55, hexA(p.accent, 0.16));
+    g.addColorStop(1, hexA(p.accent, 0));
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, w, h);
+    blob(w * 0.5, h * 0.45, Math.max(w, h) * 0.6, p.bg[1], 0.35);
+  } else if (variant === 2) {
+    // Slow rotating light rays.
+    ctx.save();
+    ctx.translate(w / 2, h * 0.42);
+    ctx.rotate(t * 0.06);
+    const rays = 12;
+    for (let i = 0; i < rays; i++) {
+      ctx.rotate((Math.PI * 2) / rays);
+      const g = ctx.createLinearGradient(0, 0, 0, -Math.max(w, h));
+      g.addColorStop(0, hexA(i % 2 ? p.primary : p.accent, 0.14));
+      g.addColorStop(1, hexA(p.primary, 0));
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.arc(0, 0, Math.max(w, h), -Math.PI / 2 - 0.11, -Math.PI / 2 + 0.11);
+      ctx.closePath();
+      ctx.fill();
+    }
+    ctx.restore();
+    blob(w * 0.5, h * 0.5, Math.max(w, h) * 0.5, p.bg[1], 0.3);
+  } else if (variant === 3) {
+    // Floating bokeh.
+    for (let i = 0; i < 16; i++) {
+      const s = (i * 97) % 100 / 100;
+      const cx = ((s * 1.7) % 1) * w + Math.sin(t * (0.12 + s * 0.2) + i) * w * 0.05;
+      const cy = ((s * 2.3 + t * 0.02 * (0.5 + s)) % 1) * h;
+      blob(cx, cy, Math.max(w, h) * (0.06 + s * 0.1), i % 3 ? p.primary : p.accent, 0.12);
+    }
+    blob(w * 0.5, h * 0.5, Math.max(w, h) * 0.55, p.bg[1], 0.25);
+  } else if (variant === 4) {
+    // Drifting soft stripes.
+    ctx.save();
+    ctx.translate(w / 2, h / 2);
+    ctx.rotate(-0.5);
+    const band = Math.max(w, h) * 0.16;
+    const shift = (t * band * 0.12) % (band * 2);
+    for (let x = -Math.max(w, h) - shift; x < Math.max(w, h); x += band * 2) {
+      const g = ctx.createLinearGradient(x, 0, x + band, 0);
+      g.addColorStop(0, hexA(p.primary, 0));
+      g.addColorStop(0.5, hexA(p.primary, 0.12));
+      g.addColorStop(1, hexA(p.primary, 0));
+      ctx.fillStyle = g;
+      ctx.fillRect(x, -Math.max(w, h), band, Math.max(w, h) * 2);
+    }
+    ctx.restore();
+    blob(w * 0.5, h * 0.4, Math.max(w, h) * 0.55, p.accent, 0.12);
+  } else {
+    // Breathing concentric rings.
+    for (let i = 0; i < 5; i++) {
+      const phase = (t * 0.12 + i / 5) % 1;
+      const rad = Math.max(w, h) * (0.15 + phase * 0.65);
+      ctx.strokeStyle = hexA(i % 2 ? p.primary : p.accent, 0.16 * (1 - phase));
+      ctx.lineWidth = Math.max(1, Math.min(w, h) * 0.006);
+      ctx.beginPath();
+      ctx.arc(w / 2, h * 0.45, rad, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    blob(w / 2, h * 0.45, Math.max(w, h) * 0.5, p.primary, 0.16);
+  }
+  ctx.restore();
+
+  // Even, full-frame vignette keeps the composition unified.
+  const vg = ctx.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.35, w / 2, h / 2, Math.max(w, h) * 0.8);
   vg.addColorStop(0, "rgba(0,0,0,0)");
-  vg.addColorStop(1, "rgba(0,0,0,0.55)");
+  vg.addColorStop(1, "rgba(0,0,0,0.4)");
   ctx.fillStyle = vg;
   ctx.fillRect(0, 0, w, h);
 }
 
+/**
+ * Wrap + auto-shrink so a lyric always fits inside the safe area.
+ * Returns the rows and the font size actually used.
+ */
+function layoutText(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  opts: {
+    maxW: number;
+    maxH: number;
+    start: number;
+    weight: number | string;
+    family: string;
+    lineH?: number;
+    min?: number;
+  },
+): { rows: string[]; size: number } {
+  const lineH = opts.lineH ?? 1.18;
+  const min = opts.min ?? 12;
+  let size = Math.max(min, Math.round(opts.start));
+  for (;;) {
+    ctx.font = `${opts.weight} ${size}px ${opts.family}`;
+    const rows = wrapText(ctx, text, opts.maxW);
+    const fits =
+      rows.length * size * lineH <= opts.maxH &&
+      rows.every((r) => ctx.measureText(r).width <= opts.maxW);
+    if (fits || size <= min) return { rows, size };
+    size = Math.max(min, Math.round(size * 0.92));
+  }
+}
+
 function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
-  const words = text.split(" ");
+  const words = text.split(" ").filter(Boolean);
   const lines: string[] = [];
   let cur = "";
-  for (const w of words) {
-    const test = cur ? cur + " " + w : w;
-    if (ctx.measureText(test).width > maxWidth && cur) {
-      lines.push(cur);
-      cur = w;
-    } else {
-      cur = test;
+  const pushWord = (w: string) => {
+    // Hard-break words that can never fit on their own.
+    if (ctx.measureText(w).width <= maxWidth) return [w];
+    const parts: string[] = [];
+    let chunk = "";
+    for (const ch of w) {
+      if (chunk && ctx.measureText(chunk + ch).width > maxWidth) {
+        parts.push(chunk);
+        chunk = ch;
+      } else chunk += ch;
+    }
+    if (chunk) parts.push(chunk);
+    return parts;
+  };
+  for (const raw of words) {
+    for (const w of pushWord(raw)) {
+      const test = cur ? cur + " " + w : w;
+      if (ctx.measureText(test).width > maxWidth && cur) {
+        lines.push(cur);
+        cur = w;
+      } else {
+        cur = test;
+      }
     }
   }
   if (cur) lines.push(cur);
-  return lines;
+  return lines.length ? lines : [""];
 }
 
 function tracked(
@@ -984,17 +1138,30 @@ function typoFooter(ctx: CanvasRenderingContext2D, r: RenderCtx, font: string) {
   ctx.fillRect(w * 0.1, h * 0.98, w * 0.8 * prog, Math.max(2, h * 0.002));
 }
 
+/** Safe area every typography engine draws inside. */
+function safeBox(r: RenderCtx) {
+  const { w, h } = r;
+  return { x: w * 0.08, y: h * 0.2, w: w * 0.84, h: h * 0.55 };
+}
+
 function renderTypoSerif(ctx: CanvasRenderingContext2D, r: RenderCtx) {
   const { w, h, palette: p } = r;
   drawBg(ctx, w, h, p, r.t);
   const { text, appear } = typoContext(r);
+  const box = safeBox(r);
   ctx.save();
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  const size = Math.round(h * (r.aspect === "9:16" ? 0.052 : 0.07));
+  const { rows, size } = layoutText(ctx, text, {
+    maxW: box.w,
+    maxH: box.h,
+    start: h * (r.aspect === "9:16" ? 0.056 : 0.075),
+    weight: 400,
+    family: SERIF,
+    lineH: 1.3,
+  });
   ctx.font = `400 ${size}px ${SERIF}`;
-  const rows = wrapText(ctx, text, w * 0.78);
-  let y = h * 0.5 - ((rows.length - 1) * size * 1.3) / 2;
+  let y = h * 0.48 - ((rows.length - 1) * size * 1.3) / 2;
   ctx.globalAlpha = appear;
   for (const row of rows) {
     ctx.fillStyle = p.text;
@@ -1002,11 +1169,11 @@ function renderTypoSerif(ctx: CanvasRenderingContext2D, r: RenderCtx) {
     y += size * 1.3;
   }
   ctx.globalAlpha = 1;
-  ctx.strokeStyle = hexA(p.primary, 0.65);
-  ctx.lineWidth = Math.max(1, h * 0.0012);
+  ctx.strokeStyle = hexA(p.primary, 0.7);
+  ctx.lineWidth = Math.max(1, h * 0.0014);
   ctx.beginPath();
-  ctx.moveTo(w / 2 - w * 0.1, y + size * 0.2);
-  ctx.lineTo(w / 2 + w * 0.1, y + size * 0.2);
+  ctx.moveTo(w / 2 - w * 0.08, y + size * 0.15);
+  ctx.lineTo(w / 2 + w * 0.08, y + size * 0.15);
   ctx.stroke();
   ctx.restore();
   typoFooter(ctx, r, SERIF);
@@ -1017,23 +1184,30 @@ function renderTypoStack(ctx: CanvasRenderingContext2D, r: RenderCtx) {
   drawBg(ctx, w, h, p, r.t);
   const { text, frac, appear } = typoContext(r);
   const words = text.split(" ").filter(Boolean).slice(0, 5);
+  const box = safeBox(r);
   ctx.save();
   ctx.textAlign = "left";
   ctx.textBaseline = "middle";
-  const size = Math.round(h * (r.aspect === "9:16" ? 0.085 : 0.11));
-  const total = words.length * size * 1.02;
-  let y = h * 0.5 - total / 2 + size * 0.5;
+  // Fit both the widest word and the total stack height.
+  let size = Math.round(h * (r.aspect === "9:16" ? 0.085 : 0.11));
+  for (let i = 0; i < 40; i++) {
+    ctx.font = `900 ${size}px ${FONT}`;
+    const widest = Math.max(1, ...words.map((x) => ctx.measureText(x.toUpperCase()).width));
+    if (widest <= box.w * 0.92 && words.length * size * 1.05 <= box.h * 1.25) break;
+    size = Math.round(size * 0.93);
+  }
+  let y = h * 0.5 - (words.length * size * 1.05) / 2 + size * 0.5;
   words.forEach((word, i) => {
     const lit = frac >= i / Math.max(1, words.length);
     ctx.font = `900 ${size}px ${FONT}`;
     ctx.globalAlpha = appear;
     ctx.fillStyle = lit ? p.text : hexA(p.text, 0.22);
-    ctx.fillText(word.toUpperCase(), w * 0.1 + (lit ? 0 : -w * 0.01), y);
+    ctx.fillText(word.toUpperCase(), box.x + w * 0.04, y);
     if (lit) {
       ctx.fillStyle = p.primary;
-      ctx.fillRect(w * 0.06, y - size * 0.32, Math.max(3, w * 0.006), size * 0.64);
+      ctx.fillRect(box.x, y - size * 0.32, Math.max(3, w * 0.006), size * 0.64);
     }
-    y += size * 1.02;
+    y += size * 1.05;
   });
   ctx.restore();
   typoFooter(ctx, r, FONT);
@@ -1043,20 +1217,26 @@ function renderTypoMarquee(ctx: CanvasRenderingContext2D, r: RenderCtx) {
   const { w, h, palette: p } = r;
   drawBg(ctx, w, h, p, r.t);
   const { text } = typoContext(r);
-  const size = Math.round(h * (r.aspect === "9:16" ? 0.09 : 0.12));
+  let size = Math.round(h * (r.aspect === "9:16" ? 0.085 : 0.115));
   ctx.save();
   ctx.textBaseline = "middle";
   ctx.textAlign = "left";
-  ctx.font = `900 ${size}px ${COND}`;
   const label = `${text.toUpperCase()}   ✦   `;
+  // Keep one repetition readable rather than letting glyphs run off-frame.
+  for (let i = 0; i < 30; i++) {
+    ctx.font = `900 ${size}px ${COND}`;
+    if (ctx.measureText(label).width <= w * 1.6) break;
+    size = Math.round(size * 0.93);
+  }
+  ctx.font = `900 ${size}px ${COND}`;
   const tw = Math.max(1, ctx.measureText(label).width);
   const shift = (r.t * w * 0.09) % tw;
   ctx.fillStyle = hexA(p.text, 0.95);
   for (let x = -shift; x < w; x += tw) ctx.fillText(label, x, h * 0.5);
   ctx.restore();
-  ctx.fillStyle = hexA(p.primary, 0.5);
-  ctx.fillRect(0, h * 0.5 - size * 0.75, w, Math.max(2, h * 0.002));
-  ctx.fillRect(0, h * 0.5 + size * 0.75, w, Math.max(2, h * 0.002));
+  ctx.fillStyle = hexA(p.primary, 0.55);
+  ctx.fillRect(0, h * 0.5 - size * 0.78, w, Math.max(2, h * 0.002));
+  ctx.fillRect(0, h * 0.5 + size * 0.78, w, Math.max(2, h * 0.002));
   typoFooter(ctx, r, COND);
 }
 
@@ -1064,12 +1244,19 @@ function renderTypoGradient(ctx: CanvasRenderingContext2D, r: RenderCtx) {
   const { w, h, palette: p } = r;
   drawBg(ctx, w, h, p, r.t);
   const { text, appear } = typoContext(r);
+  const box = safeBox(r);
   ctx.save();
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  const size = Math.round(h * (r.aspect === "9:16" ? 0.075 : 0.1));
+  const { rows, size } = layoutText(ctx, text.toUpperCase(), {
+    maxW: box.w,
+    maxH: box.h,
+    start: h * (r.aspect === "9:16" ? 0.08 : 0.105),
+    weight: 900,
+    family: FONT,
+    lineH: 1.1,
+  });
   ctx.font = `900 ${size}px ${FONT}`;
-  const rows = wrapText(ctx, text.toUpperCase(), w * 0.86);
   let y = h * 0.5 - ((rows.length - 1) * size * 1.1) / 2;
   const g = ctx.createLinearGradient(0, y - size, 0, y + rows.length * size * 1.1);
   g.addColorStop(0, p.accent);
@@ -1088,20 +1275,28 @@ function renderTypoOutline(ctx: CanvasRenderingContext2D, r: RenderCtx) {
   const { w, h, palette: p } = r;
   drawBg(ctx, w, h, p, r.t);
   const { text, frac } = typoContext(r);
+  const box = safeBox(r);
   ctx.save();
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  const size = Math.round(h * (r.aspect === "9:16" ? 0.08 : 0.105));
+  const { rows, size } = layoutText(ctx, text.toUpperCase(), {
+    maxW: box.w,
+    maxH: box.h,
+    start: h * (r.aspect === "9:16" ? 0.08 : 0.105),
+    weight: 900,
+    family: FONT,
+    lineH: 1.12,
+  });
   ctx.font = `900 ${size}px ${FONT}`;
-  const rows = wrapText(ctx, text.toUpperCase(), w * 0.86);
   let y = h * 0.5 - ((rows.length - 1) * size * 1.12) / 2;
   for (const row of rows) {
+    const rw = ctx.measureText(row).width;
     ctx.lineWidth = Math.max(2, size * 0.035);
     ctx.strokeStyle = hexA(p.text, 0.85);
     ctx.strokeText(row, w / 2, y);
     ctx.save();
     ctx.beginPath();
-    ctx.rect(w / 2 - ctx.measureText(row).width / 2, y - size * 0.6, ctx.measureText(row).width * frac, size * 1.2);
+    ctx.rect(w / 2 - rw / 2, y - size * 0.7, rw * frac, size * 1.4);
     ctx.clip();
     ctx.fillStyle = p.primary;
     ctx.fillText(row, w / 2, y);
@@ -1117,28 +1312,35 @@ function renderTypoJustify(ctx: CanvasRenderingContext2D, r: RenderCtx) {
   drawBg(ctx, w, h, p, r.t);
   const { text, appear } = typoContext(r);
   const words = text.split(" ").filter(Boolean);
+  const box = safeBox(r);
   ctx.save();
   ctx.textBaseline = "middle";
   ctx.textAlign = "left";
-  const rows: string[][] = [];
-  let row: string[] = [];
-  const size = Math.round(h * (r.aspect === "9:16" ? 0.062 : 0.08));
-  ctx.font = `800 ${size}px ${FONT}`;
-  for (const word of words) {
-    const test = [...row, word].join(" ");
-    if (ctx.measureText(test).width > w * 0.82 && row.length) {
-      rows.push(row);
-      row = [word];
-    } else row.push(word);
+  let size = Math.round(h * (r.aspect === "9:16" ? 0.062 : 0.08));
+  let rows: string[][] = [];
+  for (let attempt = 0; attempt < 40; attempt++) {
+    ctx.font = `800 ${size}px ${FONT}`;
+    rows = [];
+    let row: string[] = [];
+    for (const word of words) {
+      const test = [...row, word].join(" ").toUpperCase();
+      if (ctx.measureText(test).width > box.w && row.length) {
+        rows.push(row);
+        row = [word];
+      } else row.push(word);
+    }
+    if (row.length) rows.push(row);
+    const widest = Math.max(0, ...rows.map((rw) => ctx.measureText(rw.join(" ").toUpperCase()).width));
+    if (rows.length * size * 1.2 <= box.h && widest <= box.w) break;
+    size = Math.round(size * 0.93);
   }
-  if (row.length) rows.push(row);
   let y = h * 0.5 - ((rows.length - 1) * size * 1.2) / 2;
   ctx.globalAlpha = appear;
   rows.forEach((rw, ri) => {
     const widths = rw.map((x) => ctx.measureText(x.toUpperCase()).width);
     const sum = widths.reduce((a, b) => a + b, 0);
-    const gapW = rw.length > 1 && ri < rows.length - 1 ? (w * 0.82 - sum) / (rw.length - 1) : size * 0.3;
-    let x = w * 0.09;
+    const gapW = rw.length > 1 && ri < rows.length - 1 ? (box.w - sum) / (rw.length - 1) : size * 0.3;
+    let x = box.x;
     rw.forEach((word, i) => {
       ctx.fillStyle = ri % 2 ? p.primary : p.text;
       ctx.fillText(word.toUpperCase(), x, y);
@@ -1154,24 +1356,34 @@ function renderTypoMono(ctx: CanvasRenderingContext2D, r: RenderCtx) {
   const { w, h, palette: p } = r;
   drawBg(ctx, w, h, p, r.t);
   const { idx, text, frac } = typoContext(r);
+  const box = safeBox(r);
   ctx.save();
   ctx.textAlign = "left";
   ctx.textBaseline = "middle";
-  const size = Math.round(h * (r.aspect === "9:16" ? 0.032 : 0.042));
-  ctx.font = `500 ${size}px ${MONO}`;
   const shown = text.slice(0, Math.ceil(text.length * Math.min(1, frac * 1.6)));
-  const rows = wrapText(ctx, shown, w * 0.76);
+  const { rows, size } = layoutText(ctx, shown || " ", {
+    maxW: box.w,
+    maxH: box.h,
+    start: h * (r.aspect === "9:16" ? 0.034 : 0.044),
+    weight: 500,
+    family: MONO,
+    lineH: 1.5,
+  });
+  ctx.font = `500 ${size}px ${MONO}`;
   let y = h * 0.5 - ((rows.length - 1) * size * 1.5) / 2;
   ctx.fillStyle = hexA(p.primary, 0.75);
-  ctx.fillText(`> line ${String(idx + 1).padStart(2, "0")}`, w * 0.12, y - size * 1.9);
+  ctx.fillText(`> line ${String(idx + 1).padStart(2, "0")}`, box.x, y - size * 2.1);
+  let lastY = y;
   for (const row of rows) {
     ctx.fillStyle = p.text;
-    ctx.fillText(row, w * 0.12, y);
+    ctx.fillText(row, box.x, y);
+    lastY = y;
     y += size * 1.5;
   }
   if (Math.floor(r.t * 2) % 2 === 0) {
+    const lastRow = rows[rows.length - 1] ?? "";
     ctx.fillStyle = p.primary;
-    ctx.fillRect(w * 0.12 + ctx.measureText(rows[rows.length - 1] ?? "").width + size * 0.2, y - size * 1.9, size * 0.5, size * 0.12);
+    ctx.fillRect(box.x + ctx.measureText(lastRow).width + size * 0.2, lastY + size * 0.42, size * 0.5, size * 0.1);
   }
   ctx.restore();
   typoFooter(ctx, r, MONO);
@@ -1185,10 +1397,12 @@ function renderTypoVertical(ctx: CanvasRenderingContext2D, r: RenderCtx) {
   ctx.save();
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  const size = Math.round(Math.min(h / Math.max(6, chars.length + 2), h * 0.09));
-  let y = h * 0.5 - (chars.length - 1) * size * 0.5;
+  const size = Math.round(
+    Math.min((h * 0.72) / Math.max(6, chars.length), h * 0.085, w * 0.2),
+  );
+  let y = h * 0.48 - (chars.length - 1) * size * 0.5;
   chars.forEach((c, i) => {
-    ctx.globalAlpha = appear * (0.5 + 0.5 * Math.abs(Math.sin(r.t * 2 + i * 0.4)));
+    ctx.globalAlpha = appear * (0.55 + 0.45 * Math.abs(Math.sin(r.t * 2 + i * 0.4)));
     ctx.font = `900 ${size}px ${FONT}`;
     ctx.fillStyle = i % 2 ? p.primary : p.text;
     ctx.fillText(c === " " ? "·" : c, w / 2, y);
@@ -1198,10 +1412,21 @@ function renderTypoVertical(ctx: CanvasRenderingContext2D, r: RenderCtx) {
   typoFooter(ctx, r, FONT);
 }
 
+function fitTextLocal(ctx: CanvasRenderingContext2D, text: string, maxW: number, start: number) {
+  let s = Math.round(start);
+  ctx.font = `900 ${s}px ${COND}`;
+  while (ctx.measureText(text).width > maxW && s > 14) {
+    s -= 2;
+    ctx.font = `900 ${s}px ${COND}`;
+  }
+  return s;
+}
+
 function renderTypoPoster(ctx: CanvasRenderingContext2D, r: RenderCtx) {
   const { w, h, palette: p } = r;
   drawBg(ctx, w, h, p, r.t);
   const { text, appear } = typoContext(r);
+  const box = safeBox(r);
   ctx.save();
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
@@ -1212,28 +1437,23 @@ function renderTypoPoster(ctx: CanvasRenderingContext2D, r: RenderCtx) {
     else acc.push(word);
     return acc;
   }, []);
-  const size = Math.round(h * (r.aspect === "9:16" ? 0.11 : 0.14) / Math.max(1, rows.length * 0.6));
-  let y = h * 0.5 - ((rows.length - 1) * size * 0.94) / 2;
+  const start = Math.min(
+    h * (r.aspect === "9:16" ? 0.12 : 0.15),
+    (box.h * 1.3) / Math.max(1, rows.length),
+  );
+  // Every row gets its own fitted size, then rows share the smallest for rhythm.
+  const sizes = rows.map((row) => fitTextLocal(ctx, row, box.w, start));
+  const size = Math.min(...(sizes.length ? sizes : [start]));
+  let y = h * 0.48 - ((rows.length - 1) * size * 0.98) / 2;
   ctx.globalAlpha = appear;
   rows.forEach((row, i) => {
-    const s = fitTextLocal(ctx, row, w * 0.9, size);
-    ctx.font = `900 ${s}px ${COND}`;
+    ctx.font = `900 ${size}px ${COND}`;
     ctx.fillStyle = i % 2 ? p.primary : p.text;
     ctx.fillText(row, w / 2, y);
-    y += size * 0.94;
+    y += size * 0.98;
   });
   ctx.restore();
   typoFooter(ctx, r, COND);
-}
-
-function fitTextLocal(ctx: CanvasRenderingContext2D, text: string, maxW: number, start: number) {
-  let s = start;
-  ctx.font = `900 ${s}px ${COND}`;
-  while (ctx.measureText(text).width > maxW && s > 16) {
-    s -= 2;
-    ctx.font = `900 ${s}px ${COND}`;
-  }
-  return s;
 }
 
 function renderTypoTicker(ctx: CanvasRenderingContext2D, r: RenderCtx) {
@@ -1242,19 +1462,27 @@ function renderTypoTicker(ctx: CanvasRenderingContext2D, r: RenderCtx) {
   const { idx, appear } = typoContext(r);
   ctx.save();
   ctx.textBaseline = "middle";
-  const size = Math.round(h * (r.aspect === "9:16" ? 0.045 : 0.058));
+  const size = Math.round(h * (r.aspect === "9:16" ? 0.042 : 0.055));
+  const maxW = w * 0.84;
   for (let i = Math.max(0, idx - 2); i <= Math.min(lyrics.length - 1, idx + 2); i++) {
     const off = i - idx;
     const y = h * 0.5 + off * size * 1.9;
     const active = off === 0;
     ctx.globalAlpha = active ? appear : 0.25;
-    ctx.font = `${active ? 900 : 500} ${Math.round(active ? size * 1.15 : size)}px ${FONT}`;
+    // Shrink any line that would otherwise run past the safe area.
+    let s = Math.round(active ? size * 1.15 : size);
+    const label = lyrics[i].text.toUpperCase();
+    for (let k = 0; k < 30; k++) {
+      ctx.font = `${active ? 900 : 500} ${s}px ${FONT}`;
+      if (ctx.measureText(label).width <= maxW || s <= 12) break;
+      s = Math.round(s * 0.93);
+    }
     ctx.textAlign = i % 2 ? "right" : "left";
     ctx.fillStyle = active ? p.text : hexA(p.text, 0.8);
-    ctx.fillText(lyrics[i].text.toUpperCase(), i % 2 ? w * 0.92 : w * 0.08, y);
+    ctx.fillText(label, i % 2 ? w * 0.92 : w * 0.08, y);
     if (active) {
       ctx.fillStyle = p.primary;
-      ctx.fillRect(i % 2 ? w * 0.92 : w * 0.08 - w * 0.03, y + size * 0.75, w * 0.03, Math.max(2, h * 0.003));
+      ctx.fillRect(i % 2 ? w * 0.89 : w * 0.08, y + s * 0.8, w * 0.03, Math.max(2, h * 0.003));
     }
   }
   ctx.restore();
@@ -1262,7 +1490,7 @@ function renderTypoTicker(ctx: CanvasRenderingContext2D, r: RenderCtx) {
 }
 
 function renderEngine(ctx: CanvasRenderingContext2D, engine: EngineId, r: RenderCtx) {
-
+  BG_SEED = hashSeed(engine);
   switch (engine) {
     case "vinyl":
       return renderVinyl(ctx, r);
@@ -1334,6 +1562,10 @@ function LyricalVideosPage() {
   const timeRef = useRef(0);
   const startedAtRef = useRef(0);
   const pausedAtRef = useRef(0);
+
+  const [intro, setIntro] = useState<CardConfig>({ ...defaultIntro, id: "none" });
+  const [outro, setOutro] = useState<CardConfig>({ ...defaultOutro, id: "none" });
+
 
   const dims = ASPECTS[aspect];
   const template = TEMPLATES.find((t) => t.id === templateId) ?? TEMPLATES[0];
@@ -1417,14 +1649,13 @@ function LyricalVideosPage() {
     }
   };
 
-  const drawAt = useCallback(
-    (canvas: HTMLCanvasElement, t: number) => {
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return;
+  /** Engine frame plus optional intro / outro cards. */
+  const paint = useCallback(
+    (ctx: CanvasRenderingContext2D, w: number, h: number, t: number) => {
       renderEngine(ctx, template.engine, {
         t,
-        w: canvas.width,
-        h: canvas.height,
+        w,
+        h,
         aspect,
         palette: template.palette,
         title,
@@ -1433,8 +1664,41 @@ function LyricalVideosPage() {
         lyrics: parsedLyrics,
         duration: audioDuration,
       });
+      if (intro.id !== "none" && t < intro.seconds) {
+        INTRO_ANIMATIONS.find((a) => a.id === intro.id)?.draw({
+          ctx,
+          w,
+          h,
+          p: Math.min(1, t / Math.max(0.2, intro.seconds)),
+          palette: paletteOf(intro.paletteId),
+          title: intro.title || title,
+          subtitle: intro.subtitle || artist,
+          logo: null,
+        });
+      }
+      if (outro.id !== "none" && audioDuration > 0 && t > audioDuration - outro.seconds) {
+        OUTRO_ANIMATIONS.find((a) => a.id === outro.id)?.draw({
+          ctx,
+          w,
+          h,
+          p: Math.min(1, (t - (audioDuration - outro.seconds)) / Math.max(0.2, outro.seconds)),
+          palette: paletteOf(outro.paletteId),
+          title: outro.title,
+          subtitle: outro.subtitle,
+          logo: null,
+        });
+      }
     },
-    [aspect, template, title, artist, coverImg, parsedLyrics, audioDuration],
+    [aspect, template, title, artist, coverImg, parsedLyrics, audioDuration, intro, outro],
+  );
+
+  const drawAt = useCallback(
+    (canvas: HTMLCanvasElement, t: number) => {
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+      paint(ctx, canvas.width, canvas.height, t);
+    },
+    [paint],
   );
 
   useEffect(() => {
@@ -1555,18 +1819,7 @@ function LyricalVideosPage() {
         if (!running) return;
         const t = (performance.now() - t0) / 1000;
         setExportProgress(Math.min(100, (t / audioDuration) * 100));
-        renderEngine(octx, template.engine, {
-          t,
-          w: off.width,
-          h: off.height,
-          aspect,
-          palette: template.palette,
-          title,
-          artist,
-          coverImg,
-          lyrics: parsedLyrics,
-          duration: audioDuration,
-        });
+        paint(octx, off.width, off.height, t);
         if (t >= audioDuration) {
           running = false;
           try {
@@ -1816,6 +2069,14 @@ function LyricalVideosPage() {
 
         {/* Right: templates */}
         <div className="space-y-4">
+          <IntroOutroCard
+            intro={intro}
+            outro={outro}
+            onIntro={setIntro}
+            onOutro={setOutro}
+            ratio={dims.w / dims.h}
+          />
+
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Templates</CardTitle>

@@ -36,6 +36,16 @@ import {
   type TranscriptWord,
   type TimedLine,
 } from "@/lib/transcribe";
+import { Switch } from "@/components/ui/switch";
+import {
+  IntroOutroCard,
+  defaultIntro,
+  defaultOutro,
+  paletteOf,
+  type CardConfig,
+} from "@/components/intro-outro-card";
+import { INTRO_ANIMATIONS, OUTRO_ANIMATIONS } from "@/lib/video-fx";
+
 
 
 export const Route = createFileRoute("/_authenticated/motivational-videos")({
@@ -787,6 +797,12 @@ function MotivationalVideosPage() {
   const [dim, setDim] = useState(0.35);
   const [wordsPerLine, setWordsPerLine] = useState(6);
   const [slidePer, setSlidePer] = useState(4);
+  // template customisation
+  const [accentColor, setAccentColor] = useState("");
+  const [textColor, setTextColor] = useState("");
+  const [uppercase, setUppercase] = useState(false);
+  const [intro, setIntro] = useState<CardConfig>({ ...defaultIntro, id: "none" });
+  const [outro, setOutro] = useState<CardConfig>({ ...defaultOutro, id: "none" });
 
   const [mediaKind, setMediaKind] = useState<"none" | "video" | "audio">("none");
   const [mediaName, setMediaName] = useState<string | null>(null);
@@ -815,6 +831,18 @@ function MotivationalVideosPage() {
 
   const dims = ASPECTS[aspect];
   const template = TEMPLATES.find((t) => t.id === templateId) ?? TEMPLATES[0];
+
+  // Template colours can be overridden per project.
+  const palette = useMemo(
+    () => ({
+      ...template.palette,
+      primary: accentColor || template.palette.primary,
+      accent: accentColor || template.palette.accent,
+      text: textColor || template.palette.text,
+    }),
+    [template, accentColor, textColor],
+  );
+
 
   const backdrop: Backdrop = useMemo(() => {
     if (mediaKind === "video" && videoRef.current) return { kind: "video", el: videoRef.current };
@@ -938,25 +966,63 @@ function MotivationalVideosPage() {
     setLines(chunks.map((t, i) => ({ time: i * per, end: (i + 1) * per, text: t, words: [] })));
   };
 
+  const shownLines = useMemo(
+    () => (uppercase ? lines.map((l) => ({ ...l, text: l.text.toUpperCase() })) : lines),
+    [lines, uppercase],
+  );
+
+  /** Draws one frame: engine + optional intro / outro cards over the top. */
+  const paint = useCallback(
+    (ctx: CanvasRenderingContext2D, w: number, h: number, t: number, bd: Backdrop) => {
+      renderEngine(ctx, template.engine, {
+        t,
+        w,
+        h,
+        aspect,
+        palette,
+        lines: shownLines,
+        duration,
+        author,
+        dim,
+        backdrop: bd,
+      });
+      if (intro.id !== "none" && t < intro.seconds) {
+        INTRO_ANIMATIONS.find((a) => a.id === intro.id)?.draw({
+          ctx,
+          w,
+          h,
+          p: Math.min(1, t / Math.max(0.2, intro.seconds)),
+          palette: paletteOf(intro.paletteId),
+          title: intro.title,
+          subtitle: intro.subtitle,
+          logo: null,
+        });
+      }
+      if (outro.id !== "none" && duration > 0 && t > duration - outro.seconds) {
+        OUTRO_ANIMATIONS.find((a) => a.id === outro.id)?.draw({
+          ctx,
+          w,
+          h,
+          p: Math.min(1, (t - (duration - outro.seconds)) / Math.max(0.2, outro.seconds)),
+          palette: paletteOf(outro.paletteId),
+          title: outro.title,
+          subtitle: outro.subtitle,
+          logo: null,
+        });
+      }
+    },
+    [template, aspect, palette, shownLines, duration, author, dim, intro, outro],
+  );
+
   const drawAt = useCallback(
     (canvas: HTMLCanvasElement, t: number) => {
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
-      renderEngine(ctx, template.engine, {
-        t,
-        w: canvas.width,
-        h: canvas.height,
-        aspect,
-        palette: template.palette,
-        lines,
-        duration,
-        author,
-        dim,
-        backdrop,
-      });
+      paint(ctx, canvas.width, canvas.height, t, backdrop);
     },
-    [template, aspect, lines, duration, author, dim, backdrop],
+    [paint, backdrop],
   );
+
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -1092,18 +1158,7 @@ function MotivationalVideosPage() {
         if (!running) return;
         const t = (performance.now() - t0) / 1000;
         setExportProgress(Math.min(100, (t / duration) * 100));
-        renderEngine(octx, template.engine, {
-          t,
-          w: off.width,
-          h: off.height,
-          aspect,
-          palette: template.palette,
-          lines,
-          duration,
-          author,
-          dim,
-          backdrop: exportBackdrop,
-        });
+        paint(octx, off.width, off.height, t, exportBackdrop);
         if (t >= duration) {
           running = false;
           try {
@@ -1377,6 +1432,60 @@ function MotivationalVideosPage() {
 
         {/* Right: templates */}
         <div className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Customise</CardTitle>
+              <CardDescription>Recolour any template and set the caption case.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label>Accent</Label>
+                  <div className="mt-1 flex items-center gap-2">
+                    <Input
+                      type="color"
+                      className="h-9 w-12 p-1"
+                      value={accentColor || template.palette.primary}
+                      onChange={(e) => setAccentColor(e.target.value)}
+                    />
+                    <Button variant="ghost" size="sm" onClick={() => setAccentColor("")}>
+                      Reset
+                    </Button>
+                  </div>
+                </div>
+                <div>
+                  <Label>Text</Label>
+                  <div className="mt-1 flex items-center gap-2">
+                    <Input
+                      type="color"
+                      className="h-9 w-12 p-1"
+                      value={textColor || template.palette.text}
+                      onChange={(e) => setTextColor(e.target.value)}
+                    />
+                    <Button variant="ghost" size="sm" onClick={() => setTextColor("")}>
+                      Reset
+                    </Button>
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center justify-between rounded-md border p-3">
+                <div>
+                  <Label className="text-sm">Uppercase captions</Label>
+                  <p className="text-xs text-muted-foreground">Punchier, poster-style delivery.</p>
+                </div>
+                <Switch checked={uppercase} onCheckedChange={setUppercase} />
+              </div>
+            </CardContent>
+          </Card>
+
+          <IntroOutroCard
+            intro={intro}
+            outro={outro}
+            onIntro={setIntro}
+            onOutro={setOutro}
+            ratio={dims.w / dims.h}
+          />
+
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Templates</CardTitle>
