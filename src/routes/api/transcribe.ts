@@ -42,6 +42,13 @@ async function viaElevenLabs(file: File, languageCode: string, key: string) {
   return { provider: "elevenlabs", text: data.text ?? "", words };
 }
 
+/** Model ids are rolled/retired often — try newest first, fall back on 404. */
+const GOOGLE_STT_MODELS = [
+  "gemini-flash-latest",
+  "gemini-2.5-flash",
+  "gemini-2.0-flash",
+];
+
 /** Google AI Studio (Gemini) — returns word-level timings via structured output. */
 async function viaGoogle(file: File, languageCode: string, key: string) {
   const buf = new Uint8Array(await file.arrayBuffer());
