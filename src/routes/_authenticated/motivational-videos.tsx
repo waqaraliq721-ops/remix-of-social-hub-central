@@ -966,25 +966,63 @@ function MotivationalVideosPage() {
     setLines(chunks.map((t, i) => ({ time: i * per, end: (i + 1) * per, text: t, words: [] })));
   };
 
+  const shownLines = useMemo(
+    () => (uppercase ? lines.map((l) => ({ ...l, text: l.text.toUpperCase() })) : lines),
+    [lines, uppercase],
+  );
+
+  /** Draws one frame: engine + optional intro / outro cards over the top. */
+  const paint = useCallback(
+    (ctx: CanvasRenderingContext2D, w: number, h: number, t: number, bd: Backdrop) => {
+      renderEngine(ctx, template.engine, {
+        t,
+        w,
+        h,
+        aspect,
+        palette,
+        lines: shownLines,
+        duration,
+        author,
+        dim,
+        backdrop: bd,
+      });
+      if (intro.id !== "none" && t < intro.seconds) {
+        INTRO_ANIMATIONS.find((a) => a.id === intro.id)?.draw({
+          ctx,
+          w,
+          h,
+          p: Math.min(1, t / Math.max(0.2, intro.seconds)),
+          palette: paletteOf(intro.paletteId),
+          title: intro.title,
+          subtitle: intro.subtitle,
+          logo: null,
+        });
+      }
+      if (outro.id !== "none" && duration > 0 && t > duration - outro.seconds) {
+        OUTRO_ANIMATIONS.find((a) => a.id === outro.id)?.draw({
+          ctx,
+          w,
+          h,
+          p: Math.min(1, (t - (duration - outro.seconds)) / Math.max(0.2, outro.seconds)),
+          palette: paletteOf(outro.paletteId),
+          title: outro.title,
+          subtitle: outro.subtitle,
+          logo: null,
+        });
+      }
+    },
+    [template, aspect, palette, shownLines, duration, author, dim, intro, outro],
+  );
+
   const drawAt = useCallback(
     (canvas: HTMLCanvasElement, t: number) => {
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
-      renderEngine(ctx, template.engine, {
-        t,
-        w: canvas.width,
-        h: canvas.height,
-        aspect,
-        palette: template.palette,
-        lines,
-        duration,
-        author,
-        dim,
-        backdrop,
-      });
+      paint(ctx, canvas.width, canvas.height, t, backdrop);
     },
-    [template, aspect, lines, duration, author, dim, backdrop],
+    [paint, backdrop],
   );
+
 
   useEffect(() => {
     const canvas = canvasRef.current;
