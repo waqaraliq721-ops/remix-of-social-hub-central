@@ -13,6 +13,14 @@ import {
   Sparkles,
   Wand2,
 } from "lucide-react";
+import {
+  IntroOutroCard,
+  defaultIntro,
+  defaultOutro,
+  paletteOf,
+  type CardConfig,
+} from "@/components/intro-outro-card";
+import { INTRO_ANIMATIONS, OUTRO_ANIMATIONS } from "@/lib/video-fx";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
