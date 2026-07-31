@@ -81,6 +81,22 @@ const MOTION_PRESETS: MotionPreset[] = [
 
 // -------------------- preview tiles --------------------
 
+/** Only animate tiles that are actually on screen — 60 canvases at once locks the tab up. */
+function useOnScreen(ref: React.RefObject<HTMLElement | null>) {
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || typeof IntersectionObserver === "undefined") return;
+    const io = new IntersectionObserver(
+      (entries) => setVisible(entries.some((e) => e.isIntersecting)),
+      { rootMargin: "200px" },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [ref]);
+  return visible;
+}
+
 function FxTile({
   kind,
   id,
@@ -97,6 +113,7 @@ function FxTile({
   seconds: number;
 }) {
   const ref = useRef<HTMLCanvasElement>(null);
+  const visible = useOnScreen(ref);
   useEffect(() => {
     const canvas = ref.current;
     const ctx = canvas?.getContext("2d");
@@ -104,20 +121,30 @@ function FxTile({
     const list = kind === "intro" ? INTRO_ANIMATIONS : OUTRO_ANIMATIONS;
     const def = list.find((d) => d.id === id);
     const palette = FX_PALETTES.find((p) => p.id === paletteId) ?? FX_PALETTES[0];
-    let raf = 0;
-    const t0 = performance.now();
-    const loop = () => {
-      const p = (((performance.now() - t0) / 1000) % seconds) / seconds;
+    const draw = (p: number) => {
       ctx.fillStyle = "#050505";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       def?.draw({ ctx, w: canvas.width, h: canvas.height, p, palette, title, subtitle, logo: null });
-      raf = requestAnimationFrame(loop);
     };
-    loop();
+    if (!visible) {
+      draw(0.62);
+      return;
+    }
+    let raf = 0;
+    let last = 0;
+    const t0 = performance.now();
+    const loop = (now: number) => {
+      raf = requestAnimationFrame(loop);
+      if (now - last < 40) return; // ~25fps is plenty for a thumbnail
+      last = now;
+      draw((((now - t0) / 1000) % seconds) / seconds);
+    };
+    raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
-  }, [kind, id, paletteId, title, subtitle, seconds]);
-  return <canvas ref={ref} width={360} height={640} className="w-full rounded-lg border bg-black" />;
+  }, [kind, id, paletteId, title, subtitle, seconds, visible]);
+  return <canvas ref={ref} width={252} height={448} className="w-full rounded-lg border bg-black" />;
 }
+
 
 function MotionTile({ preset, paletteId }: { preset: MotionPreset; paletteId: string }) {
   const ref = useRef<HTMLCanvasElement>(null);
