@@ -512,18 +512,31 @@ const vinylMini: Engine = {
     kit.drawBg(ctx, w, h, p, t);
     const vr = h * 0.038;
     const y = h * 0.075;
-    ctx.font = `800 ${Math.round(h * 0.026)}px ${kit.FONT}`;
+    const maxW = w * 0.72;
+    let titleSize = h * 0.026;
+    ctx.font = `800 ${Math.round(titleSize)}px ${kit.FONT}`;
     const title = (r.title || "Untitled").toUpperCase();
-    const tw = ctx.measureText(title).width;
+    let tw = ctx.measureText(title).width;
+    // Shrink the title so the disc + label never runs off the safe area.
+    while (tw + vr * 2.6 > maxW && titleSize > 10) {
+      titleSize *= 0.92;
+      ctx.font = `800 ${Math.round(titleSize)}px ${kit.FONT}`;
+      tw = ctx.measureText(title).width;
+    }
     const startX = w / 2 - (tw + vr * 2.6) / 2;
     kit.drawVinyl(ctx, startX + vr, y, vr, t, r.coverImg, p);
     ctx.textAlign = "left";
     ctx.textBaseline = "middle";
     ctx.fillStyle = p.text;
-    ctx.fillText(title, startX + vr * 2.4, y - h * 0.008);
+    ctx.fillText(title, startX + vr * 2.4, y - h * 0.008, maxW - vr * 2.6);
     ctx.font = `500 ${Math.round(h * 0.016)}px ${kit.FONT}`;
     ctx.fillStyle = kit.hexA(p.muted, 1);
-    ctx.fillText((r.artist || "Unknown artist").toUpperCase(), startX + vr * 2.4, y + h * 0.018);
+    ctx.fillText(
+      (r.artist || "Unknown artist").toUpperCase(),
+      startX + vr * 2.4,
+      y + h * 0.018,
+      maxW - vr * 2.6,
+    );
     ctx.textAlign = "center";
     kit.drawLyricRoll(ctx, r, {
       top: h * 0.14,

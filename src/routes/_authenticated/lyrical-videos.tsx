@@ -45,6 +45,7 @@ import {
   type SttProvider,
 } from "@/lib/transcribe";
 import { EXTRA_LYRIC_ENGINES, EXTRA_LYRIC_MAP, type Kit as LyricKit } from "@/lib/lyric-templates";
+import { ColorCustomiser, applyOverrides, type ColorOverrides } from "@/components/color-customiser";
 
 export const Route = createFileRoute("/_authenticated/lyrical-videos")({
   head: () => ({
@@ -1797,6 +1798,9 @@ function LyricalVideosPage() {
   const [sttProvider, setSttProvider] = useState<SttProvider>("auto");
 
   const [lineLen, setLineLen] = useState(7);
+  const [motion, setMotion] = useState(1);
+  const [animStyle, setAnimStyle] = useState("drift");
+  const [colors, setColors] = useState<ColorOverrides>({});
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -1895,6 +1899,11 @@ function LyricalVideosPage() {
   /** Intro and outro cards extend the timeline instead of covering the song. */
   const totalDuration = introSec + audioDuration + outroSec;
 
+  const activePalette = useMemo(
+    () => applyOverrides(template.palette, colors),
+    [template, colors],
+  );
+
   const paint = useCallback(
     (ctx: CanvasRenderingContext2D, w: number, h: number, t: number) => {
       const songT = Math.max(0, Math.min(audioDuration || 0, t - introSec));
@@ -1903,14 +1912,14 @@ function LyricalVideosPage() {
         w,
         h,
         aspect,
-        palette: template.palette,
+        palette: activePalette,
         title,
         artist,
         coverImg,
         lyrics: parsedLyrics,
         duration: audioDuration,
-        motion: 1,
-        animStyle: "drift",
+        motion,
+        animStyle,
       });
       if (introSec > 0 && t < introSec) {
         INTRO_ANIMATIONS.find((a) => a.id === intro.id)?.draw({
@@ -1940,6 +1949,7 @@ function LyricalVideosPage() {
     [
       aspect,
       template,
+      activePalette,
       title,
       artist,
       coverImg,
@@ -1949,6 +1959,8 @@ function LyricalVideosPage() {
       outro,
       introSec,
       outroSec,
+      motion,
+      animStyle,
     ],
   );
 
@@ -2291,6 +2303,41 @@ function LyricalVideosPage() {
               )}
             </CardContent>
           </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Animation</CardTitle>
+              <CardDescription>Control background drift and motion style.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div>
+                <Label className="text-xs">Motion · {Math.round(motion * 100)}%</Label>
+                <Slider
+                  min={0}
+                  max={2}
+                  step={0.05}
+                  value={[motion]}
+                  onValueChange={(v) => setMotion(v[0])}
+                />
+              </div>
+              <div>
+                <Label className="text-xs">Animation style</Label>
+                <Select value={animStyle} onValueChange={setAnimStyle}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="drift">Drift</SelectItem>
+                    <SelectItem value="pulse">Pulse</SelectItem>
+                    <SelectItem value="bob">Bob</SelectItem>
+                    <SelectItem value="still">Still</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardContent>
+          </Card>
+
+          <ColorCustomiser base={template.palette} value={colors} onChange={setColors} />
         </div>
 
         {/* Center: preview */}
