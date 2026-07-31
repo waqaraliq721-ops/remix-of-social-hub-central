@@ -1273,7 +1273,28 @@ function renderEngine(ctx: CanvasRenderingContext2D, engine: EngineId, r: Render
       return renderTypewriter(ctx, r);
     case "cinebar":
       return renderCinebar(ctx, r);
+    case "typo-serif":
+      return renderTypoSerif(ctx, r);
+    case "typo-stack":
+      return renderTypoStack(ctx, r);
+    case "typo-marquee":
+      return renderTypoMarquee(ctx, r);
+    case "typo-gradient":
+      return renderTypoGradient(ctx, r);
+    case "typo-outline":
+      return renderTypoOutline(ctx, r);
+    case "typo-justify":
+      return renderTypoJustify(ctx, r);
+    case "typo-mono":
+      return renderTypoMono(ctx, r);
+    case "typo-vertical":
+      return renderTypoVertical(ctx, r);
+    case "typo-poster":
+      return renderTypoPoster(ctx, r);
+    case "typo-ticker":
+      return renderTypoTicker(ctx, r);
   }
+
 }
 
 // -------------------- Component --------------------
