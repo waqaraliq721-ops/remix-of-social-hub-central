@@ -44,6 +44,13 @@ import {
   STT_PROVIDERS,
   type SttProvider,
 } from "@/lib/transcribe";
+import {
+  EXTRA_LYRIC_ENGINES,
+  EXTRA_LYRIC_MAP,
+  type Kit as LyricKit,
+} from "@/lib/lyric-templates";
+
+
 
 
 export const Route = createFileRoute("/_authenticated/lyrical-videos")({
