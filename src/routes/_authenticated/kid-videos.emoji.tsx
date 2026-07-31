@@ -50,6 +50,13 @@ import {
   type ColorOverrides,
   type PaletteLike,
 } from "@/components/color-customiser";
+import {
+  AnimControlGroup,
+  computeAnim,
+  defaultAnim,
+  applyAnim,
+  type ElementAnimSpec,
+} from "@/lib/kid-anim";
 
 export const Route = createFileRoute("/_authenticated/kid-videos/emoji")({
   head: () => ({
@@ -81,6 +88,28 @@ const ASPECTS: Record<AspectKey, { w: number; h: number; label: string }> = {
 };
 
 const EMOJI_FONT = `"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif`;
+
+const ANIM_ELEMENTS: { key: string; label: string }[] = [
+  { key: "background", label: "Background" },
+  { key: "title", label: "Heading" },
+  { key: "emoji", label: "Emoji tiles" },
+  { key: "answer", label: "Answer text" },
+  { key: "timer", label: "Timer" },
+  { key: "timebar", label: "Progress bar" },
+  { key: "roundNo", label: "Round number" },
+];
+
+function defaultAnimMap(): Record<string, ElementAnimSpec> {
+  return {
+    background: defaultAnim({ preset: "none", loop: "none" }),
+    title: defaultAnim({ preset: "slide-down", duration: 0.5 }),
+    emoji: defaultAnim({ preset: "bounce-in", duration: 0.6, loop: "breathe", intensity: 0.5 }),
+    answer: defaultAnim({ preset: "pop", duration: 0.45 }),
+    timer: defaultAnim({ preset: "zoom-in", loop: "pulse", intensity: 0.6 }),
+    timebar: defaultAnim({ preset: "fade", duration: 0.3 }),
+    roundNo: defaultAnim({ preset: "fade" }),
+  };
+}
 
 type Round = {
   id: string;
@@ -208,6 +237,9 @@ function EmojiPage() {
   const [uppercase, setUppercase] = useState(true);
   const [emojiScale, setEmojiScale] = useState(1);
   const [bounce, setBounce] = useState(1);
+  const [anims, setAnims] = useState<Record<string, ElementAnimSpec>>(defaultAnimMap());
+  const setAnim = (key: string, spec: ElementAnimSpec) =>
+    setAnims((a) => ({ ...a, [key]: spec }));
 
   const [provider, setProvider] = useState<TtsProvider>("elevenlabs");
   const [voice, setVoice] = useState(TTS_VOICES.elevenlabs[0].id);
@@ -308,6 +340,22 @@ function EmojiPage() {
         ctx.fillStyle = "rgba(0,0,0,0.07)";
         for (let y = 0; y < h; y += 6) ctx.fillRect(0, y, w, 2);
       }
+      // subtle rotating ray-burst for a lively, non-static backdrop
+      ctx.save();
+      ctx.translate(w / 2, h / 2);
+      ctx.rotate(t * 0.06);
+      const rays = 14;
+      for (let i = 0; i < rays; i++) {
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        const a0 = (i / rays) * Math.PI * 2;
+        const a1 = a0 + Math.PI / rays;
+        ctx.arc(0, 0, Math.max(w, h), a0, a1);
+        ctx.closePath();
+        ctx.fillStyle = i % 2 === 0 ? "rgba(255,255,255,0.025)" : "rgba(0,0,0,0)";
+        ctx.fill();
+      }
+      ctx.restore();
       // gentle vignette keeps everything reading as one frame
       const v = ctx.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.35, w / 2, h / 2, Math.max(w, h) * 0.75);
       v.addColorStop(0, "rgba(0,0,0,0)");
@@ -359,7 +407,9 @@ function EmojiPage() {
       const M = Math.min(w, h) * 0.07; // safe margin
 
       // ---- header banner ----
+      const titleAnim = computeAnim(anims.title ?? defaultAnim(), local);
       ctx.save();
+      applyAnim(ctx, titleAnim, w / 2, M + Math.round(Math.min(w, h) * (aspect === "16:9" ? 0.055 : 0.045)) * 0.9);
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       const hs = Math.round(Math.min(w, h) * (aspect === "16:9" ? 0.055 : 0.045));
@@ -368,7 +418,7 @@ function EmojiPage() {
       const tw = Math.min(ctx.measureText(title).width, w - M * 2 - hs * 1.4);
       const padX = hs * 0.75;
       const by = M + hs * 0.9;
-      ctx.globalAlpha = inK;
+      ctx.globalAlpha *= inK;
       ctx.fillStyle = hexA("#000000", 0.42);
       roundRect(ctx, w / 2 - tw / 2 - padX, by - hs * 0.95, tw + padX * 2, hs * 1.9, hs);
       ctx.fill();
@@ -385,7 +435,9 @@ function EmojiPage() {
       if (showRoundNo) chips.push({ label: `Round ${index + 1}`, color: pal.primary });
       if (showCategory && r.category.trim()) chips.push({ label: r.category, color: pal.accent });
       if (chips.length) {
+        const roundAnim = computeAnim(anims.roundNo ?? defaultAnim(), local);
         ctx.save();
+        applyAnim(ctx, roundAnim, w / 2, chipY);
         ctx.textAlign = "left";
         ctx.textBaseline = "middle";
         const cs = Math.round(hs * 0.5);
@@ -393,7 +445,7 @@ function EmojiPage() {
         const widths = chips.map((c) => ctx.measureText(c.label.toUpperCase()).width + cs * 1.6);
         const gap = cs * 0.6;
         let x = w / 2 - (widths.reduce((a, b) => a + b, 0) + gap * (chips.length - 1)) / 2;
-        ctx.globalAlpha = inK;
+        ctx.globalAlpha *= inK;
         chips.forEach((c, i) => {
           ctx.fillStyle = hexA(c.color, 0.18);
           roundRect(ctx, x, chipY - cs, widths[i], cs * 2, cs);
@@ -452,7 +504,9 @@ function EmojiPage() {
           (cardH * 0.78) / rows.length,
         );
         const size = maxCell * 0.92 * emojiScale;
+        const emojiAnim = computeAnim(anims.emoji ?? defaultAnim(), local);
         ctx.save();
+        applyAnim(ctx, emojiAnim, cx, cyCard);
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
         ctx.font = `${Math.round(size)}px ${EMOJI_FONT}`;
@@ -498,7 +552,9 @@ function EmojiPage() {
         const rr = Math.min(w, h) * 0.065;
         const ccx = w - M - rr;
         const ccy = h - M - rr;
+        const timerAnim = computeAnim(anims.timer ?? defaultAnim(), local);
         ctx.save();
+        applyAnim(ctx, timerAnim, ccx, ccy);
         ctx.beginPath();
         ctx.arc(ccx, ccy, rr, 0, Math.PI * 2);
         ctx.fillStyle = "rgba(0,0,0,0.5)";
@@ -524,10 +580,14 @@ function EmojiPage() {
       // ---- answer reveal ----
       if (revealing && r.answer.trim()) {
         if (style === "confetti") drawConfetti(ctx, w, h, (local - guessDur) / Math.max(0.6, revealSecs));
+        const answerAnim = computeAnim(anims.answer ?? defaultAnim(), local - guessDur);
+        const bandH0 = Math.min(w, h) * 0.2;
+        const bandY0 = h - M - bandH0;
         ctx.save();
-        ctx.globalAlpha = revealK;
-        const bandH = Math.min(w, h) * 0.2;
-        const bandY = h - M - bandH;
+        applyAnim(ctx, answerAnim, w / 2, bandY0 + bandH0 / 2);
+        ctx.globalAlpha *= revealK;
+        const bandH = bandH0;
+        const bandY = bandY0;
         ctx.translate(0, (1 - revealK) * bandH * 0.4);
         ctx.fillStyle = hexA("#000000", 0.55);
         roundRect(ctx, M, bandY, w - M * 2, bandH, Math.min(w, h) * 0.05);
@@ -557,6 +617,7 @@ function EmojiPage() {
       }
     },
     [
+      anims,
       aspect,
       bounce,
       drawBackground,
@@ -1041,6 +1102,16 @@ function EmojiPage() {
           </Card>
 
           <ColorCustomiser base={basePalette} value={colors} onChange={setColors} />
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Animations</CardTitle>
+              <CardDescription>Entrance and looping motion per element.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <AnimControlGroup items={ANIM_ELEMENTS} values={anims} onChange={setAnim} />
+            </CardContent>
+          </Card>
 
           <Card>
             <CardHeader>
