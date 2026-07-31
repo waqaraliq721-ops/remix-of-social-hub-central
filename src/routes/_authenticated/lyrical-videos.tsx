@@ -697,16 +697,53 @@ function drawLyricRoll(
 
 }
 
+/** Measure a tracked (letter-spaced) string at the current font. */
+function trackedWidth(ctx: CanvasRenderingContext2D, text: string, spacing: number) {
+  const chars = [...text];
+  return (
+    chars.reduce((a, c) => a + ctx.measureText(c).width, 0) + spacing * Math.max(0, chars.length - 1)
+  );
+}
+
+/** Shrink until the tracked string fits maxW, then draw it centred. */
+function trackedFit(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  x: number,
+  y: number,
+  maxW: number,
+  weight: number,
+  size: number,
+  spacingRatio: number,
+) {
+  let s = size;
+  for (let i = 0; i < 24; i++) {
+    ctx.font = `${weight} ${Math.round(s)}px ${FONT}`;
+    if (trackedWidth(ctx, text, s * spacingRatio) <= maxW || s <= 8) break;
+    s *= 0.94;
+  }
+  tracked(ctx, text, x, y, s * spacingRatio);
+  return s;
+}
+
 function drawHeader(ctx: CanvasRenderingContext2D, r: RenderCtx, y: number, big: number) {
   const { w, palette: p, title, artist } = r;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   ctx.fillStyle = p.primary;
-  ctx.font = `800 ${Math.round(big)}px ${FONT}`;
-  tracked(ctx, (title || "Untitled").toUpperCase(), w / 2, y, big * 0.06);
+  trackedFit(ctx, (title || "Untitled").toUpperCase(), w / 2, y, w * 0.84, 800, big, 0.06);
   ctx.fillStyle = hexA(p.text, 0.8);
-  ctx.font = `500 ${Math.round(big * 0.36)}px ${FONT}`;
-  tracked(ctx, (artist || "Unknown artist").toUpperCase(), w / 2, y + big * 0.72, big * 0.3);
+  trackedFit(
+    ctx,
+    (artist || "Unknown artist").toUpperCase(),
+    w / 2,
+    y + big * 0.72,
+    w * 0.7,
+    500,
+    big * 0.36,
+    0.3,
+  );
+
   // divider with dot
   const dy = y + big * 1.15;
   const half = w * 0.22;
