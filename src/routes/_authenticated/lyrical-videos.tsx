@@ -1807,18 +1807,7 @@ function LyricalVideosPage() {
         if (!running) return;
         const t = (performance.now() - t0) / 1000;
         setExportProgress(Math.min(100, (t / audioDuration) * 100));
-        renderEngine(octx, template.engine, {
-          t,
-          w: off.width,
-          h: off.height,
-          aspect,
-          palette: template.palette,
-          title,
-          artist,
-          coverImg,
-          lyrics: parsedLyrics,
-          duration: audioDuration,
-        });
+        paint(octx, off.width, off.height, t);
         if (t >= audioDuration) {
           running = false;
           try {
