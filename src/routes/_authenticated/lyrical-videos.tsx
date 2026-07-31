@@ -1563,6 +1563,10 @@ function LyricalVideosPage() {
   const startedAtRef = useRef(0);
   const pausedAtRef = useRef(0);
 
+  const [intro, setIntro] = useState<CardConfig>({ ...defaultIntro, id: "none" });
+  const [outro, setOutro] = useState<CardConfig>({ ...defaultOutro, id: "none" });
+
+
   const dims = ASPECTS[aspect];
   const template = TEMPLATES.find((t) => t.id === templateId) ?? TEMPLATES[0];
 
