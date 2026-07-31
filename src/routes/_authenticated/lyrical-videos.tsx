@@ -443,7 +443,10 @@ function drawLyricRoll(
     const span = Math.max(0.2, next.time - cur.time);
     progress = Math.max(0, Math.min(1, (t - cur.time) / span));
   }
-  const offset = easeOutCubic(Math.min(1, progress * 1.6));
+  // Continuous scroll: the column never stops moving, it just eases — fast
+  // between lines, slow while the current line sits on the focus point.
+  const offset = progress * progress * (3 - 2 * progress);
+
 
   ctx.save();
   ctx.beginPath();
