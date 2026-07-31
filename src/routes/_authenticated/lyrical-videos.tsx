@@ -117,7 +117,9 @@ const ENGINES: { id: EngineId; name: string; desc: string }[] = [
   { id: "waveform", name: "Waveform Pulse", desc: "Reactive bars with a big centred lyric." },
   { id: "typewriter", name: "Typewriter", desc: "Lyrics typed out in sync with the vocal." },
   { id: "cinebar", name: "Cinematic Bars", desc: "Letterboxed film look with lower-third lyrics." },
+  ...EXTRA_LYRIC_ENGINES.map((e) => ({ id: e.id, name: e.name, desc: e.desc })),
   { id: "typo-serif", name: "Typo · Editorial Serif", desc: "Magazine serif lyric set with a hairline rule." },
+
   { id: "typo-stack", name: "Typo · Word Stack", desc: "Words stacked left, lighting up as they're sung." },
   { id: "typo-marquee", name: "Typo · Marquee", desc: "Condensed lyric scrolling between two rules." },
   { id: "typo-gradient", name: "Typo · Gradient Fill", desc: "Huge gradient-filled uppercase lyric." },
