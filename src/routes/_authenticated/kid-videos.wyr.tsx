@@ -55,7 +55,7 @@ import {
   type CardConfig,
 } from "@/components/intro-outro-card";
 
-export const Route = createFileRoute("/_authenticated/wyr")({
+export const Route = createFileRoute("/_authenticated/kid-videos/wyr")({
   head: () => ({
     meta: [
       { title: "Would You Rather Videos — Orbit" },
