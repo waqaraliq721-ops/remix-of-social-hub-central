@@ -31,7 +31,12 @@ import { Route as AuthenticatedComposeRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedCalendarRouteImport } from './routes/_authenticated/calendar'
 import { Route as AuthenticatedAnalyticsRouteImport } from './routes/_authenticated/analytics'
 import { Route as AuthenticatedAccountsRouteImport } from './routes/_authenticated/accounts'
+import { Route as AuthenticatedKidVideosIndexRouteImport } from './routes/_authenticated/kid-videos.index'
+import { Route as AuthenticatedGamingVideosIndexRouteImport } from './routes/_authenticated/gaming-videos.index'
 import { Route as AuthenticatedKidVideosWyrRouteImport } from './routes/_authenticated/kid-videos.wyr'
+import { Route as AuthenticatedGamingVideosRankingRouteImport } from './routes/_authenticated/gaming-videos.ranking'
+import { Route as AuthenticatedGamingVideosNewsRouteImport } from './routes/_authenticated/gaming-videos.news'
+import { Route as AuthenticatedGamingVideosMemesRouteImport } from './routes/_authenticated/gaming-videos.memes'
 
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
@@ -146,11 +151,41 @@ const AuthenticatedAccountsRoute = AuthenticatedAccountsRouteImport.update({
   path: '/accounts',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedKidVideosIndexRoute =
+  AuthenticatedKidVideosIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedKidVideosRoute,
+  } as any)
+const AuthenticatedGamingVideosIndexRoute =
+  AuthenticatedGamingVideosIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedGamingVideosRoute,
+  } as any)
 const AuthenticatedKidVideosWyrRoute =
   AuthenticatedKidVideosWyrRouteImport.update({
     id: '/wyr',
     path: '/wyr',
     getParentRoute: () => AuthenticatedKidVideosRoute,
+  } as any)
+const AuthenticatedGamingVideosRankingRoute =
+  AuthenticatedGamingVideosRankingRouteImport.update({
+    id: '/ranking',
+    path: '/ranking',
+    getParentRoute: () => AuthenticatedGamingVideosRoute,
+  } as any)
+const AuthenticatedGamingVideosNewsRoute =
+  AuthenticatedGamingVideosNewsRouteImport.update({
+    id: '/news',
+    path: '/news',
+    getParentRoute: () => AuthenticatedGamingVideosRoute,
+  } as any)
+const AuthenticatedGamingVideosMemesRoute =
+  AuthenticatedGamingVideosMemesRouteImport.update({
+    id: '/memes',
+    path: '/memes',
+    getParentRoute: () => AuthenticatedGamingVideosRoute,
   } as any)
 
 export interface FileRoutesByFullPath {
@@ -161,7 +196,7 @@ export interface FileRoutesByFullPath {
   '/calendar': typeof AuthenticatedCalendarRoute
   '/compose': typeof AuthenticatedComposeRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
-  '/gaming-videos': typeof AuthenticatedGamingVideosRoute
+  '/gaming-videos': typeof AuthenticatedGamingVideosRouteWithChildren
   '/images-to-video': typeof AuthenticatedImagesToVideoRoute
   '/inbox': typeof AuthenticatedInboxRoute
   '/kid-videos': typeof AuthenticatedKidVideosRouteWithChildren
@@ -175,7 +210,12 @@ export interface FileRoutesByFullPath {
   '/api/tts': typeof ApiTtsRoute
   '/api/tts-elevenlabs': typeof ApiTtsElevenlabsRoute
   '/api/tts-google': typeof ApiTtsGoogleRoute
+  '/gaming-videos/memes': typeof AuthenticatedGamingVideosMemesRoute
+  '/gaming-videos/news': typeof AuthenticatedGamingVideosNewsRoute
+  '/gaming-videos/ranking': typeof AuthenticatedGamingVideosRankingRoute
   '/kid-videos/wyr': typeof AuthenticatedKidVideosWyrRoute
+  '/gaming-videos/': typeof AuthenticatedGamingVideosIndexRoute
+  '/kid-videos/': typeof AuthenticatedKidVideosIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -185,10 +225,8 @@ export interface FileRoutesByTo {
   '/calendar': typeof AuthenticatedCalendarRoute
   '/compose': typeof AuthenticatedComposeRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
-  '/gaming-videos': typeof AuthenticatedGamingVideosRoute
   '/images-to-video': typeof AuthenticatedImagesToVideoRoute
   '/inbox': typeof AuthenticatedInboxRoute
-  '/kid-videos': typeof AuthenticatedKidVideosRouteWithChildren
   '/lyrical-videos': typeof AuthenticatedLyricalVideosRoute
   '/motivational-videos': typeof AuthenticatedMotivationalVideosRoute
   '/presets': typeof AuthenticatedPresetsRoute
@@ -199,7 +237,12 @@ export interface FileRoutesByTo {
   '/api/tts': typeof ApiTtsRoute
   '/api/tts-elevenlabs': typeof ApiTtsElevenlabsRoute
   '/api/tts-google': typeof ApiTtsGoogleRoute
+  '/gaming-videos/memes': typeof AuthenticatedGamingVideosMemesRoute
+  '/gaming-videos/news': typeof AuthenticatedGamingVideosNewsRoute
+  '/gaming-videos/ranking': typeof AuthenticatedGamingVideosRankingRoute
   '/kid-videos/wyr': typeof AuthenticatedKidVideosWyrRoute
+  '/gaming-videos': typeof AuthenticatedGamingVideosIndexRoute
+  '/kid-videos': typeof AuthenticatedKidVideosIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -211,7 +254,7 @@ export interface FileRoutesById {
   '/_authenticated/calendar': typeof AuthenticatedCalendarRoute
   '/_authenticated/compose': typeof AuthenticatedComposeRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
-  '/_authenticated/gaming-videos': typeof AuthenticatedGamingVideosRoute
+  '/_authenticated/gaming-videos': typeof AuthenticatedGamingVideosRouteWithChildren
   '/_authenticated/images-to-video': typeof AuthenticatedImagesToVideoRoute
   '/_authenticated/inbox': typeof AuthenticatedInboxRoute
   '/_authenticated/kid-videos': typeof AuthenticatedKidVideosRouteWithChildren
@@ -225,7 +268,12 @@ export interface FileRoutesById {
   '/api/tts': typeof ApiTtsRoute
   '/api/tts-elevenlabs': typeof ApiTtsElevenlabsRoute
   '/api/tts-google': typeof ApiTtsGoogleRoute
+  '/_authenticated/gaming-videos/memes': typeof AuthenticatedGamingVideosMemesRoute
+  '/_authenticated/gaming-videos/news': typeof AuthenticatedGamingVideosNewsRoute
+  '/_authenticated/gaming-videos/ranking': typeof AuthenticatedGamingVideosRankingRoute
   '/_authenticated/kid-videos/wyr': typeof AuthenticatedKidVideosWyrRoute
+  '/_authenticated/gaming-videos/': typeof AuthenticatedGamingVideosIndexRoute
+  '/_authenticated/kid-videos/': typeof AuthenticatedKidVideosIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -251,7 +299,12 @@ export interface FileRouteTypes {
     | '/api/tts'
     | '/api/tts-elevenlabs'
     | '/api/tts-google'
+    | '/gaming-videos/memes'
+    | '/gaming-videos/news'
+    | '/gaming-videos/ranking'
     | '/kid-videos/wyr'
+    | '/gaming-videos/'
+    | '/kid-videos/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -261,10 +314,8 @@ export interface FileRouteTypes {
     | '/calendar'
     | '/compose'
     | '/dashboard'
-    | '/gaming-videos'
     | '/images-to-video'
     | '/inbox'
-    | '/kid-videos'
     | '/lyrical-videos'
     | '/motivational-videos'
     | '/presets'
@@ -275,7 +326,12 @@ export interface FileRouteTypes {
     | '/api/tts'
     | '/api/tts-elevenlabs'
     | '/api/tts-google'
+    | '/gaming-videos/memes'
+    | '/gaming-videos/news'
+    | '/gaming-videos/ranking'
     | '/kid-videos/wyr'
+    | '/gaming-videos'
+    | '/kid-videos'
   id:
     | '__root__'
     | '/'
@@ -300,7 +356,12 @@ export interface FileRouteTypes {
     | '/api/tts'
     | '/api/tts-elevenlabs'
     | '/api/tts-google'
+    | '/_authenticated/gaming-videos/memes'
+    | '/_authenticated/gaming-videos/news'
+    | '/_authenticated/gaming-videos/ranking'
     | '/_authenticated/kid-videos/wyr'
+    | '/_authenticated/gaming-videos/'
+    | '/_authenticated/kid-videos/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -470,6 +531,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAccountsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/kid-videos/': {
+      id: '/_authenticated/kid-videos/'
+      path: '/'
+      fullPath: '/kid-videos/'
+      preLoaderRoute: typeof AuthenticatedKidVideosIndexRouteImport
+      parentRoute: typeof AuthenticatedKidVideosRoute
+    }
+    '/_authenticated/gaming-videos/': {
+      id: '/_authenticated/gaming-videos/'
+      path: '/'
+      fullPath: '/gaming-videos/'
+      preLoaderRoute: typeof AuthenticatedGamingVideosIndexRouteImport
+      parentRoute: typeof AuthenticatedGamingVideosRoute
+    }
     '/_authenticated/kid-videos/wyr': {
       id: '/_authenticated/kid-videos/wyr'
       path: '/wyr'
@@ -477,16 +552,60 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedKidVideosWyrRouteImport
       parentRoute: typeof AuthenticatedKidVideosRoute
     }
+    '/_authenticated/gaming-videos/ranking': {
+      id: '/_authenticated/gaming-videos/ranking'
+      path: '/ranking'
+      fullPath: '/gaming-videos/ranking'
+      preLoaderRoute: typeof AuthenticatedGamingVideosRankingRouteImport
+      parentRoute: typeof AuthenticatedGamingVideosRoute
+    }
+    '/_authenticated/gaming-videos/news': {
+      id: '/_authenticated/gaming-videos/news'
+      path: '/news'
+      fullPath: '/gaming-videos/news'
+      preLoaderRoute: typeof AuthenticatedGamingVideosNewsRouteImport
+      parentRoute: typeof AuthenticatedGamingVideosRoute
+    }
+    '/_authenticated/gaming-videos/memes': {
+      id: '/_authenticated/gaming-videos/memes'
+      path: '/memes'
+      fullPath: '/gaming-videos/memes'
+      preLoaderRoute: typeof AuthenticatedGamingVideosMemesRouteImport
+      parentRoute: typeof AuthenticatedGamingVideosRoute
+    }
   }
 }
 
+interface AuthenticatedGamingVideosRouteChildren {
+  AuthenticatedGamingVideosMemesRoute: typeof AuthenticatedGamingVideosMemesRoute
+  AuthenticatedGamingVideosNewsRoute: typeof AuthenticatedGamingVideosNewsRoute
+  AuthenticatedGamingVideosRankingRoute: typeof AuthenticatedGamingVideosRankingRoute
+  AuthenticatedGamingVideosIndexRoute: typeof AuthenticatedGamingVideosIndexRoute
+}
+
+const AuthenticatedGamingVideosRouteChildren: AuthenticatedGamingVideosRouteChildren =
+  {
+    AuthenticatedGamingVideosMemesRoute: AuthenticatedGamingVideosMemesRoute,
+    AuthenticatedGamingVideosNewsRoute: AuthenticatedGamingVideosNewsRoute,
+    AuthenticatedGamingVideosRankingRoute:
+      AuthenticatedGamingVideosRankingRoute,
+    AuthenticatedGamingVideosIndexRoute: AuthenticatedGamingVideosIndexRoute,
+  }
+
+const AuthenticatedGamingVideosRouteWithChildren =
+  AuthenticatedGamingVideosRoute._addFileChildren(
+    AuthenticatedGamingVideosRouteChildren,
+  )
+
 interface AuthenticatedKidVideosRouteChildren {
   AuthenticatedKidVideosWyrRoute: typeof AuthenticatedKidVideosWyrRoute
+  AuthenticatedKidVideosIndexRoute: typeof AuthenticatedKidVideosIndexRoute
 }
 
 const AuthenticatedKidVideosRouteChildren: AuthenticatedKidVideosRouteChildren =
   {
     AuthenticatedKidVideosWyrRoute: AuthenticatedKidVideosWyrRoute,
+    AuthenticatedKidVideosIndexRoute: AuthenticatedKidVideosIndexRoute,
   }
 
 const AuthenticatedKidVideosRouteWithChildren =
@@ -500,7 +619,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedCalendarRoute: typeof AuthenticatedCalendarRoute
   AuthenticatedComposeRoute: typeof AuthenticatedComposeRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
-  AuthenticatedGamingVideosRoute: typeof AuthenticatedGamingVideosRoute
+  AuthenticatedGamingVideosRoute: typeof AuthenticatedGamingVideosRouteWithChildren
   AuthenticatedImagesToVideoRoute: typeof AuthenticatedImagesToVideoRoute
   AuthenticatedInboxRoute: typeof AuthenticatedInboxRoute
   AuthenticatedKidVideosRoute: typeof AuthenticatedKidVideosRouteWithChildren
@@ -517,7 +636,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedCalendarRoute: AuthenticatedCalendarRoute,
   AuthenticatedComposeRoute: AuthenticatedComposeRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
-  AuthenticatedGamingVideosRoute: AuthenticatedGamingVideosRoute,
+  AuthenticatedGamingVideosRoute: AuthenticatedGamingVideosRouteWithChildren,
   AuthenticatedImagesToVideoRoute: AuthenticatedImagesToVideoRoute,
   AuthenticatedInboxRoute: AuthenticatedInboxRoute,
   AuthenticatedKidVideosRoute: AuthenticatedKidVideosRouteWithChildren,
@@ -544,3 +663,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}

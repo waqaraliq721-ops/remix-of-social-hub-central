@@ -50,6 +50,7 @@ import {
   EXTRA_MOTIVATIONAL_MAP,
   type Kit as MotivationalKit,
 } from "@/lib/motivational-templates";
+import { ColorCustomiser, applyOverrides, type ColorOverrides } from "@/components/color-customiser";
 
 export const Route = createFileRoute("/_authenticated/motivational-videos")({
   head: () => ({
@@ -376,20 +377,29 @@ function drawBackdrop(ctx: CanvasRenderingContext2D, r: RenderCtx) {
     }
   }
 
-  // dim + vignette so the text always reads
+  // Cinematic legibility pass: flat dim, soft radial vignette, and a gentle
+  // top/bottom gradient scrim so captions read cleanly on any footage — and
+  // stay just as tasteful over a plain gradient background.
   ctx.fillStyle = `rgba(0,0,0,${r.dim})`;
   ctx.fillRect(0, 0, w, h);
   const vg = ctx.createRadialGradient(
     w / 2,
     h / 2,
-    Math.min(w, h) * 0.25,
+    Math.min(w, h) * 0.22,
     w / 2,
     h / 2,
-    Math.max(w, h) * 0.72,
+    Math.max(w, h) * 0.75,
   );
   vg.addColorStop(0, "rgba(0,0,0,0)");
-  vg.addColorStop(1, "rgba(0,0,0,0.6)");
+  vg.addColorStop(1, "rgba(0,0,0,0.55)");
   ctx.fillStyle = vg;
+  ctx.fillRect(0, 0, w, h);
+  const scrim = ctx.createLinearGradient(0, 0, 0, h);
+  scrim.addColorStop(0, "rgba(0,0,0,0.28)");
+  scrim.addColorStop(0.16, "rgba(0,0,0,0)");
+  scrim.addColorStop(0.72, "rgba(0,0,0,0)");
+  scrim.addColorStop(1, "rgba(0,0,0,0.42)");
+  ctx.fillStyle = scrim;
   ctx.fillRect(0, 0, w, h);
 }
 
@@ -466,6 +476,7 @@ function renderLowerThird(ctx: CanvasRenderingContext2D, r: RenderCtx) {
   const boxY = h * 0.74 - boxH / 2;
   ctx.save();
   ctx.globalAlpha = appear;
+  ctx.translate(0, (1 - appear) * size * 0.5);
   ctx.fillStyle = "rgba(0,0,0,0.55)";
   roundRect(ctx, w * 0.08, boxY, w * 0.84, boxH, size * 0.25);
   ctx.fill();
@@ -515,10 +526,11 @@ function renderQuoteFrame(ctx: CanvasRenderingContext2D, r: RenderCtx) {
   let y = h * 0.5 - ((rows.length - 1) * size * 1.35) / 2;
   ctx.globalAlpha = appear;
   for (const row of rows) {
+    const dy = y + (1 - appear) * size * 0.22;
     ctx.fillStyle = "rgba(0,0,0,0.6)";
-    ctx.fillText(row, w / 2 + 2, y + 3);
+    ctx.fillText(row, w / 2 + 2, dy + 3);
     ctx.fillStyle = p.text;
-    ctx.fillText(row, w / 2, y);
+    ctx.fillText(row, w / 2, dy);
     y += size * 1.35;
   }
   ctx.globalAlpha = 1;
@@ -751,7 +763,7 @@ function renderTypoGradient(ctx: CanvasRenderingContext2D, r: RenderCtx) {
   ctx.globalAlpha = appear;
   for (const row of rows) {
     ctx.fillStyle = g;
-    ctx.fillText(row, w / 2, y);
+    ctx.fillText(row, w / 2, y + (1 - appear) * size * 0.22);
     y += size * 1.1;
   }
   ctx.restore();
@@ -784,7 +796,7 @@ function renderTypoPoster(ctx: CanvasRenderingContext2D, r: RenderCtx) {
   rows.forEach((row, i) => {
     const s = fitFont(ctx, row, w * 0.9, base, `900 {s}px ${COND}`);
     ctx.fillStyle = i % 2 ? p.primary : p.text;
-    ctx.fillText(row, w / 2, y);
+    ctx.fillText(row, w / 2, y + (1 - appear) * base * 0.2);
     y += s * 0.98;
   });
   ctx.restore();
@@ -835,18 +847,19 @@ function renderTypoBand(ctx: CanvasRenderingContext2D, r: RenderCtx) {
   for (const row of rows) {
     const tw = ctx.measureText(row).width;
     ctx.globalAlpha = appear;
+    const dy = y + (1 - appear) * size * 0.2;
     ctx.fillStyle = p.primary;
     roundRect(
       ctx,
       w / 2 - tw / 2 - size * 0.35,
-      y - size * 0.62,
+      dy - size * 0.62,
       tw + size * 0.7,
       size * 1.24,
       size * 0.14,
     );
     ctx.fill();
     ctx.fillStyle = "#0b0b0c";
-    ctx.fillText(row, w / 2, y);
+    ctx.fillText(row, w / 2, dy);
     y += size * 1.35;
   }
   ctx.restore();
@@ -1035,8 +1048,7 @@ function MotivationalVideosPage() {
   const [wordsPerLine, setWordsPerLine] = useState(6);
   const [slidePer, setSlidePer] = useState(4);
   // template customisation
-  const [accentColor, setAccentColor] = useState("");
-  const [textColor, setTextColor] = useState("");
+  const [colors, setColors] = useState<ColorOverrides>({});
   const [uppercase, setUppercase] = useState(false);
   const [style, setStyle] = useState<TemplateStyle>(DEFAULT_STYLE);
   const setStyleKey = <K extends keyof TemplateStyle>(k: K, v: TemplateStyle[K]) =>
@@ -1072,16 +1084,25 @@ function MotivationalVideosPage() {
   const dims = ASPECTS[aspect];
   const template = TEMPLATES.find((t) => t.id === templateId) ?? TEMPLATES[0];
 
-  // Template colours can be overridden per project.
-  const palette = useMemo(
-    () => ({
+  // Template colours can be overridden per project via the colour customiser.
+  const palette = useMemo(() => {
+    const base = {
+      bg: template.palette.bg,
+      primary: template.palette.primary,
+      accent: template.palette.accent,
+      text: template.palette.text,
+      muted: template.palette.dim,
+    };
+    const applied = applyOverrides(base, colors);
+    return {
       ...template.palette,
-      primary: accentColor || template.palette.primary,
-      accent: accentColor || template.palette.accent,
-      text: textColor || template.palette.text,
-    }),
-    [template, accentColor, textColor],
-  );
+      bg: applied.bg,
+      primary: applied.primary,
+      accent: applied.accent,
+      text: applied.text,
+      dim: applied.muted,
+    };
+  }, [template, colors]);
 
   const backdrop: Backdrop = useMemo(() => {
     if (mediaKind === "video" && videoRef.current) return { kind: "video", el: videoRef.current };
@@ -1743,6 +1764,19 @@ function MotivationalVideosPage() {
 
         {/* Right: templates */}
         <div className="space-y-4">
+          <ColorCustomiser
+            base={{
+              bg: template.palette.bg,
+              primary: template.palette.primary,
+              accent: template.palette.accent,
+              text: template.palette.text,
+              muted: template.palette.dim,
+            }}
+            value={colors}
+            onChange={setColors}
+            title="Custom colours"
+            description="Override this template's palette — background, accent, text and more."
+          />
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Customise</CardTitle>
@@ -1751,36 +1785,6 @@ function MotivationalVideosPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label>Accent</Label>
-                  <div className="mt-1 flex items-center gap-2">
-                    <Input
-                      type="color"
-                      className="h-9 w-12 p-1"
-                      value={accentColor || template.palette.primary}
-                      onChange={(e) => setAccentColor(e.target.value)}
-                    />
-                    <Button variant="ghost" size="sm" onClick={() => setAccentColor("")}>
-                      Reset
-                    </Button>
-                  </div>
-                </div>
-                <div>
-                  <Label>Text</Label>
-                  <div className="mt-1 flex items-center gap-2">
-                    <Input
-                      type="color"
-                      className="h-9 w-12 p-1"
-                      value={textColor || template.palette.text}
-                      onChange={(e) => setTextColor(e.target.value)}
-                    />
-                    <Button variant="ghost" size="sm" onClick={() => setTextColor("")}>
-                      Reset
-                    </Button>
-                  </div>
-                </div>
-              </div>
               <div className="flex items-center justify-between rounded-md border p-3">
                 <div>
                   <Label className="text-sm">Uppercase captions</Label>
