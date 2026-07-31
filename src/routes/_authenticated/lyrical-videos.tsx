@@ -1909,6 +1909,8 @@ function LyricalVideosPage() {
         coverImg,
         lyrics: parsedLyrics,
         duration: audioDuration,
+        motion: 1,
+        animStyle: "drift",
       });
       if (introSec > 0 && t < introSec) {
         INTRO_ANIMATIONS.find((a) => a.id === intro.id)?.draw({
