@@ -51,9 +51,6 @@ import {
   type Kit as MotivationalKit,
 } from "@/lib/motivational-templates";
 
-
-
-
 export const Route = createFileRoute("/_authenticated/motivational-videos")({
   head: () => ({
     meta: [
@@ -85,8 +82,6 @@ const ASPECTS: Record<AspectKey, { w: number; h: number; label: string }> = {
 
 type EngineId = string;
 
-
-
 type Palette = {
   id: string;
   name: string;
@@ -98,39 +93,122 @@ type Palette = {
 };
 
 const PALETTES: Palette[] = [
-  { id: "noir", name: "Noir Gold", bg: ["#08080a", "#1c1710"], primary: "#e6b566", accent: "#ffe6b0", text: "#ffffff", dim: "#9b9384" },
-  { id: "steel", name: "Steel Blue", bg: ["#050a12", "#10243d"], primary: "#5aa9f0", accent: "#c7e4ff", text: "#f5faff", dim: "#8fa5bb" },
-  { id: "ember", name: "Ember Red", bg: ["#100405", "#3b0c10"], primary: "#f2554a", accent: "#ffc9b0", text: "#fff6f4", dim: "#b8867f" },
-  { id: "pure", name: "Pure Contrast", bg: ["#000000", "#141414"], primary: "#ffffff", accent: "#d9d9d9", text: "#ffffff", dim: "#8a8a8a" },
-  { id: "sage", name: "Sage Stone", bg: ["#0b0f0d", "#1d2a24"], primary: "#9ec7a8", accent: "#e3f0e6", text: "#f4f8f5", dim: "#8b9a90" },
-  { id: "ivory", name: "Ivory Ink", bg: ["#141210", "#2b241d"], primary: "#e8ded0", accent: "#fbf6ee", text: "#fffdf9", dim: "#a2988a" },
+  {
+    id: "noir",
+    name: "Noir Gold",
+    bg: ["#08080a", "#1c1710"],
+    primary: "#e6b566",
+    accent: "#ffe6b0",
+    text: "#ffffff",
+    dim: "#9b9384",
+  },
+  {
+    id: "steel",
+    name: "Steel Blue",
+    bg: ["#050a12", "#10243d"],
+    primary: "#5aa9f0",
+    accent: "#c7e4ff",
+    text: "#f5faff",
+    dim: "#8fa5bb",
+  },
+  {
+    id: "ember",
+    name: "Ember Red",
+    bg: ["#100405", "#3b0c10"],
+    primary: "#f2554a",
+    accent: "#ffc9b0",
+    text: "#fff6f4",
+    dim: "#b8867f",
+  },
+  {
+    id: "pure",
+    name: "Pure Contrast",
+    bg: ["#000000", "#141414"],
+    primary: "#ffffff",
+    accent: "#d9d9d9",
+    text: "#ffffff",
+    dim: "#8a8a8a",
+  },
+  {
+    id: "sage",
+    name: "Sage Stone",
+    bg: ["#0b0f0d", "#1d2a24"],
+    primary: "#9ec7a8",
+    accent: "#e3f0e6",
+    text: "#f4f8f5",
+    dim: "#8b9a90",
+  },
+  {
+    id: "ivory",
+    name: "Ivory Ink",
+    bg: ["#141210", "#2b241d"],
+    primary: "#e8ded0",
+    accent: "#fbf6ee",
+    text: "#fffdf9",
+    dim: "#a2988a",
+  },
 ];
 
-
 const ENGINES: { id: EngineId; name: string; desc: string }[] = [
-  { id: "wordpop", name: "Word Pop", desc: "One power word at a time, punched in sync with the voice." },
+  {
+    id: "wordpop",
+    name: "Word Pop",
+    desc: "One power word at a time, punched in sync with the voice.",
+  },
   { id: "lowerthird", name: "Lower Third", desc: "Cinematic caption band across the lower third." },
-  { id: "quoteframe", name: "Quote Frame", desc: "Framed centre quote with rule lines and attribution." },
+  {
+    id: "quoteframe",
+    name: "Quote Frame",
+    desc: "Framed centre quote with rule lines and attribution.",
+  },
   { id: "kinetic", name: "Kinetic Stack", desc: "Lines stack and slide with a progress rail." },
   { id: "spotlight", name: "Spotlight", desc: "Vignette spotlight with karaoke word highlight." },
   ...EXTRA_MOTIVATIONAL_ENGINES.map((e) => ({ id: e.id, name: e.name, desc: e.desc })),
-  { id: "typo-serif", name: "Typo · Editorial Serif", desc: "Italic serif quote, magazine styling." },
+  {
+    id: "typo-serif",
+    name: "Typo · Editorial Serif",
+    desc: "Italic serif quote, magazine styling.",
+  },
 
   { id: "typo-stack", name: "Typo · Word Stack", desc: "Words stacked and lit word-by-word." },
-  { id: "typo-outline", name: "Typo · Outline Fill", desc: "Outlined caps filling with colour as spoken." },
-  { id: "typo-gradient", name: "Typo · Gradient Fill", desc: "Bold gradient-filled statement type." },
-  { id: "typo-poster", name: "Typo · Poster Block", desc: "Condensed poster block, alternating colour." },
+  {
+    id: "typo-outline",
+    name: "Typo · Outline Fill",
+    desc: "Outlined caps filling with colour as spoken.",
+  },
+  {
+    id: "typo-gradient",
+    name: "Typo · Gradient Fill",
+    desc: "Bold gradient-filled statement type.",
+  },
+  {
+    id: "typo-poster",
+    name: "Typo · Poster Block",
+    desc: "Condensed poster block, alternating colour.",
+  },
   { id: "typo-mono", name: "Typo · Mono Terminal", desc: "Monospace quote typed in sync." },
   { id: "typo-band", name: "Typo · Colour Bands", desc: "Each line set on a solid colour band." },
   { id: "typo-ticker", name: "Typo · Kinetic Ticker", desc: "Alternating left/right line ticker." },
-  { id: "typo-vertical", name: "Typo · Vertical Column", desc: "Letters stacked vertically with shimmer." },
-  { id: "typo-split", name: "Typo · Split Slide", desc: "Alternating lines sliding in with a rail." },
+  {
+    id: "typo-vertical",
+    name: "Typo · Vertical Column",
+    desc: "Letters stacked vertically with shimmer.",
+  },
+  {
+    id: "typo-split",
+    name: "Typo · Split Slide",
+    desc: "Alternating lines sliding in with a rail.",
+  },
 ];
-
 
 type Template = { id: string; name: string; engine: EngineId; palette: Palette };
 const TEMPLATES: Template[] = ENGINES.flatMap((e) =>
-  PALETTES.map((p) => ({ id: `${e.id}-${p.id}`, name: `${e.name} · ${p.name}`, engine: e.id, palette: p })),
+  PALETTES.map((p) => ({
+    id: `${e.id}-${p.id}`,
+    name: `${e.name} · ${p.name}`,
+    engine: e.id,
+    palette: p,
+  })),
 );
 
 // -------------------- helpers --------------------
@@ -148,10 +226,22 @@ function fmtTime(s: number) {
 }
 /** Typeface options exposed to the user. */
 const FONT_CHOICES = [
-  { id: "inter", name: "Inter · Modern sans", stack: `"Inter", "Helvetica Neue", Arial, sans-serif` },
+  {
+    id: "inter",
+    name: "Inter · Modern sans",
+    stack: `"Inter", "Helvetica Neue", Arial, sans-serif`,
+  },
   { id: "serif", name: "Editorial serif", stack: `Georgia, "Times New Roman", serif` },
-  { id: "cond", name: "Condensed poster", stack: `"Arial Narrow", "Helvetica Neue Condensed", Impact, sans-serif` },
-  { id: "mono", name: "Mono terminal", stack: `"JetBrains Mono", "SFMono-Regular", Menlo, monospace` },
+  {
+    id: "cond",
+    name: "Condensed poster",
+    stack: `"Arial Narrow", "Helvetica Neue Condensed", Impact, sans-serif`,
+  },
+  {
+    id: "mono",
+    name: "Mono terminal",
+    stack: `"JetBrains Mono", "SFMono-Regular", Menlo, monospace`,
+  },
   { id: "system", name: "System grotesk", stack: `system-ui, "Segoe UI", Roboto, sans-serif` },
 ];
 
@@ -165,7 +255,6 @@ let FONT = FONT_CHOICES[0].stack;
 let SAFE_W = 1;
 /** Set while renderEngine owns the backdrop so engines don't repaint it. */
 let SKIP_BG = false;
-
 
 function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
   const limit = maxWidth * SAFE_W;
@@ -198,8 +287,14 @@ function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number)
   return out.length ? out : [""];
 }
 
-
-function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
+function roundRect(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  r: number,
+) {
   ctx.beginPath();
   ctx.moveTo(x + r, y);
   ctx.arcTo(x + w, y, x + w, y + h, r);
@@ -284,7 +379,14 @@ function drawBackdrop(ctx: CanvasRenderingContext2D, r: RenderCtx) {
   // dim + vignette so the text always reads
   ctx.fillStyle = `rgba(0,0,0,${r.dim})`;
   ctx.fillRect(0, 0, w, h);
-  const vg = ctx.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.25, w / 2, h / 2, Math.max(w, h) * 0.72);
+  const vg = ctx.createRadialGradient(
+    w / 2,
+    h / 2,
+    Math.min(w, h) * 0.25,
+    w / 2,
+    h / 2,
+    Math.max(w, h) * 0.72,
+  );
   vg.addColorStop(0, "rgba(0,0,0,0)");
   vg.addColorStop(1, "rgba(0,0,0,0.6)");
   ctx.fillStyle = vg;
@@ -397,7 +499,12 @@ function renderQuoteFrame(ctx: CanvasRenderingContext2D, r: RenderCtx) {
   const inset = w * 0.08;
   ctx.strokeStyle = hexA(p.primary, 0.6);
   ctx.lineWidth = Math.max(1.5, h * 0.0018);
-  ctx.strokeRect(inset, inset * (r.aspect === "9:16" ? 0.6 : 1), w - inset * 2, h - inset * (r.aspect === "9:16" ? 1.2 : 2));
+  ctx.strokeRect(
+    inset,
+    inset * (r.aspect === "9:16" ? 0.6 : 1),
+    w - inset * 2,
+    h - inset * (r.aspect === "9:16" ? 1.2 : 2),
+  );
   if (!line) return;
   const appear = easeOutCubic(Math.min(1, (t - line.time) / 0.35));
   const size = Math.round(h * (r.aspect === "16:9" ? 0.055 : 0.046));
@@ -477,7 +584,9 @@ function renderSpotlight(ctx: CanvasRenderingContext2D, r: RenderCtx) {
   const size = Math.round(h * (r.aspect === "16:9" ? 0.058 : 0.048));
   ctx.font = `800 ${size}px ${FONT}`;
   ctx.textBaseline = "middle";
-  const words = line.words.length ? line.words : line.text.split(" ").map((tx) => ({ text: tx, start: line.time, end: line.end }));
+  const words = line.words.length
+    ? line.words
+    : line.text.split(" ").map((tx) => ({ text: tx, start: line.time, end: line.end }));
   const rows: TranscriptWord[][] = [];
   let row: TranscriptWord[] = [];
   for (const word of words) {
@@ -526,12 +635,17 @@ function typoState(r: RenderCtx) {
   return { line, text, frac, appear };
 }
 
-function fitFont(ctx: CanvasRenderingContext2D, text: string, maxW: number, start: number, spec: string) {
+function fitFont(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  maxW: number,
+  start: number,
+  spec: string,
+) {
   const limit = maxW * SAFE_W;
   let s = start;
   ctx.font = spec.replace("{s}", String(s));
   while (ctx.measureText(text).width > limit && s > 16) {
-
     s -= 2;
     ctx.font = spec.replace("{s}", String(s));
   }
@@ -649,17 +763,22 @@ function renderTypoPoster(ctx: CanvasRenderingContext2D, r: RenderCtx) {
   const { w, h, palette: p } = r;
   const { text, appear } = typoState(r);
   if (!text) return;
-  const rows = text.toUpperCase().split(" ").reduce<string[]>((acc, word) => {
-    if (!acc.length) return [word];
-    const last = acc[acc.length - 1];
-    if ((last + " " + word).length <= 12) acc[acc.length - 1] = last + " " + word;
-    else acc.push(word);
-    return acc;
-  }, []);
+  const rows = text
+    .toUpperCase()
+    .split(" ")
+    .reduce<string[]>((acc, word) => {
+      if (!acc.length) return [word];
+      const last = acc[acc.length - 1];
+      if ((last + " " + word).length <= 12) acc[acc.length - 1] = last + " " + word;
+      else acc.push(word);
+      return acc;
+    }, []);
   ctx.save();
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  const base = Math.round((h * (r.aspect === "9:16" ? 0.15 : 0.18)) / Math.max(1, rows.length * 0.55));
+  const base = Math.round(
+    (h * (r.aspect === "9:16" ? 0.15 : 0.18)) / Math.max(1, rows.length * 0.55),
+  );
   let y = h * 0.5 - ((rows.length - 1) * base * 0.95) / 2;
   ctx.globalAlpha = appear;
   rows.forEach((row, i) => {
@@ -691,7 +810,12 @@ function renderTypoMono(ctx: CanvasRenderingContext2D, r: RenderCtx) {
     y += size * 1.6;
   }
   ctx.fillStyle = p.primary;
-  ctx.fillRect(w * 0.13, h * 0.5 - ((rows.length + 1) * size * 1.6) / 2, w * 0.06, Math.max(2, h * 0.003));
+  ctx.fillRect(
+    w * 0.13,
+    h * 0.5 - ((rows.length + 1) * size * 1.6) / 2,
+    w * 0.06,
+    Math.max(2, h * 0.003),
+  );
   ctx.restore();
   drawAuthor(ctx, r, y + size);
 }
@@ -712,7 +836,14 @@ function renderTypoBand(ctx: CanvasRenderingContext2D, r: RenderCtx) {
     const tw = ctx.measureText(row).width;
     ctx.globalAlpha = appear;
     ctx.fillStyle = p.primary;
-    roundRect(ctx, w / 2 - tw / 2 - size * 0.35, y - size * 0.62, tw + size * 0.7, size * 1.24, size * 0.14);
+    roundRect(
+      ctx,
+      w / 2 - tw / 2 - size * 0.35,
+      y - size * 0.62,
+      tw + size * 0.7,
+      size * 1.24,
+      size * 0.14,
+    );
     ctx.fill();
     ctx.fillStyle = "#0b0b0c";
     ctx.fillText(row, w / 2, y);
@@ -893,8 +1024,6 @@ function renderEngine(
   }
 }
 
-
-
 // -------------------- component --------------------
 
 function MotivationalVideosPage() {
@@ -929,7 +1058,6 @@ function MotivationalVideosPage() {
   const [transcribing, setTranscribing] = useState(false);
   const [sttProvider, setSttProvider] = useState<SttProvider>("auto");
 
-
   const [playing, setPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [exporting, setExporting] = useState(false);
@@ -954,7 +1082,6 @@ function MotivationalVideosPage() {
     }),
     [template, accentColor, textColor],
   );
-
 
   const backdrop: Backdrop = useMemo(() => {
     if (mediaKind === "video" && videoRef.current) return { kind: "video", el: videoRef.current };
@@ -981,12 +1108,16 @@ function MotivationalVideosPage() {
       v.muted = false;
       v.playsInline = true;
       v.preload = "auto";
-      v.addEventListener("loadedmetadata", () => setDuration(isFinite(v.duration) ? v.duration : 0));
+      v.addEventListener("loadedmetadata", () =>
+        setDuration(isFinite(v.duration) ? v.duration : 0),
+      );
       videoRef.current = v;
       audioRef.current = null;
     } else {
       const a = new Audio(url);
-      a.addEventListener("loadedmetadata", () => setDuration(isFinite(a.duration) ? a.duration : 0));
+      a.addEventListener("loadedmetadata", () =>
+        setDuration(isFinite(a.duration) ? a.duration : 0),
+      );
       audioRef.current = a;
       videoRef.current = null;
     }
@@ -1068,7 +1199,10 @@ function MotivationalVideosPage() {
 
   const applyManualText = (text: string) => {
     setTranscript(text);
-    const chunks = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+    const chunks = text
+      .split(/\r?\n/)
+      .map((l) => l.trim())
+      .filter(Boolean);
     if (!chunks.length) {
       setLines([]);
       return;
@@ -1135,7 +1269,20 @@ function MotivationalVideosPage() {
         });
       }
     },
-    [template, aspect, palette, shownLines, duration, author, dim, intro, outro, introSec, outroSec, style],
+    [
+      template,
+      aspect,
+      palette,
+      shownLines,
+      duration,
+      author,
+      dim,
+      intro,
+      outro,
+      introSec,
+      outroSec,
+      style,
+    ],
   );
 
   const drawAt = useCallback(
@@ -1146,7 +1293,6 @@ function MotivationalVideosPage() {
     },
     [paint, backdrop],
   );
-
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -1350,8 +1496,8 @@ function MotivationalVideosPage() {
         <div>
           <h1 className="text-3xl font-semibold tracking-tight">Motivational Quote Videos</h1>
           <p className="mt-1 text-muted-foreground">
-            Upload a speech clip, get word-accurate on-screen captions and pick from {TEMPLATES.length}{" "}
-            professional templates. Exports 1080p at 60fps.
+            Upload a speech clip, get word-accurate on-screen captions and pick from{" "}
+            {TEMPLATES.length} professional templates. Exports 1080p at 60fps.
           </p>
         </div>
       </div>
@@ -1362,7 +1508,9 @@ function MotivationalVideosPage() {
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Speech clip</CardTitle>
-              <CardDescription>Video or audio — the voice drives the caption timing.</CardDescription>
+              <CardDescription>
+                Video or audio — the voice drives the caption timing.
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
               {mediaUrl ? (
@@ -1437,13 +1585,25 @@ function MotivationalVideosPage() {
                   </div>
                   <div>
                     <Label className="text-xs">Seconds per image · {slidePer}</Label>
-                    <Slider min={2} max={10} step={1} value={[slidePer]} onValueChange={(v) => setSlidePer(v[0])} />
+                    <Slider
+                      min={2}
+                      max={10}
+                      step={1}
+                      value={[slidePer]}
+                      onValueChange={(v) => setSlidePer(v[0])}
+                    />
                   </div>
                 </>
               )}
               <div>
                 <Label className="text-xs">Backdrop dim · {Math.round(dim * 100)}%</Label>
-                <Slider min={0} max={0.8} step={0.05} value={[dim]} onValueChange={(v) => setDim(v[0])} />
+                <Slider
+                  min={0}
+                  max={0.8}
+                  step={0.05}
+                  value={[dim]}
+                  onValueChange={(v) => setDim(v[0])}
+                />
               </div>
             </CardContent>
           </Card>
@@ -1475,7 +1635,11 @@ function MotivationalVideosPage() {
                 </p>
               </div>
 
-              <Button onClick={runTranscribe} disabled={transcribing || !mediaFile} className="w-full">
+              <Button
+                onClick={runTranscribe}
+                disabled={transcribing || !mediaFile}
+                className="w-full"
+              >
                 {transcribing ? (
                   <>
                     <Loader2 className="mr-1 h-4 w-4 animate-spin" /> Transcribing…
@@ -1551,7 +1715,9 @@ function MotivationalVideosPage() {
                   onValueChange={(v) => seek(v[0])}
                   className="flex-1"
                 />
-                <span className="w-16 text-right text-xs text-muted-foreground">{fmtTime(duration)}</span>
+                <span className="w-16 text-right text-xs text-muted-foreground">
+                  {fmtTime(duration)}
+                </span>
               </div>
               <div className="mt-3 flex items-center justify-between gap-3">
                 <div className="text-xs text-muted-foreground">
@@ -1580,7 +1746,9 @@ function MotivationalVideosPage() {
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Customise</CardTitle>
-              <CardDescription>Recolour, resize, reposition and retype any template.</CardDescription>
+              <CardDescription>
+                Recolour, resize, reposition and retype any template.
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="grid grid-cols-2 gap-3">
@@ -1689,12 +1857,16 @@ function MotivationalVideosPage() {
                   onValueChange={(v) => setStyleKey("rotate", v[0])}
                 />
               </div>
-              <Button variant="outline" size="sm" className="w-full" onClick={() => setStyle(DEFAULT_STYLE)}>
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full"
+                onClick={() => setStyle(DEFAULT_STYLE)}
+              >
                 Reset layout
               </Button>
             </CardContent>
           </Card>
-
 
           <IntroOutroCard
             intro={intro}
@@ -1707,7 +1879,9 @@ function MotivationalVideosPage() {
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Templates</CardTitle>
-              <CardDescription>{shownTemplates.length} designs · every aspect ratio.</CardDescription>
+              <CardDescription>
+                {shownTemplates.length} designs · every aspect ratio.
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="mb-3">

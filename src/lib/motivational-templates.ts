@@ -83,7 +83,10 @@ function layout(
   for (let i = 0; i < 40; i++) {
     ctx.font = spec.replace("{s}", String(size));
     const rows = kit.wrapText(ctx, text, maxW);
-    if ((rows.length * size * lineH <= maxH && rows.every((x) => ctx.measureText(x).width <= maxW)) || size <= 14) {
+    if (
+      (rows.length * size * lineH <= maxH && rows.every((x) => ctx.measureText(x).width <= maxW)) ||
+      size <= 14
+    ) {
       return { rows, size };
     }
     size = Math.max(14, Math.round(size * 0.93));
@@ -360,7 +363,11 @@ const boldLeft: Engine = {
     ctx.textBaseline = "middle";
     ctx.font = `700 ${Math.round(h * 0.018)}px ${kit.MONO}`;
     ctx.fillStyle = p.primary;
-    ctx.fillText(String(index + 1).padStart(2, "0"), x, h * 0.5 - (rows.length * size * 1.08) / 2 - h * 0.04);
+    ctx.fillText(
+      String(index + 1).padStart(2, "0"),
+      x,
+      h * 0.5 - (rows.length * size * 1.08) / 2 - h * 0.04,
+    );
     let y = h * 0.5 - ((rows.length - 1) * size * 1.08) / 2;
     ctx.font = `900 ${size}px ${kit.FONT}`;
     softShadow(ctx, size * 0.22);
@@ -371,7 +378,12 @@ const boldLeft: Engine = {
     }
     ctx.shadowBlur = 0;
     ctx.fillStyle = p.primary;
-    ctx.fillRect(x - w * 0.045, h * 0.5 - (rows.length * size * 1.08) / 2, Math.max(4, w * 0.008), rows.length * size * 1.08);
+    ctx.fillRect(
+      x - w * 0.045,
+      h * 0.5 - (rows.length * size * 1.08) / 2,
+      Math.max(4, w * 0.008),
+      rows.length * size * 1.08,
+    );
     ctx.restore();
     ctx.textAlign = "center";
     kit.drawAuthor(ctx, r, y + size * 0.3);
@@ -507,7 +519,14 @@ const ribbon: Engine = {
       ctx.translate(w / 2, y);
       ctx.rotate((i % 2 ? -1 : 1) * 0.018);
       ctx.fillStyle = i % 2 ? p.text : p.primary;
-      kit.roundRect(ctx, -tw / 2 - size * 0.4, -size * 0.66, tw + size * 0.8, size * 1.32, size * 0.1);
+      kit.roundRect(
+        ctx,
+        -tw / 2 - size * 0.4,
+        -size * 0.66,
+        tw + size * 0.8,
+        size * 1.32,
+        size * 0.1,
+      );
       ctx.fill();
       ctx.fillStyle = i % 2 ? p.bg[0] : "#0b0b0c";
       ctx.fillText(row, 0, 0);
@@ -599,7 +618,12 @@ const typedCaret: Engine = {
     const lastRow = rows[rows.length - 1] ?? "";
     if (Math.floor(r.t * 2) % 2 === 0) {
       ctx.fillStyle = p.primary;
-      ctx.fillRect(x + ctx.measureText(lastRow).width + size * 0.12, y - size * 1.5 - size * 0.42, size * 0.5, size * 0.82);
+      ctx.fillRect(
+        x + ctx.measureText(lastRow).width + size * 0.12,
+        y - size * 1.5 - size * 0.42,
+        size * 0.5,
+        size * 0.82,
+      );
     }
     ctx.restore();
     ctx.textAlign = "center";
@@ -700,7 +724,7 @@ const filmGrain: Engine = {
     for (let i = 0; i < 420; i++) {
       const n = (i * 9301 + Math.floor(r.t * 60) * 49297) % 233280;
       const x = (n / 233280) * w;
-      const y = ((n * 7 + i * 131) % 233280 / 233280) * h;
+      const y = (((n * 7 + i * 131) % 233280) / 233280) * h;
       ctx.fillRect(x, y, step * 0.5, step * 0.5);
     }
     ctx.restore();
@@ -744,7 +768,14 @@ const tickerRail: Engine = {
     const segW = (railW - gap * (segs - 1)) / segs;
     for (let i = 0; i < segs; i++) {
       ctx.fillStyle = i / segs < prog ? p.primary : kit.hexA(p.text, 0.16);
-      kit.roundRect(ctx, w * 0.1 + i * (segW + gap), h * 0.1, segW, Math.max(3, h * 0.005), h * 0.0025);
+      kit.roundRect(
+        ctx,
+        w * 0.1 + i * (segW + gap),
+        h * 0.1,
+        segW,
+        Math.max(3, h * 0.005),
+        h * 0.0025,
+      );
       ctx.fill();
     }
     const { line, appear } = state(kit, r);
@@ -845,6 +876,4 @@ export const EXTRA_MOTIVATIONAL_ENGINES: Engine[] = [
   marqueeBand,
 ];
 
-export const EXTRA_MOTIVATIONAL_MAP = new Map(
-  EXTRA_MOTIVATIONAL_ENGINES.map((e) => [e.id, e]),
-);
+export const EXTRA_MOTIVATIONAL_MAP = new Map(EXTRA_MOTIVATIONAL_ENGINES.map((e) => [e.id, e]));

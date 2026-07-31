@@ -252,10 +252,24 @@ function tonearm(ctx: C, kit: Kit, cx: number, cy: number, radius: number, pr: n
   ctx.fill();
   // head shell
   ctx.fillStyle = "#1d1d20";
-  kit.roundRect(ctx, -radius * 0.055, len - radius * 0.02, radius * 0.11, radius * 0.13, radius * 0.02);
+  kit.roundRect(
+    ctx,
+    -radius * 0.055,
+    len - radius * 0.02,
+    radius * 0.11,
+    radius * 0.13,
+    radius * 0.02,
+  );
   ctx.fill();
   ctx.fillStyle = p.primary;
-  kit.roundRect(ctx, -radius * 0.02, len + radius * 0.09, radius * 0.04, radius * 0.025, radius * 0.01);
+  kit.roundRect(
+    ctx,
+    -radius * 0.02,
+    len + radius * 0.09,
+    radius * 0.04,
+    radius * 0.025,
+    radius * 0.01,
+  );
   ctx.fill();
   ctx.restore();
 }
@@ -294,7 +308,13 @@ function heroLyric(
   r: RenderCtx,
   y: number,
   size: number,
-  opts: { weight?: number; color?: string; uppercase?: boolean; maxW?: number; glow?: boolean } = {},
+  opts: {
+    weight?: number;
+    color?: string;
+    uppercase?: boolean;
+    maxW?: number;
+    glow?: boolean;
+  } = {},
 ) {
   const { cur } = currentLine(kit, r);
   if (!cur) return y;
@@ -353,14 +373,26 @@ const vinylTonearm: Engine = {
     kit.drawProgressRing(ctx, vx, vy, vr * 1.14, prog(r), p);
     tonearm(ctx, kit, vx, vy, vr, prog(r), p);
     if (vertical) {
-      kit.drawLyricRoll(ctx, r, { top: h * 0.49, bottom: h * 0.92, focusY: h * 0.69, size: h * 0.028, showRule: true });
+      kit.drawLyricRoll(ctx, r, {
+        top: h * 0.49,
+        bottom: h * 0.92,
+        focusY: h * 0.69,
+        size: h * 0.028,
+        showRule: true,
+      });
       kit.drawFooterBar(ctx, r, h * 0.955);
     } else {
       ctx.save();
       ctx.translate(w * 0.4, 0);
       const sub = { ...r, w: w * 0.58 };
       kit.drawHeader(ctx, sub, h * 0.15, h * 0.058);
-      kit.drawLyricRoll(ctx, sub, { top: h * 0.3, bottom: h * 0.9, focusY: h * 0.61, size: h * 0.04, showRule: true });
+      kit.drawLyricRoll(ctx, sub, {
+        top: h * 0.3,
+        bottom: h * 0.9,
+        focusY: h * 0.61,
+        size: h * 0.04,
+        showRule: true,
+      });
       ctx.restore();
       kit.drawFooterBar(ctx, r, h * 0.94);
     }
@@ -384,13 +416,7 @@ const vinyl45: Engine = {
     ctx.textAlign = "left";
     ctx.font = `600 ${Math.round(h * 0.014)}px ${kit.FONT}`;
     ctx.fillStyle = kit.hexA(p.primary, 0.9);
-    kit.tracked(
-      ctx,
-      "45 RPM · SIDE A",
-      vx + vr * 1.5 + h * 0.05,
-      vy + h * 0.05,
-      h * 0.004,
-    );
+    kit.tracked(ctx, "45 RPM · SIDE A", vx + vr * 1.5 + h * 0.05, vy + h * 0.05, h * 0.004);
     ctx.textAlign = "center";
     kit.drawLyricRoll(ctx, r, {
       top: h * (vertical ? 0.26 : 0.34),
@@ -513,7 +539,7 @@ const vinylNeon: Engine = {
     const vx = vertical ? w / 2 : w * 0.22;
     ctx.save();
     for (let i = 0; i < 3; i++) {
-      const pulse = ((t * 0.4 + i / 3) % 1);
+      const pulse = (t * 0.4 + i / 3) % 1;
       ctx.strokeStyle = kit.hexA(i % 2 ? p.accent : p.primary, 0.5 * (1 - pulse));
       ctx.lineWidth = Math.max(2, vr * 0.02);
       ctx.shadowColor = kit.hexA(p.primary, 0.8);
@@ -527,14 +553,26 @@ const vinylNeon: Engine = {
     kit.drawProgressRing(ctx, vx, vy, vr * 1.1, prog(r), p);
     if (vertical) {
       kit.drawHeader(ctx, r, h * 0.06, h * 0.034);
-      kit.drawLyricRoll(ctx, r, { top: h * 0.47, bottom: h * 0.92, focusY: h * 0.68, size: h * 0.03, glow: true });
+      kit.drawLyricRoll(ctx, r, {
+        top: h * 0.47,
+        bottom: h * 0.92,
+        focusY: h * 0.68,
+        size: h * 0.03,
+        glow: true,
+      });
       kit.drawFooterBar(ctx, r, h * 0.955);
     } else {
       ctx.save();
       ctx.translate(w * 0.4, 0);
       const sub = { ...r, w: w * 0.58 };
       kit.drawHeader(ctx, sub, h * 0.16, h * 0.055);
-      kit.drawLyricRoll(ctx, sub, { top: h * 0.3, bottom: h * 0.9, focusY: h * 0.6, size: h * 0.042, glow: true });
+      kit.drawLyricRoll(ctx, sub, {
+        top: h * 0.3,
+        bottom: h * 0.9,
+        focusY: h * 0.6,
+        size: h * 0.042,
+        glow: true,
+      });
       ctx.restore();
       kit.drawFooterBar(ctx, r, h * 0.94);
     }
@@ -550,7 +588,15 @@ const vinylEditorial: Engine = {
     kit.drawBg(ctx, w, h, p, t);
     const vertical = r.aspect === "9:16";
     const vr = vertical ? w * 0.3 : h * 0.32;
-    kit.drawVinyl(ctx, w * (vertical ? 0.92 : 0.88), h * (vertical ? 0.17 : 0.26), vr, t, r.coverImg, p);
+    kit.drawVinyl(
+      ctx,
+      w * (vertical ? 0.92 : 0.88),
+      h * (vertical ? 0.17 : 0.26),
+      vr,
+      t,
+      r.coverImg,
+      p,
+    );
     ctx.textAlign = "left";
     ctx.textBaseline = "middle";
     ctx.fillStyle = p.primary;
@@ -602,9 +648,27 @@ const vinylTwin: Engine = {
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillStyle = p.text;
-    kit.trackedFit(ctx, (r.title || "Untitled").toUpperCase(), w / 2, y + vr * 1.55, w * 0.5, 800, h * 0.026, 0.06);
+    kit.trackedFit(
+      ctx,
+      (r.title || "Untitled").toUpperCase(),
+      w / 2,
+      y + vr * 1.55,
+      w * 0.5,
+      800,
+      h * 0.026,
+      0.06,
+    );
     ctx.fillStyle = kit.hexA(p.muted, 1);
-    kit.trackedFit(ctx, (r.artist || "").toUpperCase(), w / 2, y + vr * 1.55 + h * 0.028, w * 0.4, 500, h * 0.015, 0.2);
+    kit.trackedFit(
+      ctx,
+      (r.artist || "").toUpperCase(),
+      w / 2,
+      y + vr * 1.55 + h * 0.028,
+      w * 0.4,
+      500,
+      h * 0.015,
+      0.2,
+    );
     kit.drawLyricRoll(ctx, r, {
       top: h * (vertical ? 0.42 : 0.48),
       bottom: h * 0.92,
@@ -703,12 +767,24 @@ const cassette: Engine = {
     ctx.stroke();
 
     if (vertical) {
-      kit.drawLyricRoll(ctx, r, { top: h * 0.44, bottom: h * 0.92, focusY: h * 0.69, size: h * 0.031, showRule: true });
+      kit.drawLyricRoll(ctx, r, {
+        top: h * 0.44,
+        bottom: h * 0.92,
+        focusY: h * 0.69,
+        size: h * 0.031,
+        showRule: true,
+      });
     } else {
       ctx.save();
       ctx.translate(w * 0.45, 0);
       const sub = { ...r, w: w * 0.52 };
-      kit.drawLyricRoll(ctx, sub, { top: h * 0.14, bottom: h * 0.9, focusY: h * 0.54, size: h * 0.044, showRule: true });
+      kit.drawLyricRoll(ctx, sub, {
+        top: h * 0.14,
+        bottom: h * 0.9,
+        focusY: h * 0.54,
+        size: h * 0.044,
+        showRule: true,
+      });
       ctx.restore();
     }
     kit.drawFooterBar(ctx, r, h * 0.955);
@@ -742,7 +818,12 @@ const cdPlayer: Engine = {
     ctx.globalCompositeOperation = "lighter";
     hues.forEach((hue, i) => {
       const a0 = (i / hues.length) * Math.PI * 2;
-      const g = ctx.createLinearGradient(Math.cos(a0) * cr, Math.sin(a0) * cr, -Math.cos(a0) * cr, -Math.sin(a0) * cr);
+      const g = ctx.createLinearGradient(
+        Math.cos(a0) * cr,
+        Math.sin(a0) * cr,
+        -Math.cos(a0) * cr,
+        -Math.sin(a0) * cr,
+      );
       g.addColorStop(0, kit.hexA(hue, 0.22));
       g.addColorStop(0.5, kit.hexA(hue, 0.02));
       g.addColorStop(1, kit.hexA(hue, 0));
@@ -769,13 +850,25 @@ const cdPlayer: Engine = {
 
     if (vertical) {
       kit.drawHeader(ctx, r, h * 0.06, h * 0.034);
-      kit.drawLyricRoll(ctx, r, { top: h * 0.47, bottom: h * 0.92, focusY: h * 0.68, size: h * 0.03, showRule: true });
+      kit.drawLyricRoll(ctx, r, {
+        top: h * 0.47,
+        bottom: h * 0.92,
+        focusY: h * 0.68,
+        size: h * 0.03,
+        showRule: true,
+      });
     } else {
       ctx.save();
       ctx.translate(w * 0.42, 0);
       const sub = { ...r, w: w * 0.56 };
       kit.drawHeader(ctx, sub, h * 0.16, h * 0.055);
-      kit.drawLyricRoll(ctx, sub, { top: h * 0.3, bottom: h * 0.9, focusY: h * 0.6, size: h * 0.042, showRule: true });
+      kit.drawLyricRoll(ctx, sub, {
+        top: h * 0.3,
+        bottom: h * 0.9,
+        focusY: h * 0.6,
+        size: h * 0.042,
+        showRule: true,
+      });
       ctx.restore();
     }
     kit.drawFooterBar(ctx, r, h * 0.955);
@@ -842,17 +935,44 @@ const npCard: Engine = {
     ctx.restore();
     const art = cardH * 0.62;
     coverCard(ctx, kit, r, cx + cardH * 0.16, cy + cardH * 0.19, art, art * 0.1);
-    metaBlock(ctx, kit, r, cx + cardH * 0.16 + art + cardH * 0.14, cy + cardH * 0.36, h * 0.026, cardW - art - cardH * 0.42);
-    eqBars(ctx, kit, cx + cardH * 0.16 + art + cardH * 0.14, cy + cardH * 0.58, cardW * 0.13, cardH * 0.12, t, p);
+    metaBlock(
+      ctx,
+      kit,
+      r,
+      cx + cardH * 0.16 + art + cardH * 0.14,
+      cy + cardH * 0.36,
+      h * 0.026,
+      cardW - art - cardH * 0.42,
+    );
+    eqBars(
+      ctx,
+      kit,
+      cx + cardH * 0.16 + art + cardH * 0.14,
+      cy + cardH * 0.58,
+      cardW * 0.13,
+      cardH * 0.12,
+      t,
+      p,
+    );
     scrubber(ctx, kit, r, cx + cardH * 0.16, cy + cardH * 0.86, cardW - cardH * 0.32);
     if (vertical) {
       heroLyric(ctx, kit, r, h * 0.6, h * 0.05, { glow: false });
-      kit.drawLyricRoll(ctx, r, { top: h * 0.44, bottom: h * 0.93, focusY: h * 0.7, size: h * 0.03 });
+      kit.drawLyricRoll(ctx, r, {
+        top: h * 0.44,
+        bottom: h * 0.93,
+        focusY: h * 0.7,
+        size: h * 0.03,
+      });
     } else {
       ctx.save();
       ctx.translate(w * 0.5, 0);
       const sub = { ...r, w: w * 0.48 };
-      kit.drawLyricRoll(ctx, sub, { top: h * 0.12, bottom: h * 0.9, focusY: h * 0.52, size: h * 0.042 });
+      kit.drawLyricRoll(ctx, sub, {
+        top: h * 0.12,
+        bottom: h * 0.9,
+        focusY: h * 0.52,
+        size: h * 0.042,
+      });
       ctx.restore();
     }
   },
@@ -870,7 +990,15 @@ const npWidget: Engine = {
     const art = h * (r.aspect === "9:16" ? 0.075 : 0.12);
     const top = h * 0.07;
     coverCard(ctx, kit, r, padX, top, art, art * 0.16);
-    metaBlock(ctx, kit, r, padX + art * 1.25, top + art * 0.38, h * (r.aspect === "9:16" ? 0.024 : 0.03), w - padX * 2 - art * 1.4);
+    metaBlock(
+      ctx,
+      kit,
+      r,
+      padX + art * 1.25,
+      top + art * 0.38,
+      h * (r.aspect === "9:16" ? 0.024 : 0.03),
+      w - padX * 2 - art * 1.4,
+    );
     eqBars(ctx, kit, w - padX - h * 0.03, top + art * 0.2, h * 0.03, h * 0.026, t, p, 4);
     scrubber(ctx, kit, r, padX, top + art * 1.16, w - padX * 2);
     kit.drawLyricRoll(ctx, r, {
@@ -899,7 +1027,9 @@ const npWide: Engine = {
     ctx.clip();
     if (r.coverImg?.naturalWidth) {
       const img = r.coverImg;
-      const ratio = Math.max(artW / img.naturalWidth, artH / img.naturalHeight) * (1.04 + Math.sin(t * 0.25) * 0.02);
+      const ratio =
+        Math.max(artW / img.naturalWidth, artH / img.naturalHeight) *
+        (1.04 + Math.sin(t * 0.25) * 0.02);
       const dw = img.naturalWidth * ratio;
       const dh = img.naturalHeight * ratio;
       ctx.drawImage(img, (artW - dw) / 2, (artH - dh) / 2, dw, dh);
@@ -930,13 +1060,25 @@ const npWide: Engine = {
     ctx.stroke();
 
     if (vertical) {
-      kit.drawLyricRoll(ctx, r, { top: h * 0.58, bottom: h * 0.93, focusY: h * 0.75, size: h * 0.032, showRule: true });
+      kit.drawLyricRoll(ctx, r, {
+        top: h * 0.58,
+        bottom: h * 0.93,
+        focusY: h * 0.75,
+        size: h * 0.032,
+        showRule: true,
+      });
       kit.drawFooterBar(ctx, r, h * 0.965);
     } else {
       ctx.save();
       ctx.translate(artW, 0);
       const sub = { ...r, w: w - artW };
-      kit.drawLyricRoll(ctx, sub, { top: h * 0.32, bottom: h * 0.88, focusY: h * 0.6, size: h * 0.04, showRule: true });
+      kit.drawLyricRoll(ctx, sub, {
+        top: h * 0.32,
+        bottom: h * 0.88,
+        focusY: h * 0.6,
+        size: h * 0.04,
+        showRule: true,
+      });
       ctx.restore();
       scrubber(ctx, kit, r, artW + w * 0.05, h * 0.92, w - artW - w * 0.1);
     }
@@ -1035,9 +1177,27 @@ const npEq: Engine = {
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillStyle = p.text;
-    kit.trackedFit(ctx, (r.title || "Untitled").toUpperCase(), w / 2, ay + art + h * 0.04, w * 0.7, 800, h * 0.028, 0.05);
+    kit.trackedFit(
+      ctx,
+      (r.title || "Untitled").toUpperCase(),
+      w / 2,
+      ay + art + h * 0.04,
+      w * 0.7,
+      800,
+      h * 0.028,
+      0.05,
+    );
     ctx.fillStyle = kit.hexA(p.muted, 1);
-    kit.trackedFit(ctx, (r.artist || "").toUpperCase(), w / 2, ay + art + h * 0.072, w * 0.6, 500, h * 0.016, 0.24);
+    kit.trackedFit(
+      ctx,
+      (r.artist || "").toUpperCase(),
+      w / 2,
+      ay + art + h * 0.072,
+      w * 0.6,
+      500,
+      h * 0.016,
+      0.24,
+    );
     kit.drawLyricRoll(ctx, r, {
       top: ay + art + h * 0.1,
       bottom: h * 0.87,
@@ -1089,14 +1249,25 @@ const npTicket: Engine = {
     ctx.fillText(r.title || "Untitled", cx + ch * 0.25 + art, cy + ch * 0.36, cw * 0.36);
     ctx.font = `500 ${Math.round(ch * 0.1)}px ${kit.FONT}`;
     ctx.fillStyle = "#5b5b63";
-    ctx.fillText((r.artist || "Unknown artist").toUpperCase(), cx + ch * 0.25 + art, cy + ch * 0.54, cw * 0.36);
+    ctx.fillText(
+      (r.artist || "Unknown artist").toUpperCase(),
+      cx + ch * 0.25 + art,
+      cy + ch * 0.54,
+      cw * 0.36,
+    );
     ctx.save();
     ctx.translate(cx + cw * 0.83, cy + ch / 2);
     ctx.rotate(-Math.PI / 2);
     ctx.textAlign = "center";
     ctx.fillStyle = "#8a8a92";
     ctx.font = `600 ${Math.round(ch * 0.09)}px ${kit.FONT}`;
-    kit.tracked(ctx, `NO. ${String(Math.floor(prog(r) * 999) + 1).padStart(3, "0")}`, 0, 0, ch * 0.03);
+    kit.tracked(
+      ctx,
+      `NO. ${String(Math.floor(prog(r) * 999) + 1).padStart(3, "0")}`,
+      0,
+      0,
+      ch * 0.03,
+    );
     ctx.restore();
     ctx.textAlign = "center";
     kit.drawLyricRoll(ctx, r, {
@@ -1157,9 +1328,27 @@ const npRadio: Engine = {
     ctx.font = `600 ${Math.round(h * 0.013)}px ${kit.FONT}`;
     kit.tracked(ctx, "FM · ON AIR", w / 2, dy + dh * 0.2, h * 0.005);
     ctx.fillStyle = p.text;
-    kit.trackedFit(ctx, (r.title || "Untitled").toUpperCase(), w / 2, dy + dh + h * 0.04, w * 0.7, 800, h * 0.028, 0.05);
+    kit.trackedFit(
+      ctx,
+      (r.title || "Untitled").toUpperCase(),
+      w / 2,
+      dy + dh + h * 0.04,
+      w * 0.7,
+      800,
+      h * 0.028,
+      0.05,
+    );
     ctx.fillStyle = kit.hexA(p.muted, 1);
-    kit.trackedFit(ctx, (r.artist || "").toUpperCase(), w / 2, dy + dh + h * 0.072, w * 0.6, 500, h * 0.016, 0.24);
+    kit.trackedFit(
+      ctx,
+      (r.artist || "").toUpperCase(),
+      w / 2,
+      dy + dh + h * 0.072,
+      w * 0.6,
+      500,
+      h * 0.016,
+      0.24,
+    );
     kit.drawLyricRoll(ctx, r, {
       top: dy + dh + h * 0.1,
       bottom: h * 0.92,
@@ -1183,7 +1372,13 @@ const npPoster: Engine = {
       ctx.save();
       ctx.globalAlpha = 0.55;
       const ratio = Math.max(w / img.naturalWidth, h / img.naturalHeight) * 1.05;
-      ctx.drawImage(img, (w - img.naturalWidth * ratio) / 2, (h - img.naturalHeight * ratio) / 2, img.naturalWidth * ratio, img.naturalHeight * ratio);
+      ctx.drawImage(
+        img,
+        (w - img.naturalWidth * ratio) / 2,
+        (h - img.naturalHeight * ratio) / 2,
+        img.naturalWidth * ratio,
+        img.naturalHeight * ratio,
+      );
       ctx.globalCompositeOperation = "color";
       ctx.fillStyle = p.primary;
       ctx.fillRect(0, 0, w, h);
@@ -1246,10 +1441,31 @@ const npAmbient: Engine = {
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillStyle = p.text;
-    kit.trackedFit(ctx, r.title || "Untitled", w / 2, h * 0.18 + art * 0.75, w * 0.7, 700, h * 0.026, 0.02);
+    kit.trackedFit(
+      ctx,
+      r.title || "Untitled",
+      w / 2,
+      h * 0.18 + art * 0.75,
+      w * 0.7,
+      700,
+      h * 0.026,
+      0.02,
+    );
     ctx.fillStyle = kit.hexA(p.muted, 1);
-    kit.trackedFit(ctx, (r.artist || "").toUpperCase(), w / 2, h * 0.18 + art * 0.75 + h * 0.03, w * 0.6, 500, h * 0.015, 0.24);
-    heroLyric(ctx, kit, r, h * 0.58, h * (r.aspect === "9:16" ? 0.058 : 0.07), { weight: 300, glow: true });
+    kit.trackedFit(
+      ctx,
+      (r.artist || "").toUpperCase(),
+      w / 2,
+      h * 0.18 + art * 0.75 + h * 0.03,
+      w * 0.6,
+      500,
+      h * 0.015,
+      0.24,
+    );
+    heroLyric(ctx, kit, r, h * 0.58, h * (r.aspect === "9:16" ? 0.058 : 0.07), {
+      weight: 300,
+      glow: true,
+    });
     scrubber(ctx, kit, r, w * 0.18, h * 0.9, w * 0.64);
   },
 };
@@ -1273,7 +1489,15 @@ const npStudio: Engine = {
     ctx.stroke();
     const art = panelH * 0.6;
     coverCard(ctx, kit, r, px + panelH * 0.2, panelY + panelH * 0.2, art, art * 0.08, false);
-    metaBlock(ctx, kit, r, px + panelH * 0.2 + art * 1.2, panelY + panelH * 0.4, h * 0.024, w - px * 2 - art * 1.6);
+    metaBlock(
+      ctx,
+      kit,
+      r,
+      px + panelH * 0.2 + art * 1.2,
+      panelY + panelH * 0.4,
+      h * 0.024,
+      w - px * 2 - art * 1.6,
+    );
     // level meters
     const meterX = w - px - panelH * 0.75;
     for (let m = 0; m < 2; m++) {
@@ -1291,7 +1515,11 @@ const npStudio: Engine = {
     ctx.textBaseline = "middle";
     ctx.font = `600 ${Math.round(h * 0.013)}px ${kit.FONT}`;
     ctx.fillStyle = kit.hexA(p.muted, 1);
-    ctx.fillText(`TAKE 01 · ${kit.fmtTime(r.t)} / ${kit.fmtTime(r.duration)}`, px + panelH * 0.2, panelY + panelH * 0.85);
+    ctx.fillText(
+      `TAKE 01 · ${kit.fmtTime(r.t)} / ${kit.fmtTime(r.duration)}`,
+      px + panelH * 0.2,
+      panelY + panelH * 0.85,
+    );
     ctx.textAlign = "center";
     kit.drawLyricRoll(ctx, r, {
       top: panelY + panelH + h * 0.03,
@@ -1335,7 +1563,12 @@ const npCassetteJ: Engine = {
     ctx.textBaseline = "middle";
     ctx.fillStyle = "#111";
     ctx.font = `800 ${Math.round(cardH * 0.1)}px ${kit.FONT}`;
-    ctx.fillText(`${(r.title || "Untitled").toUpperCase()} · ${(r.artist || "").toUpperCase()}`, 0, 0, cardH * 0.9);
+    ctx.fillText(
+      `${(r.title || "Untitled").toUpperCase()} · ${(r.artist || "").toUpperCase()}`,
+      0,
+      0,
+      cardH * 0.9,
+    );
     ctx.restore();
     ctx.textAlign = "center";
     kit.drawLyricRoll(ctx, r, {
@@ -1380,9 +1613,27 @@ const npSpotlight: Engine = {
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillStyle = p.text;
-    kit.trackedFit(ctx, (r.title || "Untitled").toUpperCase(), w / 2, h * (r.aspect === "9:16" ? 0.38 : 0.48), w * 0.7, 800, h * 0.03, 0.05);
+    kit.trackedFit(
+      ctx,
+      (r.title || "Untitled").toUpperCase(),
+      w / 2,
+      h * (r.aspect === "9:16" ? 0.38 : 0.48),
+      w * 0.7,
+      800,
+      h * 0.03,
+      0.05,
+    );
     ctx.fillStyle = kit.hexA(p.muted, 1);
-    kit.trackedFit(ctx, (r.artist || "").toUpperCase(), w / 2, h * (r.aspect === "9:16" ? 0.415 : 0.52), w * 0.6, 500, h * 0.016, 0.24);
+    kit.trackedFit(
+      ctx,
+      (r.artist || "").toUpperCase(),
+      w / 2,
+      h * (r.aspect === "9:16" ? 0.415 : 0.52),
+      w * 0.6,
+      500,
+      h * 0.016,
+      0.24,
+    );
     kit.drawLyricRoll(ctx, r, {
       top: h * (r.aspect === "9:16" ? 0.46 : 0.56),
       bottom: h * 0.92,
