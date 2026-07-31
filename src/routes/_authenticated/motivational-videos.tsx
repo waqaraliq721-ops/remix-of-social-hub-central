@@ -248,7 +248,11 @@ type RenderCtx = {
 };
 
 function drawBackdrop(ctx: CanvasRenderingContext2D, r: RenderCtx) {
+  // renderEngine paints the backdrop outside the text transform, so legacy
+  // engines calling this again are a no-op.
+  if (SKIP_BG) return;
   const { w, h, t, palette: p, backdrop } = r;
+
   const g = ctx.createLinearGradient(0, 0, w, h);
   g.addColorStop(0, p.bg[0]);
   g.addColorStop(1, p.bg[1]);
@@ -523,9 +527,11 @@ function typoState(r: RenderCtx) {
 }
 
 function fitFont(ctx: CanvasRenderingContext2D, text: string, maxW: number, start: number, spec: string) {
+  const limit = maxW * SAFE_W;
   let s = start;
   ctx.font = spec.replace("{s}", String(s));
-  while (ctx.measureText(text).width > maxW && s > 16) {
+  while (ctx.measureText(text).width > limit && s > 16) {
+
     s -= 2;
     ctx.font = spec.replace("{s}", String(s));
   }
