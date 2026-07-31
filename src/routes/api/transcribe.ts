@@ -51,40 +51,58 @@ const GOOGLE_STT_MODELS = [
 
 /** Google AI Studio (Gemini) — returns word-level timings via structured output. */
 async function viaGoogle(file: File, languageCode: string, key: string) {
-  const buf = new Uint8Array(await file.arrayBuffer());
-  let bin = "";
-  const CH = 0x8000;
-  for (let i = 0; i < buf.length; i += CH) {
-    bin += String.fromCharCode(...buf.subarray(i, i + CH));
-  }
-  const b64 = btoa(bin);
   const mime = file.type && file.type.startsWith("audio") ? file.type : "audio/mpeg";
+  const INLINE_LIMIT = 18 * 1024 * 1024;
 
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(key)}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [
+  // Big files can't be inlined — push them through the Files API first.
+  let filePart: Record<string, unknown>;
+  if (file.size > INLINE_LIMIT) {
+    filePart = { fileData: { mimeType: mime, fileUri: await uploadToGoogleFiles(file, mime, key) } };
+  } else {
+    const buf = new Uint8Array(await file.arrayBuffer());
+    let bin = "";
+    const CH = 0x8000;
+    for (let i = 0; i < buf.length; i += CH) {
+      bin += String.fromCharCode(...buf.subarray(i, i + CH));
+    }
+    filePart = { inlineData: { mimeType: mime, data: btoa(bin) } };
+  }
+
+  const body = JSON.stringify({
+    contents: [
+      {
+        parts: [
           {
-            parts: [
-              {
-                text:
-                  "Transcribe this audio word by word with precise timings in seconds." +
-                  (languageCode ? ` The language is ${languageCode}.` : "") +
-                  " Return ONLY JSON: {\"words\":[{\"text\":\"...\",\"start\":0.0,\"end\":0.0}]}." +
-                  " Include every spoken word in order. Do not include music or noise.",
-              },
-              { inlineData: { mimeType: mime, data: b64 } },
-            ],
+            text:
+              "Transcribe this audio word by word with precise timings in seconds." +
+              (languageCode ? ` The language is ${languageCode}.` : "") +
+              " Return ONLY JSON: {\"words\":[{\"text\":\"...\",\"start\":0.0,\"end\":0.0}]}." +
+              " Include every spoken word in order. Do not include music or noise.",
           },
+          filePart,
         ],
-        generationConfig: { responseMimeType: "application/json", temperature: 0 },
-      }),
-    },
-  );
-  if (!res.ok) throw new Error(`Google [${res.status}]: ${await res.text()}`);
+      },
+    ],
+    generationConfig: { responseMimeType: "application/json", temperature: 0 },
+  });
+
+  let res: Response | null = null;
+  let lastErr = "";
+  for (const model of GOOGLE_STT_MODELS) {
+    const attempt = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(key)}`,
+      { method: "POST", headers: { "Content-Type": "application/json" }, body },
+    );
+    if (attempt.ok) {
+      res = attempt;
+      break;
+    }
+    lastErr = `Google ${model} [${attempt.status}]: ${await attempt.text()}`;
+    // Only keep trying when the model itself is unavailable to this key.
+    if (attempt.status !== 404 && attempt.status !== 403 && attempt.status !== 400) break;
+  }
+  if (!res) throw new Error(lastErr || "Google request failed");
+
   const json = (await res.json()) as {
     candidates?: { content?: { parts?: { text?: string }[] } }[];
   };
