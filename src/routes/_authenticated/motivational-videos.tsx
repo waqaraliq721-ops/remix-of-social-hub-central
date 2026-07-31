@@ -59,7 +59,23 @@ const ASPECTS: Record<AspectKey, { w: number; h: number; label: string }> = {
   "1:1": { w: 1080, h: 1080, label: "Square · Feed" },
 };
 
-type EngineId = "wordpop" | "lowerthird" | "quoteframe" | "kinetic" | "spotlight";
+type EngineId =
+  | "wordpop"
+  | "lowerthird"
+  | "quoteframe"
+  | "kinetic"
+  | "spotlight"
+  | "typo-serif"
+  | "typo-stack"
+  | "typo-outline"
+  | "typo-gradient"
+  | "typo-poster"
+  | "typo-mono"
+  | "typo-band"
+  | "typo-ticker"
+  | "typo-vertical"
+  | "typo-split";
+
 
 type Palette = {
   id: string;
