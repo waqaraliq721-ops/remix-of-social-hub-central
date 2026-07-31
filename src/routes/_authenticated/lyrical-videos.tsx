@@ -2069,6 +2069,14 @@ function LyricalVideosPage() {
 
         {/* Right: templates */}
         <div className="space-y-4">
+          <IntroOutroCard
+            intro={intro}
+            outro={outro}
+            onIntro={setIntro}
+            onOutro={setOutro}
+            ratio={dims.w / dims.h}
+          />
+
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Templates</CardTitle>
