@@ -28,7 +28,15 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { transcribeFile, wordsToLines, type TranscriptWord, type TimedLine } from "@/lib/transcribe";
+import {
+  transcribeFile,
+  wordsToLines,
+  STT_PROVIDERS,
+  type SttProvider,
+  type TranscriptWord,
+  type TimedLine,
+} from "@/lib/transcribe";
+
 
 export const Route = createFileRoute("/_authenticated/motivational-videos")({
   head: () => ({
@@ -791,6 +799,8 @@ function MotivationalVideosPage() {
   const [transcript, setTranscript] = useState("");
   const [words, setWords] = useState<TranscriptWord[]>([]);
   const [transcribing, setTranscribing] = useState(false);
+  const [sttProvider, setSttProvider] = useState<SttProvider>("auto");
+
 
   const [playing, setPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -880,7 +890,7 @@ function MotivationalVideosPage() {
     }
     setTranscribing(true);
     try {
-      const res = await transcribeFile(mediaFile);
+      const res = await transcribeFile(mediaFile, { provider: sttProvider });
       setTranscript(res.text);
       if (res.words.length) {
         setWords(res.words);
