@@ -1434,6 +1434,60 @@ function MotivationalVideosPage() {
         <div className="space-y-4">
           <Card>
             <CardHeader>
+              <CardTitle className="text-base">Customise</CardTitle>
+              <CardDescription>Recolour any template and set the caption case.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label>Accent</Label>
+                  <div className="mt-1 flex items-center gap-2">
+                    <Input
+                      type="color"
+                      className="h-9 w-12 p-1"
+                      value={accentColor || template.palette.primary}
+                      onChange={(e) => setAccentColor(e.target.value)}
+                    />
+                    <Button variant="ghost" size="sm" onClick={() => setAccentColor("")}>
+                      Reset
+                    </Button>
+                  </div>
+                </div>
+                <div>
+                  <Label>Text</Label>
+                  <div className="mt-1 flex items-center gap-2">
+                    <Input
+                      type="color"
+                      className="h-9 w-12 p-1"
+                      value={textColor || template.palette.text}
+                      onChange={(e) => setTextColor(e.target.value)}
+                    />
+                    <Button variant="ghost" size="sm" onClick={() => setTextColor("")}>
+                      Reset
+                    </Button>
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center justify-between rounded-md border p-3">
+                <div>
+                  <Label className="text-sm">Uppercase captions</Label>
+                  <p className="text-xs text-muted-foreground">Punchier, poster-style delivery.</p>
+                </div>
+                <Switch checked={uppercase} onCheckedChange={setUppercase} />
+              </div>
+            </CardContent>
+          </Card>
+
+          <IntroOutroCard
+            intro={intro}
+            outro={outro}
+            onIntro={setIntro}
+            onOutro={setOutro}
+            ratio={dims.w / dims.h}
+          />
+
+          <Card>
+            <CardHeader>
               <CardTitle className="text-base">Templates</CardTitle>
               <CardDescription>{shownTemplates.length} designs · every aspect ratio.</CardDescription>
             </CardHeader>
