@@ -1580,7 +1580,7 @@ function MotivationalVideosPage() {
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Customise</CardTitle>
-              <CardDescription>Recolour any template and set the caption case.</CardDescription>
+              <CardDescription>Recolour, resize, reposition and retype any template.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="grid grid-cols-2 gap-3">
