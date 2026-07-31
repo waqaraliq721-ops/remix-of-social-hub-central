@@ -1135,7 +1135,7 @@ function MotivationalVideosPage() {
         });
       }
     },
-    [template, aspect, palette, shownLines, duration, author, dim, intro, outro, introSec, outroSec],
+    [template, aspect, palette, shownLines, duration, author, dim, intro, outro, introSec, outroSec, style],
   );
 
   const drawAt = useCallback(
