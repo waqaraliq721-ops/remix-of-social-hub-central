@@ -49,6 +49,55 @@ const GOOGLE_STT_MODELS = [
   "gemini-2.0-flash",
 ];
 
+/** Resumable upload to the Gemini Files API — required for audio above ~18MB. */
+async function uploadToGoogleFiles(file: File, mime: string, key: string): Promise<string> {
+  const start = await fetch(
+    `https://generativelanguage.googleapis.com/upload/v1beta/files?key=${encodeURIComponent(key)}`,
+    {
+      method: "POST",
+      headers: {
+        "X-Goog-Upload-Protocol": "resumable",
+        "X-Goog-Upload-Command": "start",
+        "X-Goog-Upload-Header-Content-Length": String(file.size),
+        "X-Goog-Upload-Header-Content-Type": mime,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ file: { display_name: file.name || "audio" } }),
+    },
+  );
+  const uploadUrl = start.headers.get("x-goog-upload-url");
+  if (!start.ok || !uploadUrl) {
+    throw new Error(`Google upload init [${start.status}]: ${await start.text()}`);
+  }
+  const put = await fetch(uploadUrl, {
+    method: "POST",
+    headers: {
+      "Content-Length": String(file.size),
+      "X-Goog-Upload-Offset": "0",
+      "X-Goog-Upload-Command": "upload, finalize",
+    },
+    body: file,
+  });
+  if (!put.ok) throw new Error(`Google upload [${put.status}]: ${await put.text()}`);
+  const info = (await put.json()) as { file?: { uri?: string; name?: string; state?: string } };
+  const uri = info.file?.uri;
+  const name = info.file?.name;
+  if (!uri) throw new Error("Google upload returned no file URI");
+
+  // Wait for the file to finish processing before referencing it.
+  for (let i = 0; i < 60 && name; i++) {
+    const st = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/${name}?key=${encodeURIComponent(key)}`,
+    );
+    const j = (await st.json().catch(() => ({}))) as { state?: string };
+    if (j.state === "ACTIVE") break;
+    if (j.state === "FAILED") throw new Error("Google failed to process the uploaded audio");
+    await new Promise((r) => setTimeout(r, 1500));
+  }
+  return uri;
+}
+
+
 /** Google AI Studio (Gemini) — returns word-level timings via structured output. */
 async function viaGoogle(file: File, languageCode: string, key: string) {
   const mime = file.type && file.type.startsWith("audio") ? file.type : "audio/mpeg";
