@@ -353,20 +353,36 @@ function layoutText(
 }
 
 function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
-  const words = text.split(" ");
+  const words = text.split(" ").filter(Boolean);
   const lines: string[] = [];
   let cur = "";
-  for (const w of words) {
-    const test = cur ? cur + " " + w : w;
-    if (ctx.measureText(test).width > maxWidth && cur) {
-      lines.push(cur);
-      cur = w;
-    } else {
-      cur = test;
+  const pushWord = (w: string) => {
+    // Hard-break words that can never fit on their own.
+    if (ctx.measureText(w).width <= maxWidth) return [w];
+    const parts: string[] = [];
+    let chunk = "";
+    for (const ch of w) {
+      if (chunk && ctx.measureText(chunk + ch).width > maxWidth) {
+        parts.push(chunk);
+        chunk = ch;
+      } else chunk += ch;
+    }
+    if (chunk) parts.push(chunk);
+    return parts;
+  };
+  for (const raw of words) {
+    for (const w of pushWord(raw)) {
+      const test = cur ? cur + " " + w : w;
+      if (ctx.measureText(test).width > maxWidth && cur) {
+        lines.push(cur);
+        cur = w;
+      } else {
+        cur = test;
+      }
     }
   }
   if (cur) lines.push(cur);
-  return lines;
+  return lines.length ? lines : [""];
 }
 
 function tracked(
