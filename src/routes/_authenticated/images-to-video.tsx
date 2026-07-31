@@ -1160,6 +1160,14 @@ function ImagesToVideoPage() {
       }
       const c = canvasRef.current;
       if (c) drawRef.current(c, t);
+      // Hold audio until the intro card finishes so preview matches the export.
+      const vo = voAudioRef.current;
+      if (vo) {
+        if (t >= introSec && vo.paused && t < introSec + bodyDuration) {
+          vo.currentTime = Math.max(0, t - introSec);
+          vo.play().catch(() => {});
+        } else if (t < introSec && !vo.paused) vo.pause();
+      }
       // update slider ~10Hz to avoid re-render thrash
       if (t - lastUiUpdate > 0.1) {
         lastUiUpdate = t;
@@ -1169,7 +1177,7 @@ function ImagesToVideoPage() {
     };
     rafRef.current = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(rafRef.current);
-  }, [playing, totalDuration]);
+  }, [playing, totalDuration, introSec, bodyDuration]);
 
   const togglePlay = () => {
     if (!images.length) {
@@ -1189,9 +1197,9 @@ function ImagesToVideoPage() {
       }
       setPlaying(true);
       if (voAudioRef.current) {
-        voAudioRef.current.currentTime = pausedAtRef.current;
+        voAudioRef.current.currentTime = Math.max(0, pausedAtRef.current - introSec);
         voAudioRef.current.volume = voVolume / 100;
-        voAudioRef.current.play().catch(() => {});
+        if (pausedAtRef.current >= introSec) voAudioRef.current.play().catch(() => {});
       }
       if (musicAudioRef.current) {
         const region = Math.max(0.01, musicEnd - musicStart);
