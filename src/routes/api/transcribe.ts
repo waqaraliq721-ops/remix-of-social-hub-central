@@ -202,9 +202,9 @@ export const Route = createFileRoute("/api/transcribe")({
         if (!(file instanceof File) || file.size === 0) {
           return Response.json({ error: "No audio file uploaded" }, { status: 400 });
         }
-        if (file.size > 24 * 1024 * 1024) {
+        if (file.size > 1024 * 1024 * 1024) {
           return Response.json(
-            { error: "File is larger than 24MB. Please upload a shorter or compressed track." },
+            { error: "File is larger than 1GB. Please upload a shorter or compressed track." },
             { status: 413 },
           );
         }
