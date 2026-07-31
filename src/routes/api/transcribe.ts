@@ -4,6 +4,11 @@ export type TranscriptWord = { text: string; start: number; end: number };
 
 type Provider = "auto" | "elevenlabs" | "google" | "lovable";
 
+/** Never let a stalled provider hang the request — fail fast and fall through. */
+function timeout(ms: number) {
+  return AbortSignal.timeout(ms);
+}
+
 function spreadWords(text: string, duration: number): TranscriptWord[] {
   const tokens = text.split(/\s+/).filter(Boolean);
   if (!tokens.length) return [];
@@ -30,6 +35,7 @@ async function viaElevenLabs(file: File, languageCode: string, key: string) {
     method: "POST",
     headers: { "xi-api-key": key },
     body: up,
+    signal: timeout(240_000),
   });
   if (!res.ok) throw new Error(`ElevenLabs [${res.status}]: ${await res.text()}`);
   const data = (await res.json()) as {
@@ -85,14 +91,14 @@ async function uploadToGoogleFiles(file: File, mime: string, key: string): Promi
   if (!uri) throw new Error("Google upload returned no file URI");
 
   // Wait for the file to finish processing before referencing it.
-  for (let i = 0; i < 60 && name; i++) {
+  for (let i = 0; i < 40 && name; i++) {
     const st = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/${name}?key=${encodeURIComponent(key)}`,
     );
     const j = (await st.json().catch(() => ({}))) as { state?: string };
     if (j.state === "ACTIVE") break;
     if (j.state === "FAILED") throw new Error("Google failed to process the uploaded audio");
-    await new Promise((r) => setTimeout(r, 1500));
+    await new Promise((r) => setTimeout(r, 1000));
   }
   return uri;
 }
@@ -140,7 +146,12 @@ async function viaGoogle(file: File, languageCode: string, key: string) {
   for (const model of GOOGLE_STT_MODELS) {
     const attempt = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(key)}`,
-      { method: "POST", headers: { "Content-Type": "application/json" }, body },
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body,
+        signal: timeout(240_000),
+      },
     );
     if (attempt.ok) {
       res = attempt;
@@ -184,6 +195,7 @@ async function viaLovable(file: File, key: string) {
     method: "POST",
     headers: { Authorization: `Bearer ${key}` },
     body: up,
+    signal: timeout(240_000),
   });
   if (!res.ok) throw new Error(`Lovable AI [${res.status}]: ${await res.text()}`);
   const data = (await res.json()) as { text?: string };
