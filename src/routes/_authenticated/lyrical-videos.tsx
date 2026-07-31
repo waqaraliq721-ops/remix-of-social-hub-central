@@ -1396,7 +1396,10 @@ function LyricalVideosPage() {
     }
     setDetecting(true);
     try {
-      const { words, text, provider } = await transcribeFile(audioFile);
+      const { words, text, provider } = await transcribeFile(audioFile, {
+        provider: sttProvider,
+      });
+
       if (words.length) {
         const lines = wordsToLines(words, { maxWords: lineLen, maxChars: lineLen * 7 });
         setLyricsText(linesToLrc(lines));
