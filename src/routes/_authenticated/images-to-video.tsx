@@ -343,6 +343,8 @@ function ImagesToVideoPage() {
   const [defaultMotion, setDefaultMotion] = useState<MotionKind>("kenburns");
   const [defaultTransition, setDefaultTransition] = useState<TransitionKind>("fade");
   const [transitionMs, setTransitionMs] = useState(500);
+  const [intro, setIntro] = useState<CardConfig>({ ...defaultIntro, id: "none" });
+  const [outro, setOutro] = useState<CardConfig>({ ...defaultOutro, id: "none" });
   const [transitionEasing, setTransitionEasing] = useState<EasingKind>("ease-in-out");
 
   const [script, setScript] = useState("");
