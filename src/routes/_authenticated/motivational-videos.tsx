@@ -790,7 +790,46 @@ function renderTypoSplit(ctx: CanvasRenderingContext2D, r: RenderCtx) {
   drawAuthor(ctx, r, y + size * 0.7);
 }
 
-function renderEngine(ctx: CanvasRenderingContext2D, engine: EngineId, r: RenderCtx) {
+/** Per-project typography + layout controls applied to every template. */
+export type TemplateStyle = {
+  /** 0.6 – 1.6 multiplier on the whole text layer. */
+  scale: number;
+  /** Fractions of the frame; 0 = centred. */
+  offsetX: number;
+  offsetY: number;
+  /** 0.6 – 1.2 multiplier on the text safe width. */
+  safeWidth: number;
+  fontId: string;
+  rotate: number;
+};
+
+export const DEFAULT_STYLE: TemplateStyle = {
+  scale: 1,
+  offsetX: 0,
+  offsetY: 0,
+  safeWidth: 1,
+  fontId: "inter",
+  rotate: 0,
+};
+
+const MOTIVATIONAL_KIT: MotivationalKit = {
+  get FONT() {
+    return FONT;
+  },
+  SERIF,
+  MONO,
+  COND,
+  hexA,
+  easeOutCubic,
+  wrapText,
+  roundRect,
+  fitFont,
+  activeLine,
+  activeWord,
+  drawAuthor,
+};
+
+function drawEngineBody(ctx: CanvasRenderingContext2D, engine: EngineId, r: RenderCtx) {
   switch (engine) {
     case "wordpop":
       return renderWordPop(ctx, r);
@@ -822,8 +861,38 @@ function renderEngine(ctx: CanvasRenderingContext2D, engine: EngineId, r: Render
       return renderTypoVertical(ctx, r);
     case "typo-split":
       return renderTypoSplit(ctx, r);
+    default:
+      return EXTRA_MOTIVATIONAL_MAP.get(engine)?.draw(ctx, r, MOTIVATIONAL_KIT);
   }
 }
+
+function renderEngine(
+  ctx: CanvasRenderingContext2D,
+  engine: EngineId,
+  r: RenderCtx,
+  style: TemplateStyle = DEFAULT_STYLE,
+) {
+  // Backdrop is painted untransformed so scaling/moving type never moves the
+  // footage behind it.
+  SKIP_BG = false;
+  drawBackdrop(ctx, r);
+  SKIP_BG = true;
+  FONT = (FONT_CHOICES.find((f) => f.id === style.fontId) ?? FONT_CHOICES[0]).stack;
+  SAFE_W = style.safeWidth;
+  ctx.save();
+  ctx.translate(r.w / 2 + style.offsetX * r.w, r.h / 2 + style.offsetY * r.h);
+  if (style.rotate) ctx.rotate((style.rotate * Math.PI) / 180);
+  ctx.scale(style.scale, style.scale);
+  ctx.translate(-r.w / 2, -r.h / 2);
+  try {
+    drawEngineBody(ctx, engine, r);
+  } finally {
+    ctx.restore();
+    SKIP_BG = false;
+    SAFE_W = 1;
+  }
+}
+
 
 
 // -------------------- component --------------------
