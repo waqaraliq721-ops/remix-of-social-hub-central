@@ -17,6 +17,7 @@ import { Route as ApiTtsElevenlabsRouteImport } from './routes/api/tts-elevenlab
 import { Route as ApiTtsRouteImport } from './routes/api/tts'
 import { Route as ApiTranscribeRouteImport } from './routes/api/transcribe'
 import { Route as ApiRepurposeRouteImport } from './routes/api/repurpose'
+import { Route as AuthenticatedWyrRouteImport } from './routes/_authenticated/wyr'
 import { Route as AuthenticatedVideosRouteImport } from './routes/_authenticated/videos'
 import { Route as AuthenticatedMotivationalVideosRouteImport } from './routes/_authenticated/motivational-videos'
 import { Route as AuthenticatedLyricalVideosRouteImport } from './routes/_authenticated/lyrical-videos'
@@ -66,6 +67,11 @@ const ApiRepurposeRoute = ApiRepurposeRouteImport.update({
   id: '/api/repurpose',
   path: '/api/repurpose',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedWyrRoute = AuthenticatedWyrRouteImport.update({
+  id: '/wyr',
+  path: '/wyr',
+  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedVideosRoute = AuthenticatedVideosRouteImport.update({
   id: '/videos',
@@ -134,6 +140,7 @@ export interface FileRoutesByFullPath {
   '/lyrical-videos': typeof AuthenticatedLyricalVideosRoute
   '/motivational-videos': typeof AuthenticatedMotivationalVideosRoute
   '/videos': typeof AuthenticatedVideosRoute
+  '/wyr': typeof AuthenticatedWyrRoute
   '/api/repurpose': typeof ApiRepurposeRoute
   '/api/transcribe': typeof ApiTranscribeRoute
   '/api/tts': typeof ApiTtsRoute
@@ -153,6 +160,7 @@ export interface FileRoutesByTo {
   '/lyrical-videos': typeof AuthenticatedLyricalVideosRoute
   '/motivational-videos': typeof AuthenticatedMotivationalVideosRoute
   '/videos': typeof AuthenticatedVideosRoute
+  '/wyr': typeof AuthenticatedWyrRoute
   '/api/repurpose': typeof ApiRepurposeRoute
   '/api/transcribe': typeof ApiTranscribeRoute
   '/api/tts': typeof ApiTtsRoute
@@ -174,6 +182,7 @@ export interface FileRoutesById {
   '/_authenticated/lyrical-videos': typeof AuthenticatedLyricalVideosRoute
   '/_authenticated/motivational-videos': typeof AuthenticatedMotivationalVideosRoute
   '/_authenticated/videos': typeof AuthenticatedVideosRoute
+  '/_authenticated/wyr': typeof AuthenticatedWyrRoute
   '/api/repurpose': typeof ApiRepurposeRoute
   '/api/transcribe': typeof ApiTranscribeRoute
   '/api/tts': typeof ApiTtsRoute
@@ -195,6 +204,7 @@ export interface FileRouteTypes {
     | '/lyrical-videos'
     | '/motivational-videos'
     | '/videos'
+    | '/wyr'
     | '/api/repurpose'
     | '/api/transcribe'
     | '/api/tts'
@@ -214,6 +224,7 @@ export interface FileRouteTypes {
     | '/lyrical-videos'
     | '/motivational-videos'
     | '/videos'
+    | '/wyr'
     | '/api/repurpose'
     | '/api/transcribe'
     | '/api/tts'
@@ -234,6 +245,7 @@ export interface FileRouteTypes {
     | '/_authenticated/lyrical-videos'
     | '/_authenticated/motivational-videos'
     | '/_authenticated/videos'
+    | '/_authenticated/wyr'
     | '/api/repurpose'
     | '/api/transcribe'
     | '/api/tts'
@@ -309,6 +321,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/api/repurpose'
       preLoaderRoute: typeof ApiRepurposeRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/wyr': {
+      id: '/_authenticated/wyr'
+      path: '/wyr'
+      fullPath: '/wyr'
+      preLoaderRoute: typeof AuthenticatedWyrRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/videos': {
       id: '/_authenticated/videos'
@@ -394,6 +413,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedLyricalVideosRoute: typeof AuthenticatedLyricalVideosRoute
   AuthenticatedMotivationalVideosRoute: typeof AuthenticatedMotivationalVideosRoute
   AuthenticatedVideosRoute: typeof AuthenticatedVideosRoute
+  AuthenticatedWyrRoute: typeof AuthenticatedWyrRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
@@ -407,6 +427,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedLyricalVideosRoute: AuthenticatedLyricalVideosRoute,
   AuthenticatedMotivationalVideosRoute: AuthenticatedMotivationalVideosRoute,
   AuthenticatedVideosRoute: AuthenticatedVideosRoute,
+  AuthenticatedWyrRoute: AuthenticatedWyrRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
