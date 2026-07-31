@@ -1360,3 +1360,9 @@ const railStack: Engine = {
   },
 };
 
+
+// Register the poster-style engines after their declarations.
+for (const e of [gritPoster, neonStack, paperPress, boldBlock, railStack]) {
+  EXTRA_MOTIVATIONAL_ENGINES.push(e);
+  EXTRA_MOTIVATIONAL_MAP.set(e.id, e);
+}
