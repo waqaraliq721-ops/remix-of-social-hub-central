@@ -148,15 +148,13 @@ function FxTile({
 
 function MotionTile({ preset, paletteId }: { preset: MotionPreset; paletteId: string }) {
   const ref = useRef<HTMLCanvasElement>(null);
+  const visible = useOnScreen(ref);
   useEffect(() => {
     const canvas = ref.current;
     const ctx = canvas?.getContext("2d");
     if (!canvas || !ctx) return;
     const palette = FX_PALETTES.find((p) => p.id === paletteId) ?? FX_PALETTES[0];
-    let raf = 0;
-    const t0 = performance.now();
-    const loop = () => {
-      const p = (((performance.now() - t0) / 1000) % 4) / 4;
+    const draw = (p: number) => {
       const { scale, x, y, rot, alpha } = preset.at(p);
       const w = canvas.width;
       const h = canvas.height;
@@ -194,12 +192,24 @@ function MotionTile({ preset, paletteId }: { preset: MotionPreset; paletteId: st
       ctx.textAlign = "center";
       ctx.font = `700 ${Math.round(h * 0.06)}px ${FX_FONT}`;
       ctx.fillText(preset.name, w / 2, h * 0.92);
-      raf = requestAnimationFrame(loop);
     };
-    loop();
+    if (!visible) {
+      draw(0.35);
+      return;
+    }
+    let raf = 0;
+    let last = 0;
+    const t0 = performance.now();
+    const loop = (now: number) => {
+      raf = requestAnimationFrame(loop);
+      if (now - last < 40) return;
+      last = now;
+      draw((((now - t0) / 1000) % 4) / 4);
+    };
+    raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
-  }, [preset, paletteId]);
-  return <canvas ref={ref} width={320} height={320} className="w-full rounded-lg border bg-black" />;
+  }, [preset, paletteId, visible]);
+  return <canvas ref={ref} width={240} height={240} className="w-full rounded-lg border bg-black" />;
 }
 
 // -------------------- page --------------------
