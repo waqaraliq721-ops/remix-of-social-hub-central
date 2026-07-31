@@ -29,6 +29,10 @@ export type RenderCtx = {
   coverImg: HTMLImageElement | null;
   lyrics: LyricLine[];
   duration: number;
+  /** 0 = static, 1 = default subtle motion, up to 2 = doubled. */
+  motion: number;
+  /** "drift" | "pulse" | "bob" | "still" — which effect gets emphasised. */
+  animStyle: string;
 };
 
 type C = CanvasRenderingContext2D;
@@ -110,6 +114,13 @@ function coverCard(
   shadow = true,
 ) {
   const { coverImg: img, palette: p } = r;
+  const breathe =
+    1 +
+    Math.sin(r.t * 0.8) * 0.015 * Math.max(0, Math.min(2, r.motion)) * (r.animStyle === "pulse" ? 1.6 : 1);
+  ctx.save();
+  ctx.translate(x + size / 2, y + size / 2);
+  ctx.scale(breathe, breathe);
+  ctx.translate(-(x + size / 2), -(y + size / 2));
   if (shadow) {
     ctx.save();
     ctx.shadowColor = "rgba(0,0,0,0.65)";
@@ -147,6 +158,7 @@ function coverCard(
   ctx.strokeStyle = kit.hexA(p.text, 0.12);
   ctx.lineWidth = Math.max(1, size * 0.004);
   ctx.stroke();
+  ctx.restore();
   ctx.restore();
 }
 

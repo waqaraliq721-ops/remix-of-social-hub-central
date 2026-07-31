@@ -34,6 +34,7 @@ import { Route as AuthenticatedAccountsRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedKidVideosIndexRouteImport } from './routes/_authenticated/kid-videos.index'
 import { Route as AuthenticatedGamingVideosIndexRouteImport } from './routes/_authenticated/gaming-videos.index'
 import { Route as AuthenticatedKidVideosWyrRouteImport } from './routes/_authenticated/kid-videos.wyr'
+import { Route as AuthenticatedKidVideosEmojiRouteImport } from './routes/_authenticated/kid-videos.emoji'
 import { Route as AuthenticatedGamingVideosRankingRouteImport } from './routes/_authenticated/gaming-videos.ranking'
 import { Route as AuthenticatedGamingVideosNewsRouteImport } from './routes/_authenticated/gaming-videos.news'
 import { Route as AuthenticatedGamingVideosMemesRouteImport } from './routes/_authenticated/gaming-videos.memes'
@@ -169,6 +170,12 @@ const AuthenticatedKidVideosWyrRoute =
     path: '/wyr',
     getParentRoute: () => AuthenticatedKidVideosRoute,
   } as any)
+const AuthenticatedKidVideosEmojiRoute =
+  AuthenticatedKidVideosEmojiRouteImport.update({
+    id: '/emoji',
+    path: '/emoji',
+    getParentRoute: () => AuthenticatedKidVideosRoute,
+  } as any)
 const AuthenticatedGamingVideosRankingRoute =
   AuthenticatedGamingVideosRankingRouteImport.update({
     id: '/ranking',
@@ -213,6 +220,7 @@ export interface FileRoutesByFullPath {
   '/gaming-videos/memes': typeof AuthenticatedGamingVideosMemesRoute
   '/gaming-videos/news': typeof AuthenticatedGamingVideosNewsRoute
   '/gaming-videos/ranking': typeof AuthenticatedGamingVideosRankingRoute
+  '/kid-videos/emoji': typeof AuthenticatedKidVideosEmojiRoute
   '/kid-videos/wyr': typeof AuthenticatedKidVideosWyrRoute
   '/gaming-videos/': typeof AuthenticatedGamingVideosIndexRoute
   '/kid-videos/': typeof AuthenticatedKidVideosIndexRoute
@@ -240,6 +248,7 @@ export interface FileRoutesByTo {
   '/gaming-videos/memes': typeof AuthenticatedGamingVideosMemesRoute
   '/gaming-videos/news': typeof AuthenticatedGamingVideosNewsRoute
   '/gaming-videos/ranking': typeof AuthenticatedGamingVideosRankingRoute
+  '/kid-videos/emoji': typeof AuthenticatedKidVideosEmojiRoute
   '/kid-videos/wyr': typeof AuthenticatedKidVideosWyrRoute
   '/gaming-videos': typeof AuthenticatedGamingVideosIndexRoute
   '/kid-videos': typeof AuthenticatedKidVideosIndexRoute
@@ -271,6 +280,7 @@ export interface FileRoutesById {
   '/_authenticated/gaming-videos/memes': typeof AuthenticatedGamingVideosMemesRoute
   '/_authenticated/gaming-videos/news': typeof AuthenticatedGamingVideosNewsRoute
   '/_authenticated/gaming-videos/ranking': typeof AuthenticatedGamingVideosRankingRoute
+  '/_authenticated/kid-videos/emoji': typeof AuthenticatedKidVideosEmojiRoute
   '/_authenticated/kid-videos/wyr': typeof AuthenticatedKidVideosWyrRoute
   '/_authenticated/gaming-videos/': typeof AuthenticatedGamingVideosIndexRoute
   '/_authenticated/kid-videos/': typeof AuthenticatedKidVideosIndexRoute
@@ -302,6 +312,7 @@ export interface FileRouteTypes {
     | '/gaming-videos/memes'
     | '/gaming-videos/news'
     | '/gaming-videos/ranking'
+    | '/kid-videos/emoji'
     | '/kid-videos/wyr'
     | '/gaming-videos/'
     | '/kid-videos/'
@@ -329,6 +340,7 @@ export interface FileRouteTypes {
     | '/gaming-videos/memes'
     | '/gaming-videos/news'
     | '/gaming-videos/ranking'
+    | '/kid-videos/emoji'
     | '/kid-videos/wyr'
     | '/gaming-videos'
     | '/kid-videos'
@@ -359,6 +371,7 @@ export interface FileRouteTypes {
     | '/_authenticated/gaming-videos/memes'
     | '/_authenticated/gaming-videos/news'
     | '/_authenticated/gaming-videos/ranking'
+    | '/_authenticated/kid-videos/emoji'
     | '/_authenticated/kid-videos/wyr'
     | '/_authenticated/gaming-videos/'
     | '/_authenticated/kid-videos/'
@@ -552,6 +565,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedKidVideosWyrRouteImport
       parentRoute: typeof AuthenticatedKidVideosRoute
     }
+    '/_authenticated/kid-videos/emoji': {
+      id: '/_authenticated/kid-videos/emoji'
+      path: '/emoji'
+      fullPath: '/kid-videos/emoji'
+      preLoaderRoute: typeof AuthenticatedKidVideosEmojiRouteImport
+      parentRoute: typeof AuthenticatedKidVideosRoute
+    }
     '/_authenticated/gaming-videos/ranking': {
       id: '/_authenticated/gaming-videos/ranking'
       path: '/ranking'
@@ -598,12 +618,14 @@ const AuthenticatedGamingVideosRouteWithChildren =
   )
 
 interface AuthenticatedKidVideosRouteChildren {
+  AuthenticatedKidVideosEmojiRoute: typeof AuthenticatedKidVideosEmojiRoute
   AuthenticatedKidVideosWyrRoute: typeof AuthenticatedKidVideosWyrRoute
   AuthenticatedKidVideosIndexRoute: typeof AuthenticatedKidVideosIndexRoute
 }
 
 const AuthenticatedKidVideosRouteChildren: AuthenticatedKidVideosRouteChildren =
   {
+    AuthenticatedKidVideosEmojiRoute: AuthenticatedKidVideosEmojiRoute,
     AuthenticatedKidVideosWyrRoute: AuthenticatedKidVideosWyrRoute,
     AuthenticatedKidVideosIndexRoute: AuthenticatedKidVideosIndexRoute,
   }
@@ -663,13 +685,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
