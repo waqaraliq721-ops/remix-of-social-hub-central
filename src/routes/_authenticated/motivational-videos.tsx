@@ -1620,8 +1620,81 @@ function MotivationalVideosPage() {
                 </div>
                 <Switch checked={uppercase} onCheckedChange={setUppercase} />
               </div>
+
+              <div>
+                <Label className="text-xs">Typeface</Label>
+                <Select value={style.fontId} onValueChange={(v) => setStyleKey("fontId", v)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {FONT_CHOICES.map((f) => (
+                      <SelectItem key={f.id} value={f.id}>
+                        {f.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label className="text-xs">Text size · {Math.round(style.scale * 100)}%</Label>
+                <Slider
+                  min={0.6}
+                  max={1.6}
+                  step={0.02}
+                  value={[style.scale]}
+                  onValueChange={(v) => setStyleKey("scale", v[0])}
+                />
+              </div>
+              <div>
+                <Label className="text-xs">Text width · {Math.round(style.safeWidth * 100)}%</Label>
+                <Slider
+                  min={0.55}
+                  max={1.15}
+                  step={0.01}
+                  value={[style.safeWidth]}
+                  onValueChange={(v) => setStyleKey("safeWidth", v[0])}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs">Position X · {Math.round(style.offsetX * 100)}</Label>
+                  <Slider
+                    min={-0.3}
+                    max={0.3}
+                    step={0.005}
+                    value={[style.offsetX]}
+                    onValueChange={(v) => setStyleKey("offsetX", v[0])}
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs">Position Y · {Math.round(style.offsetY * 100)}</Label>
+                  <Slider
+                    min={-0.35}
+                    max={0.35}
+                    step={0.005}
+                    value={[style.offsetY]}
+                    onValueChange={(v) => setStyleKey("offsetY", v[0])}
+                  />
+                </div>
+              </div>
+              <div>
+                <Label className="text-xs">Tilt · {style.rotate.toFixed(1)}°</Label>
+                <Slider
+                  min={-8}
+                  max={8}
+                  step={0.5}
+                  value={[style.rotate]}
+                  onValueChange={(v) => setStyleKey("rotate", v[0])}
+                />
+              </div>
+              <Button variant="outline" size="sm" className="w-full" onClick={() => setStyle(DEFAULT_STYLE)}>
+                Reset layout
+              </Button>
             </CardContent>
           </Card>
+
 
           <IntroOutroCard
             intro={intro}
