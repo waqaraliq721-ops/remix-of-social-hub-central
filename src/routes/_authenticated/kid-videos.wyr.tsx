@@ -54,6 +54,13 @@ import {
   paletteOf,
   type CardConfig,
 } from "@/components/intro-outro-card";
+import {
+  AnimControlGroup,
+  computeAnim,
+  defaultAnim,
+  applyAnim,
+  type ElementAnimSpec,
+} from "@/lib/kid-anim";
 
 export const Route = createFileRoute("/_authenticated/kid-videos/wyr")({
   head: () => ({
@@ -77,12 +84,41 @@ export const Route = createFileRoute("/_authenticated/kid-videos/wyr")({
   component: WyrPage,
 });
 
-type AspectKey = "9:16" | "1:1" | "16:9";
+type AspectKey = "9:16" | "1:1" | "16:9" | "16:9-hq";
 const ASPECTS: Record<AspectKey, { w: number; h: number; label: string }> = {
   "9:16": { w: 1080, h: 1920, label: "Vertical · TikTok/Reels/Shorts" },
   "1:1": { w: 1080, h: 1080, label: "Square · Feed" },
   "16:9": { w: 1920, h: 1080, label: "Widescreen · YouTube" },
+  "16:9-hq": { w: 1920, h: 1080, label: "16:9 HQ · Quiz-show layout" },
 };
+
+const ANIM_ELEMENTS: { key: string; label: string }[] = [
+  { key: "background", label: "Background" },
+  { key: "title", label: "Heading" },
+  { key: "imageA", label: "Option A image" },
+  { key: "imageB", label: "Option B image" },
+  { key: "labelA", label: "Option A text" },
+  { key: "labelB", label: "Option B text" },
+  { key: "timer", label: "Timer" },
+  { key: "timebar", label: "Time bar" },
+  { key: "roundNo", label: "Round numbering" },
+  { key: "badge", label: "VS / badges" },
+];
+
+function defaultAnimMap(): Record<string, ElementAnimSpec> {
+  return {
+    background: defaultAnim({ preset: "none", loop: "none" }),
+    title: defaultAnim({ preset: "slide-down", duration: 0.5, loop: "none" }),
+    imageA: defaultAnim({ preset: "slide-left", duration: 0.55 }),
+    imageB: defaultAnim({ preset: "slide-right", duration: 0.55 }),
+    labelA: defaultAnim({ preset: "pop", delay: 0.15 }),
+    labelB: defaultAnim({ preset: "pop", delay: 0.2 }),
+    timer: defaultAnim({ preset: "zoom-in", loop: "pulse", intensity: 0.6 }),
+    timebar: defaultAnim({ preset: "fade", duration: 0.3 }),
+    roundNo: defaultAnim({ preset: "fade", loop: "none" }),
+    badge: defaultAnim({ preset: "bounce-in", duration: 0.6, loop: "float", intensity: 0.5 }),
+  };
+}
 
 type Round = {
   id: string;
