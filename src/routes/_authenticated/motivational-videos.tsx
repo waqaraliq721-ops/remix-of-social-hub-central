@@ -832,6 +832,18 @@ function MotivationalVideosPage() {
   const dims = ASPECTS[aspect];
   const template = TEMPLATES.find((t) => t.id === templateId) ?? TEMPLATES[0];
 
+  // Template colours can be overridden per project.
+  const palette = useMemo(
+    () => ({
+      ...template.palette,
+      primary: accentColor || template.palette.primary,
+      accent: accentColor || template.palette.accent,
+      text: textColor || template.palette.text,
+    }),
+    [template, accentColor, textColor],
+  );
+
+
   const backdrop: Backdrop = useMemo(() => {
     if (mediaKind === "video" && videoRef.current) return { kind: "video", el: videoRef.current };
     if (images.length) return { kind: "images", imgs: images.map((i) => i.img), per: slidePer };
