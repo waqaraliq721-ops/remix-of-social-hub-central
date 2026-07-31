@@ -647,9 +647,15 @@ function drawLyricRoll(
     const dist = Math.abs(y - focusY);
     const norm = Math.min(1, dist / ((bottom - top) * 0.55));
     const active = i === idx;
-    const alpha = active ? 1 : Math.max(0.06, Math.pow(1 - norm, 1.9) * 0.75);
+    // Alpha-based edge fade instead of painting opaque bars over the frame —
+    // that used to make the lyric block read as a separate, darker panel.
+    const edge =
+      Math.max(0, Math.min(1, (y - top) / ((bottom - top) * 0.28))) *
+      Math.max(0, Math.min(1, (bottom - y) / ((bottom - top) * 0.28)));
+    const alpha = (active ? 1 : Math.max(0.05, Math.pow(1 - norm, 1.9) * 0.7)) * edge;
     const fs = active ? size * 1.18 : size * (1 - norm * 0.12);
     ctx.globalAlpha = alpha;
+
     ctx.font = `${active ? 700 : 500} ${Math.round(fs)}px ${FONT}`;
     ctx.fillStyle = active ? p.text : hexA(p.text, 0.85);
     if (opts.glow && active) {
@@ -686,18 +692,38 @@ function drawLyricRoll(
     }
   }
 
-  // fades
-  const fade = (bottom - top) * 0.32;
-  const g1 = ctx.createLinearGradient(0, top, 0, top + fade);
-  g1.addColorStop(0, p.bg[0]);
-  g1.addColorStop(1, "transparent");
-  ctx.fillStyle = g1;
-  ctx.fillRect(0, top, w, fade);
-  const g2 = ctx.createLinearGradient(0, bottom - fade, 0, bottom);
-  g2.addColorStop(0, "transparent");
-  g2.addColorStop(1, p.bg[0]);
-  ctx.fillStyle = g2;
-  ctx.fillRect(0, bottom - fade, w, fade);
+  // No opaque fade bars — the per-line alpha above handles the roll-off so the
+  // frame stays one continuous, evenly lit surface.
+
+}
+
+/** Measure a tracked (letter-spaced) string at the current font. */
+function trackedWidth(ctx: CanvasRenderingContext2D, text: string, spacing: number) {
+  const chars = [...text];
+  return (
+    chars.reduce((a, c) => a + ctx.measureText(c).width, 0) + spacing * Math.max(0, chars.length - 1)
+  );
+}
+
+/** Shrink until the tracked string fits maxW, then draw it centred. */
+function trackedFit(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  x: number,
+  y: number,
+  maxW: number,
+  weight: number,
+  size: number,
+  spacingRatio: number,
+) {
+  let s = size;
+  for (let i = 0; i < 24; i++) {
+    ctx.font = `${weight} ${Math.round(s)}px ${FONT}`;
+    if (trackedWidth(ctx, text, s * spacingRatio) <= maxW || s <= 8) break;
+    s *= 0.94;
+  }
+  tracked(ctx, text, x, y, s * spacingRatio);
+  return s;
 }
 
 function drawHeader(ctx: CanvasRenderingContext2D, r: RenderCtx, y: number, big: number) {
@@ -705,11 +731,19 @@ function drawHeader(ctx: CanvasRenderingContext2D, r: RenderCtx, y: number, big:
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   ctx.fillStyle = p.primary;
-  ctx.font = `800 ${Math.round(big)}px ${FONT}`;
-  tracked(ctx, (title || "Untitled").toUpperCase(), w / 2, y, big * 0.06);
+  trackedFit(ctx, (title || "Untitled").toUpperCase(), w / 2, y, w * 0.84, 800, big, 0.06);
   ctx.fillStyle = hexA(p.text, 0.8);
-  ctx.font = `500 ${Math.round(big * 0.36)}px ${FONT}`;
-  tracked(ctx, (artist || "Unknown artist").toUpperCase(), w / 2, y + big * 0.72, big * 0.3);
+  trackedFit(
+    ctx,
+    (artist || "Unknown artist").toUpperCase(),
+    w / 2,
+    y + big * 0.72,
+    w * 0.7,
+    500,
+    big * 0.36,
+    0.3,
+  );
+
   // divider with dot
   const dy = y + big * 1.15;
   const half = w * 0.22;
@@ -757,26 +791,29 @@ function renderVinyl(ctx: CanvasRenderingContext2D, r: RenderCtx) {
   const vertical = aspect === "9:16";
 
   if (vertical) {
-    drawHeader(ctx, r, h * 0.055, h * 0.042);
-    const vr = w * 0.29;
-    const vy = h * 0.28;
+    drawHeader(ctx, r, h * 0.055, h * 0.038);
+    // Disc sits fully between the header rule and the lyric column so nothing
+    // overlaps: ring outer edge stays above the roll's top boundary.
+    const vr = w * 0.25;
+    const vy = h * 0.3;
     drawVinyl(ctx, w / 2, vy, vr, t, coverImg, p);
-    drawProgressRing(ctx, w / 2, vy, vr * 1.22, duration > 0 ? t / duration : 0, p);
+    drawProgressRing(ctx, w / 2, vy, vr * 1.16, duration > 0 ? t / duration : 0, p);
     drawLyricRoll(ctx, r, {
-      top: h * 0.42,
-      bottom: h * 0.94,
-      focusY: h * 0.66,
+      top: h * 0.48,
+      bottom: h * 0.93,
+      focusY: h * 0.685,
       size: h * 0.028,
       showRule: true,
     });
     drawFooterBar(ctx, r, h * 0.955);
   } else {
     // side-by-side layout for 16:9
-    const vr = h * 0.3;
-    const vx = w * 0.26;
-    const vy = h * 0.52;
+    const vr = h * 0.25;
+    const vx = w * 0.19;
+    const vy = h * 0.5;
     drawVinyl(ctx, vx, vy, vr, t, coverImg, p);
-    drawProgressRing(ctx, vx, vy, vr * 1.22, duration > 0 ? t / duration : 0, p);
+    drawProgressRing(ctx, vx, vy, vr * 1.16, duration > 0 ? t / duration : 0, p);
+
     ctx.save();
     ctx.translate(w * 0.36, 0);
     const sub: RenderCtx = { ...r, w: w * 0.62 };
@@ -1649,11 +1686,16 @@ function LyricalVideosPage() {
     }
   };
 
-  /** Engine frame plus optional intro / outro cards. */
+  const introSec = intro.id !== "none" ? intro.seconds : 0;
+  const outroSec = outro.id !== "none" ? outro.seconds : 0;
+  /** Intro and outro cards extend the timeline instead of covering the song. */
+  const totalDuration = introSec + audioDuration + outroSec;
+
   const paint = useCallback(
     (ctx: CanvasRenderingContext2D, w: number, h: number, t: number) => {
+      const songT = Math.max(0, Math.min(audioDuration || 0, t - introSec));
       renderEngine(ctx, template.engine, {
-        t,
+        t: songT,
         w,
         h,
         aspect,
@@ -1664,24 +1706,24 @@ function LyricalVideosPage() {
         lyrics: parsedLyrics,
         duration: audioDuration,
       });
-      if (intro.id !== "none" && t < intro.seconds) {
+      if (introSec > 0 && t < introSec) {
         INTRO_ANIMATIONS.find((a) => a.id === intro.id)?.draw({
           ctx,
           w,
           h,
-          p: Math.min(1, t / Math.max(0.2, intro.seconds)),
+          p: Math.min(1, t / Math.max(0.2, introSec)),
           palette: paletteOf(intro.paletteId),
           title: intro.title || title,
           subtitle: intro.subtitle || artist,
           logo: null,
         });
       }
-      if (outro.id !== "none" && audioDuration > 0 && t > audioDuration - outro.seconds) {
+      if (outroSec > 0 && t >= introSec + audioDuration) {
         OUTRO_ANIMATIONS.find((a) => a.id === outro.id)?.draw({
           ctx,
           w,
           h,
-          p: Math.min(1, (t - (audioDuration - outro.seconds)) / Math.max(0.2, outro.seconds)),
+          p: Math.min(1, (t - introSec - audioDuration) / Math.max(0.2, outroSec)),
           palette: paletteOf(outro.paletteId),
           title: outro.title,
           subtitle: outro.subtitle,
@@ -1689,7 +1731,19 @@ function LyricalVideosPage() {
         });
       }
     },
-    [aspect, template, title, artist, coverImg, parsedLyrics, audioDuration, intro, outro],
+    [
+      aspect,
+      template,
+      title,
+      artist,
+      coverImg,
+      parsedLyrics,
+      audioDuration,
+      intro,
+      outro,
+      introSec,
+      outroSec,
+    ],
   );
 
   const drawAt = useCallback(
@@ -1716,11 +1770,23 @@ function LyricalVideosPage() {
     let frames = 0;
     const tick = () => {
       const audio = audioRef.current;
-      const t = audio ? audio.currentTime : performance.now() / 1000 - startedAtRef.current;
+      const t = performance.now() / 1000 - startedAtRef.current;
       timeRef.current = t;
+      // Audio only starts once the intro card has played out.
+      if (audio) {
+        if (t >= introSec && t < introSec + audioDuration) {
+          if (audio.paused) {
+            audio.currentTime = Math.max(0, t - introSec);
+            audio.play().catch(() => {});
+          }
+        } else if (!audio.paused) {
+          audio.pause();
+        }
+      }
       if (frames++ % 6 === 0) setCurrentTime(t);
       drawAt(canvas, t);
-      if (audioDuration > 0 && t >= audioDuration) {
+      if (totalDuration > 0 && t >= totalDuration) {
+        if (audio) audio.pause();
         setPlaying(false);
         return;
       }
@@ -1728,7 +1794,7 @@ function LyricalVideosPage() {
     };
     rafRef.current = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(rafRef.current);
-  }, [playing, audioDuration, drawAt]);
+  }, [playing, audioDuration, totalDuration, introSec, drawAt]);
 
   const togglePlay = async () => {
     if (!audioRef.current) {
@@ -1742,12 +1808,14 @@ function LyricalVideosPage() {
     } else {
       const startFrom = pausedAtRef.current || 0;
       startedAtRef.current = performance.now() / 1000 - startFrom;
-      audioRef.current.currentTime = startFrom;
-      try {
-        await audioRef.current.play();
-      } catch {
-        toast.error("Couldn't start audio playback");
-        return;
+      audioRef.current.currentTime = Math.max(0, startFrom - introSec);
+      if (startFrom >= introSec) {
+        try {
+          await audioRef.current.play();
+        } catch {
+          toast.error("Couldn't start audio playback");
+          return;
+        }
       }
       setPlaying(true);
     }
@@ -1758,7 +1826,7 @@ function LyricalVideosPage() {
     pausedAtRef.current = v;
     setCurrentTime(v);
     startedAtRef.current = performance.now() / 1000 - v;
-    if (audioRef.current) audioRef.current.currentTime = v;
+    if (audioRef.current) audioRef.current.currentTime = Math.max(0, v - introSec);
     const canvas = canvasRef.current;
     if (canvas) drawAt(canvas, v);
   };
@@ -1813,14 +1881,15 @@ function LyricalVideosPage() {
 
       let running = true;
       const t0 = performance.now();
-      src.start();
+      // Delay the song so the intro card gets its own real time at the head.
+      src.start(ac.currentTime + introSec);
       rec.start(100);
       const frameLoop = () => {
         if (!running) return;
         const t = (performance.now() - t0) / 1000;
-        setExportProgress(Math.min(100, (t / audioDuration) * 100));
+        setExportProgress(Math.min(100, (t / totalDuration) * 100));
         paint(octx, off.width, off.height, t);
-        if (t >= audioDuration) {
+        if (t >= totalDuration) {
           running = false;
           try {
             src.stop();
@@ -2035,7 +2104,7 @@ function LyricalVideosPage() {
                 <span className="w-16 text-xs text-muted-foreground">{fmtTime(currentTime)}</span>
                 <Slider
                   min={0}
-                  max={Math.max(audioDuration, 0.01)}
+                  max={Math.max(totalDuration, 0.01)}
                   step={0.05}
                   value={[currentTime]}
                   onValueChange={(v) => seek(v[0])}

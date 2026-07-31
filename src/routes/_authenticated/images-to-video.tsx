@@ -531,11 +531,17 @@ function ImagesToVideoPage() {
     return () => clearTimeout(h);
   }, [images]);
 
-  const totalDuration = useMemo(() => {
+  /** Length of the slideshow itself, before intro / outro cards. */
+  const bodyDuration = useMemo(() => {
     if (images.length === 0) return 0;
     if (voDuration > 0) return Math.max(voDuration, images.length * 1.2);
     return images.length * perImageDuration;
   }, [images.length, perImageDuration, voDuration]);
+
+  const introSec = intro.id !== "none" ? intro.seconds : 0;
+  const outroSec = outro.id !== "none" ? outro.seconds : 0;
+  /** Cards add their own time at the head and tail of the export. */
+  const totalDuration = bodyDuration > 0 ? introSec + bodyDuration + outroSec : 0;
 
   /** Captions scheduled by weight, aligned to voice-over span. Only active once the
    * user has generated captions from an existing voiceover. */
@@ -738,17 +744,19 @@ function ImagesToVideoPage() {
       if (!ctx) return;
       ctx.fillStyle = "#000";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
-      if (!images.length || totalDuration <= 0) return;
+      if (!images.length || bodyDuration <= 0) return;
 
-      const per = totalDuration / images.length;
-      const idx = Math.min(images.length - 1, Math.floor(t / per));
-      const local = (t - idx * per) / per; // 0..1
+      // Slideshow time excludes the intro card, which owns its own head slot.
+      const bodyT = Math.max(0, Math.min(bodyDuration - 0.001, t - introSec));
+      const per = bodyDuration / images.length;
+      const idx = Math.min(images.length - 1, Math.floor(bodyT / per));
+      const local = (bodyT - idx * per) / per; // 0..1
       const img = images[idx];
       const transDur = transitionMs / 1000;
       const cw = canvas.width;
       const ch = canvas.height;
 
-      const remaining = per - (t - idx * per);
+      const remaining = per - (bodyT - idx * per);
       const inTransition =
         idx < images.length - 1 && remaining < transDur && img.transition !== "none";
       const pRaw = inTransition ? 1 - remaining / transDur : 0; // 0..1 linear
@@ -855,32 +863,32 @@ function ImagesToVideoPage() {
 
       // Captions
       if (captionsOn && captionSchedule.length) {
-        const active = captionSchedule.find((c) => t >= c.start && t < c.end);
+        const active = captionSchedule.find((c) => bodyT >= c.start && bodyT < c.end);
         if (active) {
-          const progress = (t - active.start) / Math.max(0.001, active.end - active.start);
+          const progress = (bodyT - active.start) / Math.max(0.001, active.end - active.start);
           drawCaption(ctx, active.text, cw, ch, progress);
         }
       }
 
       // Intro / outro cards
-      if (intro.id !== "none" && t < intro.seconds) {
+      if (introSec > 0 && t < introSec) {
         INTRO_ANIMATIONS.find((a) => a.id === intro.id)?.draw({
           ctx,
           w: cw,
           h: ch,
-          p: Math.min(1, t / Math.max(0.2, intro.seconds)),
+          p: Math.min(1, t / Math.max(0.2, introSec)),
           palette: paletteOf(intro.paletteId),
           title: intro.title,
           subtitle: intro.subtitle,
           logo: null,
         });
       }
-      if (outro.id !== "none" && t > totalDuration - outro.seconds) {
+      if (outroSec > 0 && t >= introSec + bodyDuration) {
         OUTRO_ANIMATIONS.find((a) => a.id === outro.id)?.draw({
           ctx,
           w: cw,
           h: ch,
-          p: Math.min(1, (t - (totalDuration - outro.seconds)) / Math.max(0.2, outro.seconds)),
+          p: Math.min(1, (t - introSec - bodyDuration) / Math.max(0.2, outroSec)),
           palette: paletteOf(outro.paletteId),
           title: outro.title,
           subtitle: outro.subtitle,
@@ -889,7 +897,7 @@ function ImagesToVideoPage() {
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [images, totalDuration, transitionMs, transitionEasing, captionsOn, captionSchedule, captionStyle, captionPos, captionSize, captionColor, captionAccent, captionFont, captionUppercase, captionWeight, captionMargin, captionStrokeWidth, captionBgOpacity, intro, outro],
+    [images, bodyDuration, introSec, outroSec, transitionMs, transitionEasing, captionsOn, captionSchedule, captionStyle, captionPos, captionSize, captionColor, captionAccent, captionFont, captionUppercase, captionWeight, captionMargin, captionStrokeWidth, captionBgOpacity, intro, outro],
   );
 
   // Keep latest drawFrame in a ref so the RAF loop is not recreated every state change.
@@ -1152,6 +1160,14 @@ function ImagesToVideoPage() {
       }
       const c = canvasRef.current;
       if (c) drawRef.current(c, t);
+      // Hold audio until the intro card finishes so preview matches the export.
+      const vo = voAudioRef.current;
+      if (vo) {
+        if (t >= introSec && vo.paused && t < introSec + bodyDuration) {
+          vo.currentTime = Math.max(0, t - introSec);
+          vo.play().catch(() => {});
+        } else if (t < introSec && !vo.paused) vo.pause();
+      }
       // update slider ~10Hz to avoid re-render thrash
       if (t - lastUiUpdate > 0.1) {
         lastUiUpdate = t;
@@ -1161,7 +1177,7 @@ function ImagesToVideoPage() {
     };
     rafRef.current = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(rafRef.current);
-  }, [playing, totalDuration]);
+  }, [playing, totalDuration, introSec, bodyDuration]);
 
   const togglePlay = () => {
     if (!images.length) {
@@ -1181,9 +1197,9 @@ function ImagesToVideoPage() {
       }
       setPlaying(true);
       if (voAudioRef.current) {
-        voAudioRef.current.currentTime = pausedAtRef.current;
+        voAudioRef.current.currentTime = Math.max(0, pausedAtRef.current - introSec);
         voAudioRef.current.volume = voVolume / 100;
-        voAudioRef.current.play().catch(() => {});
+        if (pausedAtRef.current >= introSec) voAudioRef.current.play().catch(() => {});
       }
       if (musicAudioRef.current) {
         const region = Math.max(0.01, musicEnd - musicStart);
@@ -1394,7 +1410,9 @@ function ImagesToVideoPage() {
       });
 
       recorder.start(200);
-      sources.forEach(({ src, offset }) => src.start(0, offset));
+      sources.forEach(({ src, offset }) =>
+        src.start(introSec > 0 ? audioCtx.currentTime + introSec : 0, offset),
+      );
 
       const start = performance.now();
       const durMs = totalDuration * 1000;
