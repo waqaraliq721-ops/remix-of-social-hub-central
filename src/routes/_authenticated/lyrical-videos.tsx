@@ -1361,7 +1361,7 @@ function renderTypoTicker(ctx: CanvasRenderingContext2D, r: RenderCtx) {
 }
 
 function renderEngine(ctx: CanvasRenderingContext2D, engine: EngineId, r: RenderCtx) {
-
+  BG_SEED = hashSeed(engine);
   switch (engine) {
     case "vinyl":
       return renderVinyl(ctx, r);
