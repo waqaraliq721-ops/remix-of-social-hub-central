@@ -70,7 +70,18 @@ type EngineId =
   | "neon"
   | "waveform"
   | "typewriter"
-  | "cinebar";
+  | "cinebar"
+  | "typo-serif"
+  | "typo-stack"
+  | "typo-marquee"
+  | "typo-gradient"
+  | "typo-outline"
+  | "typo-justify"
+  | "typo-mono"
+  | "typo-vertical"
+  | "typo-poster"
+  | "typo-ticker";
+
 
 type Palette = {
   id: string;
