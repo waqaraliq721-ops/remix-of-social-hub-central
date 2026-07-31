@@ -1526,6 +1526,26 @@ function renderTypoTicker(ctx: CanvasRenderingContext2D, r: RenderCtx) {
   typoFooter(ctx, r, FONT);
 }
 
+/** Helpers handed to the extra template library. */
+const LYRIC_KIT: LyricKit = {
+  FONT,
+  hexA,
+  easeOutCubic,
+  fmtTime,
+  findLineIndex,
+  wrapText,
+  tracked,
+  trackedFit,
+  roundRect,
+  drawBg,
+  drawVinyl,
+  drawProgressRing,
+  drawWaveBar,
+  drawLyricRoll,
+  drawHeader,
+  drawFooterBar,
+};
+
 function renderEngine(ctx: CanvasRenderingContext2D, engine: EngineId, r: RenderCtx) {
   BG_SEED = hashSeed(engine);
   switch (engine) {
@@ -1565,9 +1585,11 @@ function renderEngine(ctx: CanvasRenderingContext2D, engine: EngineId, r: Render
       return renderTypoPoster(ctx, r);
     case "typo-ticker":
       return renderTypoTicker(ctx, r);
+    default:
+      return EXTRA_LYRIC_MAP.get(engine)?.draw(ctx, r, LYRIC_KIT);
   }
-
 }
+
 
 // -------------------- Component --------------------
 
