@@ -29,7 +29,14 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { transcribeFile, wordsToLines, linesToLrc } from "@/lib/transcribe";
+import {
+  transcribeFile,
+  wordsToLines,
+  linesToLrc,
+  STT_PROVIDERS,
+  type SttProvider,
+} from "@/lib/transcribe";
+
 
 export const Route = createFileRoute("/_authenticated/lyrical-videos")({
   head: () => ({
@@ -1317,6 +1324,8 @@ function LyricalVideosPage() {
   const [exporting, setExporting] = useState(false);
   const [exportProgress, setExportProgress] = useState(0);
   const [detecting, setDetecting] = useState(false);
+  const [sttProvider, setSttProvider] = useState<SttProvider>("auto");
+
   const [lineLen, setLineLen] = useState(7);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
