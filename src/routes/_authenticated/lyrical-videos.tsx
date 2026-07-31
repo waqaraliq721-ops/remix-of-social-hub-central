@@ -692,18 +692,9 @@ function drawLyricRoll(
     }
   }
 
-  // fades
-  const fade = (bottom - top) * 0.32;
-  const g1 = ctx.createLinearGradient(0, top, 0, top + fade);
-  g1.addColorStop(0, p.bg[0]);
-  g1.addColorStop(1, "transparent");
-  ctx.fillStyle = g1;
-  ctx.fillRect(0, top, w, fade);
-  const g2 = ctx.createLinearGradient(0, bottom - fade, 0, bottom);
-  g2.addColorStop(0, "transparent");
-  g2.addColorStop(1, p.bg[0]);
-  ctx.fillStyle = g2;
-  ctx.fillRect(0, bottom - fade, w, fade);
+  // No opaque fade bars — the per-line alpha above handles the roll-off so the
+  // frame stays one continuous, evenly lit surface.
+
 }
 
 function drawHeader(ctx: CanvasRenderingContext2D, r: RenderCtx, y: number, big: number) {
