@@ -168,19 +168,36 @@ let SKIP_BG = false;
 
 
 function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
-  const words = text.split(" ");
+  const limit = maxWidth * SAFE_W;
+  const words = text.split(" ").filter(Boolean);
   const out: string[] = [];
   let cur = "";
-  for (const w of words) {
-    const test = cur ? cur + " " + w : w;
-    if (ctx.measureText(test).width > maxWidth && cur) {
-      out.push(cur);
-      cur = w;
-    } else cur = test;
+  const split = (word: string) => {
+    if (ctx.measureText(word).width <= limit) return [word];
+    const parts: string[] = [];
+    let chunk = "";
+    for (const ch of word) {
+      if (chunk && ctx.measureText(chunk + ch).width > limit) {
+        parts.push(chunk);
+        chunk = ch;
+      } else chunk += ch;
+    }
+    if (chunk) parts.push(chunk);
+    return parts;
+  };
+  for (const raw of words) {
+    for (const w of split(raw)) {
+      const test = cur ? cur + " " + w : w;
+      if (ctx.measureText(test).width > limit && cur) {
+        out.push(cur);
+        cur = w;
+      } else cur = test;
+    }
   }
   if (cur) out.push(cur);
-  return out;
+  return out.length ? out : [""];
 }
+
 
 function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
   ctx.beginPath();
