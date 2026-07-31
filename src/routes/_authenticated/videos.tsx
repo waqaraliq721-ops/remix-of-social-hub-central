@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Video, Wand2, Film, Mic, Sparkles, Upload, Clapperboard, Music4 } from "lucide-react";
+import { Video, Wand2, Film, Mic, Sparkles, Upload, Clapperboard, Music4, Gamepad2, Baby } from "lucide-react";
 
 
 export const Route = createFileRoute("/_authenticated/videos")({
@@ -61,7 +61,17 @@ function VideosPage() {
               </Button>
 
               <Button asChild variant="secondary">
-                <Link to="/wyr">
+                <Link to="/gaming-videos">
+                  <Gamepad2 className="mr-1 h-4 w-4" /> Gaming Videos
+                </Link>
+              </Button>
+              <Button asChild variant="secondary">
+                <Link to="/kid-videos">
+                  <Baby className="mr-1 h-4 w-4" /> Kid Videos
+                </Link>
+              </Button>
+              <Button asChild variant="secondary">
+                <Link to="/kid-videos/wyr">
                   <Film className="mr-1 h-4 w-4" /> Would You Rather
                 </Link>
               </Button>

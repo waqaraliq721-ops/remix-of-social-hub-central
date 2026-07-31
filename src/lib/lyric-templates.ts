@@ -29,6 +29,10 @@ export type RenderCtx = {
   coverImg: HTMLImageElement | null;
   lyrics: LyricLine[];
   duration: number;
+  /** 0 = static, 1 = default subtle motion, up to 2 = doubled. */
+  motion: number;
+  /** "drift" | "pulse" | "bob" | "still" — which effect gets emphasised. */
+  animStyle: string;
 };
 
 type C = CanvasRenderingContext2D;
@@ -110,6 +114,13 @@ function coverCard(
   shadow = true,
 ) {
   const { coverImg: img, palette: p } = r;
+  const breathe =
+    1 +
+    Math.sin(r.t * 0.8) * 0.015 * Math.max(0, Math.min(2, r.motion)) * (r.animStyle === "pulse" ? 1.6 : 1);
+  ctx.save();
+  ctx.translate(x + size / 2, y + size / 2);
+  ctx.scale(breathe, breathe);
+  ctx.translate(-(x + size / 2), -(y + size / 2));
   if (shadow) {
     ctx.save();
     ctx.shadowColor = "rgba(0,0,0,0.65)";
@@ -147,6 +158,7 @@ function coverCard(
   ctx.strokeStyle = kit.hexA(p.text, 0.12);
   ctx.lineWidth = Math.max(1, size * 0.004);
   ctx.stroke();
+  ctx.restore();
   ctx.restore();
 }
 
@@ -500,18 +512,31 @@ const vinylMini: Engine = {
     kit.drawBg(ctx, w, h, p, t);
     const vr = h * 0.038;
     const y = h * 0.075;
-    ctx.font = `800 ${Math.round(h * 0.026)}px ${kit.FONT}`;
+    const maxW = w * 0.72;
+    let titleSize = h * 0.026;
+    ctx.font = `800 ${Math.round(titleSize)}px ${kit.FONT}`;
     const title = (r.title || "Untitled").toUpperCase();
-    const tw = ctx.measureText(title).width;
+    let tw = ctx.measureText(title).width;
+    // Shrink the title so the disc + label never runs off the safe area.
+    while (tw + vr * 2.6 > maxW && titleSize > 10) {
+      titleSize *= 0.92;
+      ctx.font = `800 ${Math.round(titleSize)}px ${kit.FONT}`;
+      tw = ctx.measureText(title).width;
+    }
     const startX = w / 2 - (tw + vr * 2.6) / 2;
     kit.drawVinyl(ctx, startX + vr, y, vr, t, r.coverImg, p);
     ctx.textAlign = "left";
     ctx.textBaseline = "middle";
     ctx.fillStyle = p.text;
-    ctx.fillText(title, startX + vr * 2.4, y - h * 0.008);
+    ctx.fillText(title, startX + vr * 2.4, y - h * 0.008, maxW - vr * 2.6);
     ctx.font = `500 ${Math.round(h * 0.016)}px ${kit.FONT}`;
     ctx.fillStyle = kit.hexA(p.muted, 1);
-    ctx.fillText((r.artist || "Unknown artist").toUpperCase(), startX + vr * 2.4, y + h * 0.018);
+    ctx.fillText(
+      (r.artist || "Unknown artist").toUpperCase(),
+      startX + vr * 2.4,
+      y + h * 0.018,
+      maxW - vr * 2.6,
+    );
     ctx.textAlign = "center";
     kit.drawLyricRoll(ctx, r, {
       top: h * 0.14,

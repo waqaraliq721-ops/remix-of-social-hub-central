@@ -102,11 +102,12 @@ function drawRows(
   size: number,
   lineH: number,
   color: string | CanvasGradient,
+  drift = 0,
 ) {
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   ctx.fillStyle = color;
-  let y = centreY - ((rows.length - 1) * size * lineH) / 2;
+  let y = centreY - ((rows.length - 1) * size * lineH) / 2 + drift;
   for (const row of rows) {
     ctx.fillText(row, cx, y);
     y += size * lineH;
@@ -154,7 +155,7 @@ const cinemaSlate: Engine = {
       ctx.save();
       ctx.globalAlpha = appear;
       softShadow(ctx, size * 0.4);
-      const end = drawRows(ctx, rows, w / 2, h * 0.48, size, 1.3, p.text);
+      const end = drawRows(ctx, rows, w / 2, h * 0.48, size, 1.3, p.text, (1 - appear) * size * 0.22);
       ctx.restore();
       kit.drawAuthor(ctx, r, end + size * 0.95);
     }
@@ -213,7 +214,7 @@ const impactFrame: Engine = {
     ctx.save();
     ctx.globalAlpha = appear;
     softShadow(ctx, size * 0.25);
-    const end = drawRows(ctx, rows, w / 2, h * 0.49, size, 1.02, p.text);
+    const end = drawRows(ctx, rows, w / 2, h * 0.49, size, 1.02, p.text, (1 - appear) * size * 0.22);
     ctx.restore();
     ctx.fillStyle = p.primary;
     ctx.fillRect(w / 2 - w * 0.05, end + size * 0.55, w * 0.1, Math.max(3, h * 0.0045));
@@ -254,7 +255,7 @@ const glassCard: Engine = {
     ctx.fillStyle = p.primary;
     kit.roundRect(ctx, x, y + boxH * 0.2, Math.max(4, w * 0.006), boxH * 0.6, w * 0.003);
     ctx.fill();
-    drawRows(ctx, rows, w / 2, y + boxH / 2, size, 1.28, p.text);
+    drawRows(ctx, rows, w / 2, y + boxH / 2, size, 1.28, p.text, (1 - appear) * size * 0.18);
     ctx.restore();
     kit.drawAuthor(ctx, r, y + boxH + size * 0.9);
   },
@@ -332,7 +333,7 @@ const minimalRule: Engine = {
     );
     ctx.save();
     ctx.globalAlpha = appear;
-    const end = drawRows(ctx, rows, w / 2, h * 0.54, size, 1.3, p.text);
+    const end = drawRows(ctx, rows, w / 2, h * 0.54, size, 1.3, p.text, (1 - appear) * size * 0.2);
     ctx.restore();
     kit.drawAuthor(ctx, r, end + size * 1.1);
   },
@@ -476,7 +477,7 @@ const chapterCount: Engine = {
       ctx.save();
       ctx.globalAlpha = appear;
       softShadow(ctx, size * 0.35);
-      const end = drawRows(ctx, rows, w / 2, h * 0.5, size, 1.22, p.text);
+      const end = drawRows(ctx, rows, w / 2, h * 0.5, size, 1.22, p.text, (1 - appear) * size * 0.2);
       ctx.restore();
       kit.drawAuthor(ctx, r, end + size * 1.1);
     }
@@ -663,7 +664,7 @@ const echoLayers: Engine = {
       }
     }
     ctx.globalAlpha = appear;
-    const end = drawRows(ctx, rows, w / 2, h * 0.5, size, 1.1, p.text);
+    const end = drawRows(ctx, rows, w / 2, h * 0.5, size, 1.1, p.text, (1 - appear) * size * 0.2);
     ctx.restore();
     kit.drawAuthor(ctx, r, end + size * 0.9);
   },
@@ -749,7 +750,7 @@ const filmGrain: Engine = {
     ctx.save();
     ctx.globalAlpha = appear;
     softShadow(ctx, size * 0.5);
-    const end = drawRows(ctx, rows, w / 2, h * 0.68, size, 1.3, p.text);
+    const end = drawRows(ctx, rows, w / 2, h * 0.68, size, 1.3, p.text, (1 - appear) * size * 0.2);
     ctx.restore();
     kit.drawAuthor(ctx, r, end + size * 1.1);
   },
@@ -793,7 +794,7 @@ const tickerRail: Engine = {
     ctx.save();
     ctx.globalAlpha = appear;
     softShadow(ctx, size * 0.3);
-    drawRows(ctx, rows, w / 2, h * 0.48, size, 1.1, p.text);
+    drawRows(ctx, rows, w / 2, h * 0.48, size, 1.1, p.text, (1 - appear) * size * 0.2);
     ctx.restore();
     if (r.author) {
       ctx.save();
@@ -833,7 +834,7 @@ const marqueeBand: Engine = {
       ctx.save();
       ctx.globalAlpha = appear;
       softShadow(ctx, size * 0.25);
-      drawRows(ctx, rows, w / 2, h * 0.44, size, 1.05, p.text);
+      drawRows(ctx, rows, w / 2, h * 0.44, size, 1.05, p.text, (1 - appear) * size * 0.2);
       ctx.restore();
     }
     const bandY = h * 0.76;

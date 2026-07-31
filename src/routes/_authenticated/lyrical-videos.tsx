@@ -45,6 +45,7 @@ import {
   type SttProvider,
 } from "@/lib/transcribe";
 import { EXTRA_LYRIC_ENGINES, EXTRA_LYRIC_MAP, type Kit as LyricKit } from "@/lib/lyric-templates";
+import { ColorCustomiser, applyOverrides, type ColorOverrides } from "@/components/color-customiser";
 
 export const Route = createFileRoute("/_authenticated/lyrical-videos")({
   head: () => ({
@@ -305,6 +306,11 @@ function easeOutCubic(x: number) {
 
 /** Set by renderEngine so the background can vary per template. */
 let BG_SEED = 0;
+/** Set by renderEngine each frame from RenderCtx so shared helpers (which don't
+ *  all receive the full RenderCtx) can scale their subtle motion. */
+let MOTION = 1;
+let ANIM_STYLE = "drift";
+let FRAME_T = 0;
 
 function hashSeed(s: string) {
   let n = 0;
@@ -319,6 +325,10 @@ function hashSeed(s: string) {
  */
 function drawBg(ctx: CanvasRenderingContext2D, w: number, h: number, p: Palette, t: number) {
   const variant = BG_SEED % 6;
+  // Background drift scales with the animation-motion control: 0 freezes it,
+  // 1 is the original speed, up to 2 doubles the sway.
+  const driftScale = Math.max(0, Math.min(2, MOTION));
+  const bt = t * driftScale;
   const base = ctx.createLinearGradient(0, 0, w * 0.35, h);
   base.addColorStop(0, p.bg[0]);
   base.addColorStop(0.5, p.bg[1]);
@@ -340,23 +350,23 @@ function drawBg(ctx: CanvasRenderingContext2D, w: number, h: number, p: Palette,
   if (variant === 0) {
     // Aurora — three slow drifting colour clouds.
     blob(
-      w * 0.3 + Math.sin(t * 0.21) * w * 0.18,
-      h * 0.28 + Math.cos(t * 0.17) * h * 0.1,
+      w * 0.3 + Math.sin(bt * 0.21) * w * 0.18,
+      h * 0.28 + Math.cos(bt * 0.17) * h * 0.1,
       Math.max(w, h) * 0.55,
       p.primary,
       0.22,
     );
     blob(
-      w * 0.75 + Math.cos(t * 0.15) * w * 0.14,
-      h * 0.7 + Math.sin(t * 0.19) * h * 0.12,
+      w * 0.75 + Math.cos(bt * 0.15) * w * 0.14,
+      h * 0.7 + Math.sin(bt * 0.19) * h * 0.12,
       Math.max(w, h) * 0.5,
       p.accent,
       0.16,
     );
-    blob(w * 0.5, h * 0.5 + Math.sin(t * 0.11) * h * 0.2, Math.max(w, h) * 0.45, p.bg[1], 0.3);
+    blob(w * 0.5, h * 0.5 + Math.sin(bt * 0.11) * h * 0.2, Math.max(w, h) * 0.45, p.bg[1], 0.3);
   } else if (variant === 1) {
     // Sweeping diagonal gradient band.
-    const off = ((t * 0.06) % 1) * 2 - 0.5;
+    const off = ((bt * 0.06) % 1) * 2 - 0.5;
     const g = ctx.createLinearGradient(-w * off, 0, w * (1.4 - off), h);
     g.addColorStop(0, hexA(p.primary, 0));
     g.addColorStop(0.45, hexA(p.primary, 0.2));
@@ -369,7 +379,7 @@ function drawBg(ctx: CanvasRenderingContext2D, w: number, h: number, p: Palette,
     // Slow rotating light rays.
     ctx.save();
     ctx.translate(w / 2, h * 0.42);
-    ctx.rotate(t * 0.06);
+    ctx.rotate(bt * 0.06);
     const rays = 12;
     for (let i = 0; i < rays; i++) {
       ctx.rotate((Math.PI * 2) / rays);
@@ -389,8 +399,8 @@ function drawBg(ctx: CanvasRenderingContext2D, w: number, h: number, p: Palette,
     // Floating bokeh.
     for (let i = 0; i < 16; i++) {
       const s = ((i * 97) % 100) / 100;
-      const cx = ((s * 1.7) % 1) * w + Math.sin(t * (0.12 + s * 0.2) + i) * w * 0.05;
-      const cy = ((s * 2.3 + t * 0.02 * (0.5 + s)) % 1) * h;
+      const cx = ((s * 1.7) % 1) * w + Math.sin(bt * (0.12 + s * 0.2) + i) * w * 0.05;
+      const cy = ((s * 2.3 + bt * 0.02 * (0.5 + s)) % 1) * h;
       blob(cx, cy, Math.max(w, h) * (0.06 + s * 0.1), i % 3 ? p.primary : p.accent, 0.12);
     }
     blob(w * 0.5, h * 0.5, Math.max(w, h) * 0.55, p.bg[1], 0.25);
@@ -400,7 +410,7 @@ function drawBg(ctx: CanvasRenderingContext2D, w: number, h: number, p: Palette,
     ctx.translate(w / 2, h / 2);
     ctx.rotate(-0.5);
     const band = Math.max(w, h) * 0.16;
-    const shift = (t * band * 0.12) % (band * 2);
+    const shift = (bt * band * 0.12) % (band * 2);
     for (let x = -Math.max(w, h) - shift; x < Math.max(w, h); x += band * 2) {
       const g = ctx.createLinearGradient(x, 0, x + band, 0);
       g.addColorStop(0, hexA(p.primary, 0));
@@ -414,7 +424,7 @@ function drawBg(ctx: CanvasRenderingContext2D, w: number, h: number, p: Palette,
   } else {
     // Breathing concentric rings.
     for (let i = 0; i < 5; i++) {
-      const phase = (t * 0.12 + i / 5) % 1;
+      const phase = (bt * 0.12 + i / 5) % 1;
       const rad = Math.max(w, h) * (0.15 + phase * 0.65);
       ctx.strokeStyle = hexA(i % 2 ? p.primary : p.accent, 0.16 * (1 - phase));
       ctx.lineWidth = Math.max(1, Math.min(w, h) * 0.006);
@@ -537,6 +547,9 @@ function drawVinyl(
 ) {
   ctx.save();
   ctx.translate(x, y);
+  const breathe =
+    1 + Math.sin(t * 0.7) * 0.012 * Math.max(0, Math.min(2, MOTION)) * (ANIM_STYLE === "pulse" ? 1.5 : 1);
+  ctx.scale(breathe, breathe);
 
   // soft glow behind disc
   const glow = ctx.createRadialGradient(0, 0, r * 0.6, 0, 0, r * 1.5);
@@ -650,8 +663,10 @@ function drawProgressRing(
   ctx.stroke();
   ctx.setLineDash([]);
   // elapsed (solid, glowing)
+  const pulse =
+    1 + Math.sin(FRAME_T * 3) * 0.25 * Math.max(0, Math.min(2, MOTION)) * (ANIM_STYLE === "pulse" ? 1.6 : 1);
   ctx.shadowColor = hexA(p.primary, 0.9);
-  ctx.shadowBlur = r * 0.12;
+  ctx.shadowBlur = r * 0.12 * Math.max(0.3, pulse);
   ctx.strokeStyle = p.primary;
   ctx.lineWidth = Math.max(2, r * 0.018);
   ctx.beginPath();
@@ -711,6 +726,8 @@ type RenderCtx = {
   coverImg: HTMLImageElement | null;
   lyrics: LyricLine[];
   duration: number;
+  motion: number;
+  animStyle: string;
 };
 
 /** Rolling lyric column shared by several engines. */
@@ -757,6 +774,9 @@ function drawLyricRoll(
     const dist = Math.abs(y - focusY);
     const norm = Math.min(1, dist / ((bottom - top) * 0.55));
     const active = i === idx;
+    const bob = active
+      ? Math.sin(t * 4.2) * size * 0.02 * Math.max(0, Math.min(2, r.motion)) * (r.animStyle === "bob" ? 1.8 : 1)
+      : 0;
     // Alpha-based edge fade instead of painting opaque bars over the frame —
     // that used to make the lyric block read as a separate, darker panel.
     const edge =
@@ -774,7 +794,7 @@ function drawLyricRoll(
     }
     const text = opts.uppercase ? lyrics[i].text.toUpperCase() : lyrics[i].text;
     const wrapped = wrapText(ctx, text, w * 0.86);
-    let yy = y - ((wrapped.length - 1) * fs * 1.1) / 2;
+    let yy = y + bob - ((wrapped.length - 1) * fs * 1.1) / 2;
     for (const line of wrapped) {
       ctx.fillText(line, w / 2, yy);
       yy += fs * 1.1;
@@ -1710,6 +1730,9 @@ const LYRIC_KIT: LyricKit = {
 
 function renderEngine(ctx: CanvasRenderingContext2D, engine: EngineId, r: RenderCtx) {
   BG_SEED = hashSeed(engine);
+  MOTION = Math.max(0, Math.min(2, r.motion));
+  ANIM_STYLE = r.animStyle || "drift";
+  FRAME_T = r.t;
   switch (engine) {
     case "vinyl":
       return renderVinyl(ctx, r);
@@ -1775,6 +1798,9 @@ function LyricalVideosPage() {
   const [sttProvider, setSttProvider] = useState<SttProvider>("auto");
 
   const [lineLen, setLineLen] = useState(7);
+  const [motion, setMotion] = useState(1);
+  const [animStyle, setAnimStyle] = useState("drift");
+  const [colors, setColors] = useState<ColorOverrides>({});
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -1873,6 +1899,11 @@ function LyricalVideosPage() {
   /** Intro and outro cards extend the timeline instead of covering the song. */
   const totalDuration = introSec + audioDuration + outroSec;
 
+  const activePalette = useMemo(
+    () => applyOverrides(template.palette, colors),
+    [template, colors],
+  );
+
   const paint = useCallback(
     (ctx: CanvasRenderingContext2D, w: number, h: number, t: number) => {
       const songT = Math.max(0, Math.min(audioDuration || 0, t - introSec));
@@ -1881,12 +1912,14 @@ function LyricalVideosPage() {
         w,
         h,
         aspect,
-        palette: template.palette,
+        palette: activePalette,
         title,
         artist,
         coverImg,
         lyrics: parsedLyrics,
         duration: audioDuration,
+        motion,
+        animStyle,
       });
       if (introSec > 0 && t < introSec) {
         INTRO_ANIMATIONS.find((a) => a.id === intro.id)?.draw({
@@ -1916,6 +1949,7 @@ function LyricalVideosPage() {
     [
       aspect,
       template,
+      activePalette,
       title,
       artist,
       coverImg,
@@ -1925,6 +1959,8 @@ function LyricalVideosPage() {
       outro,
       introSec,
       outroSec,
+      motion,
+      animStyle,
     ],
   );
 
@@ -2267,6 +2303,41 @@ function LyricalVideosPage() {
               )}
             </CardContent>
           </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Animation</CardTitle>
+              <CardDescription>Control background drift and motion style.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div>
+                <Label className="text-xs">Motion · {Math.round(motion * 100)}%</Label>
+                <Slider
+                  min={0}
+                  max={2}
+                  step={0.05}
+                  value={[motion]}
+                  onValueChange={(v) => setMotion(v[0])}
+                />
+              </div>
+              <div>
+                <Label className="text-xs">Animation style</Label>
+                <Select value={animStyle} onValueChange={setAnimStyle}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="drift">Drift</SelectItem>
+                    <SelectItem value="pulse">Pulse</SelectItem>
+                    <SelectItem value="bob">Bob</SelectItem>
+                    <SelectItem value="still">Still</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardContent>
+          </Card>
+
+          <ColorCustomiser base={template.palette} value={colors} onChange={setColors} />
         </div>
 
         {/* Center: preview */}
