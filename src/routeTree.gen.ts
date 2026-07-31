@@ -17,19 +17,21 @@ import { Route as ApiTtsElevenlabsRouteImport } from './routes/api/tts-elevenlab
 import { Route as ApiTtsRouteImport } from './routes/api/tts'
 import { Route as ApiTranscribeRouteImport } from './routes/api/transcribe'
 import { Route as ApiRepurposeRouteImport } from './routes/api/repurpose'
-import { Route as AuthenticatedWyrRouteImport } from './routes/_authenticated/wyr'
 import { Route as AuthenticatedVideosRouteImport } from './routes/_authenticated/videos'
 import { Route as AuthenticatedRepurposeRouteImport } from './routes/_authenticated/repurpose'
 import { Route as AuthenticatedPresetsRouteImport } from './routes/_authenticated/presets'
 import { Route as AuthenticatedMotivationalVideosRouteImport } from './routes/_authenticated/motivational-videos'
 import { Route as AuthenticatedLyricalVideosRouteImport } from './routes/_authenticated/lyrical-videos'
+import { Route as AuthenticatedKidVideosRouteImport } from './routes/_authenticated/kid-videos'
 import { Route as AuthenticatedInboxRouteImport } from './routes/_authenticated/inbox'
 import { Route as AuthenticatedImagesToVideoRouteImport } from './routes/_authenticated/images-to-video'
+import { Route as AuthenticatedGamingVideosRouteImport } from './routes/_authenticated/gaming-videos'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedComposeRouteImport } from './routes/_authenticated/compose'
 import { Route as AuthenticatedCalendarRouteImport } from './routes/_authenticated/calendar'
 import { Route as AuthenticatedAnalyticsRouteImport } from './routes/_authenticated/analytics'
 import { Route as AuthenticatedAccountsRouteImport } from './routes/_authenticated/accounts'
+import { Route as AuthenticatedKidVideosWyrRouteImport } from './routes/_authenticated/kid-videos.wyr'
 
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
@@ -70,11 +72,6 @@ const ApiRepurposeRoute = ApiRepurposeRouteImport.update({
   path: '/api/repurpose',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthenticatedWyrRoute = AuthenticatedWyrRouteImport.update({
-  id: '/wyr',
-  path: '/wyr',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
 const AuthenticatedVideosRoute = AuthenticatedVideosRouteImport.update({
   id: '/videos',
   path: '/videos',
@@ -102,6 +99,11 @@ const AuthenticatedLyricalVideosRoute =
     path: '/lyrical-videos',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedKidVideosRoute = AuthenticatedKidVideosRouteImport.update({
+  id: '/kid-videos',
+  path: '/kid-videos',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedInboxRoute = AuthenticatedInboxRouteImport.update({
   id: '/inbox',
   path: '/inbox',
@@ -111,6 +113,12 @@ const AuthenticatedImagesToVideoRoute =
   AuthenticatedImagesToVideoRouteImport.update({
     id: '/images-to-video',
     path: '/images-to-video',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedGamingVideosRoute =
+  AuthenticatedGamingVideosRouteImport.update({
+    id: '/gaming-videos',
+    path: '/gaming-videos',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
@@ -138,6 +146,12 @@ const AuthenticatedAccountsRoute = AuthenticatedAccountsRouteImport.update({
   path: '/accounts',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedKidVideosWyrRoute =
+  AuthenticatedKidVideosWyrRouteImport.update({
+    id: '/wyr',
+    path: '/wyr',
+    getParentRoute: () => AuthenticatedKidVideosRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -147,19 +161,21 @@ export interface FileRoutesByFullPath {
   '/calendar': typeof AuthenticatedCalendarRoute
   '/compose': typeof AuthenticatedComposeRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/gaming-videos': typeof AuthenticatedGamingVideosRoute
   '/images-to-video': typeof AuthenticatedImagesToVideoRoute
   '/inbox': typeof AuthenticatedInboxRoute
+  '/kid-videos': typeof AuthenticatedKidVideosRouteWithChildren
   '/lyrical-videos': typeof AuthenticatedLyricalVideosRoute
   '/motivational-videos': typeof AuthenticatedMotivationalVideosRoute
   '/presets': typeof AuthenticatedPresetsRoute
   '/repurpose': typeof AuthenticatedRepurposeRoute
   '/videos': typeof AuthenticatedVideosRoute
-  '/wyr': typeof AuthenticatedWyrRoute
   '/api/repurpose': typeof ApiRepurposeRoute
   '/api/transcribe': typeof ApiTranscribeRoute
   '/api/tts': typeof ApiTtsRoute
   '/api/tts-elevenlabs': typeof ApiTtsElevenlabsRoute
   '/api/tts-google': typeof ApiTtsGoogleRoute
+  '/kid-videos/wyr': typeof AuthenticatedKidVideosWyrRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -169,19 +185,21 @@ export interface FileRoutesByTo {
   '/calendar': typeof AuthenticatedCalendarRoute
   '/compose': typeof AuthenticatedComposeRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/gaming-videos': typeof AuthenticatedGamingVideosRoute
   '/images-to-video': typeof AuthenticatedImagesToVideoRoute
   '/inbox': typeof AuthenticatedInboxRoute
+  '/kid-videos': typeof AuthenticatedKidVideosRouteWithChildren
   '/lyrical-videos': typeof AuthenticatedLyricalVideosRoute
   '/motivational-videos': typeof AuthenticatedMotivationalVideosRoute
   '/presets': typeof AuthenticatedPresetsRoute
   '/repurpose': typeof AuthenticatedRepurposeRoute
   '/videos': typeof AuthenticatedVideosRoute
-  '/wyr': typeof AuthenticatedWyrRoute
   '/api/repurpose': typeof ApiRepurposeRoute
   '/api/transcribe': typeof ApiTranscribeRoute
   '/api/tts': typeof ApiTtsRoute
   '/api/tts-elevenlabs': typeof ApiTtsElevenlabsRoute
   '/api/tts-google': typeof ApiTtsGoogleRoute
+  '/kid-videos/wyr': typeof AuthenticatedKidVideosWyrRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -193,19 +211,21 @@ export interface FileRoutesById {
   '/_authenticated/calendar': typeof AuthenticatedCalendarRoute
   '/_authenticated/compose': typeof AuthenticatedComposeRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
+  '/_authenticated/gaming-videos': typeof AuthenticatedGamingVideosRoute
   '/_authenticated/images-to-video': typeof AuthenticatedImagesToVideoRoute
   '/_authenticated/inbox': typeof AuthenticatedInboxRoute
+  '/_authenticated/kid-videos': typeof AuthenticatedKidVideosRouteWithChildren
   '/_authenticated/lyrical-videos': typeof AuthenticatedLyricalVideosRoute
   '/_authenticated/motivational-videos': typeof AuthenticatedMotivationalVideosRoute
   '/_authenticated/presets': typeof AuthenticatedPresetsRoute
   '/_authenticated/repurpose': typeof AuthenticatedRepurposeRoute
   '/_authenticated/videos': typeof AuthenticatedVideosRoute
-  '/_authenticated/wyr': typeof AuthenticatedWyrRoute
   '/api/repurpose': typeof ApiRepurposeRoute
   '/api/transcribe': typeof ApiTranscribeRoute
   '/api/tts': typeof ApiTtsRoute
   '/api/tts-elevenlabs': typeof ApiTtsElevenlabsRoute
   '/api/tts-google': typeof ApiTtsGoogleRoute
+  '/_authenticated/kid-videos/wyr': typeof AuthenticatedKidVideosWyrRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -217,19 +237,21 @@ export interface FileRouteTypes {
     | '/calendar'
     | '/compose'
     | '/dashboard'
+    | '/gaming-videos'
     | '/images-to-video'
     | '/inbox'
+    | '/kid-videos'
     | '/lyrical-videos'
     | '/motivational-videos'
     | '/presets'
     | '/repurpose'
     | '/videos'
-    | '/wyr'
     | '/api/repurpose'
     | '/api/transcribe'
     | '/api/tts'
     | '/api/tts-elevenlabs'
     | '/api/tts-google'
+    | '/kid-videos/wyr'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -239,19 +261,21 @@ export interface FileRouteTypes {
     | '/calendar'
     | '/compose'
     | '/dashboard'
+    | '/gaming-videos'
     | '/images-to-video'
     | '/inbox'
+    | '/kid-videos'
     | '/lyrical-videos'
     | '/motivational-videos'
     | '/presets'
     | '/repurpose'
     | '/videos'
-    | '/wyr'
     | '/api/repurpose'
     | '/api/transcribe'
     | '/api/tts'
     | '/api/tts-elevenlabs'
     | '/api/tts-google'
+    | '/kid-videos/wyr'
   id:
     | '__root__'
     | '/'
@@ -262,19 +286,21 @@ export interface FileRouteTypes {
     | '/_authenticated/calendar'
     | '/_authenticated/compose'
     | '/_authenticated/dashboard'
+    | '/_authenticated/gaming-videos'
     | '/_authenticated/images-to-video'
     | '/_authenticated/inbox'
+    | '/_authenticated/kid-videos'
     | '/_authenticated/lyrical-videos'
     | '/_authenticated/motivational-videos'
     | '/_authenticated/presets'
     | '/_authenticated/repurpose'
     | '/_authenticated/videos'
-    | '/_authenticated/wyr'
     | '/api/repurpose'
     | '/api/transcribe'
     | '/api/tts'
     | '/api/tts-elevenlabs'
     | '/api/tts-google'
+    | '/_authenticated/kid-videos/wyr'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -346,13 +372,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiRepurposeRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_authenticated/wyr': {
-      id: '/_authenticated/wyr'
-      path: '/wyr'
-      fullPath: '/wyr'
-      preLoaderRoute: typeof AuthenticatedWyrRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
     '/_authenticated/videos': {
       id: '/_authenticated/videos'
       path: '/videos'
@@ -388,6 +407,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedLyricalVideosRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/kid-videos': {
+      id: '/_authenticated/kid-videos'
+      path: '/kid-videos'
+      fullPath: '/kid-videos'
+      preLoaderRoute: typeof AuthenticatedKidVideosRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/inbox': {
       id: '/_authenticated/inbox'
       path: '/inbox'
@@ -400,6 +426,13 @@ declare module '@tanstack/react-router' {
       path: '/images-to-video'
       fullPath: '/images-to-video'
       preLoaderRoute: typeof AuthenticatedImagesToVideoRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/gaming-videos': {
+      id: '/_authenticated/gaming-videos'
+      path: '/gaming-videos'
+      fullPath: '/gaming-videos'
+      preLoaderRoute: typeof AuthenticatedGamingVideosRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/dashboard': {
@@ -437,8 +470,29 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAccountsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/kid-videos/wyr': {
+      id: '/_authenticated/kid-videos/wyr'
+      path: '/wyr'
+      fullPath: '/kid-videos/wyr'
+      preLoaderRoute: typeof AuthenticatedKidVideosWyrRouteImport
+      parentRoute: typeof AuthenticatedKidVideosRoute
+    }
   }
 }
+
+interface AuthenticatedKidVideosRouteChildren {
+  AuthenticatedKidVideosWyrRoute: typeof AuthenticatedKidVideosWyrRoute
+}
+
+const AuthenticatedKidVideosRouteChildren: AuthenticatedKidVideosRouteChildren =
+  {
+    AuthenticatedKidVideosWyrRoute: AuthenticatedKidVideosWyrRoute,
+  }
+
+const AuthenticatedKidVideosRouteWithChildren =
+  AuthenticatedKidVideosRoute._addFileChildren(
+    AuthenticatedKidVideosRouteChildren,
+  )
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAccountsRoute: typeof AuthenticatedAccountsRoute
@@ -446,14 +500,15 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedCalendarRoute: typeof AuthenticatedCalendarRoute
   AuthenticatedComposeRoute: typeof AuthenticatedComposeRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
+  AuthenticatedGamingVideosRoute: typeof AuthenticatedGamingVideosRoute
   AuthenticatedImagesToVideoRoute: typeof AuthenticatedImagesToVideoRoute
   AuthenticatedInboxRoute: typeof AuthenticatedInboxRoute
+  AuthenticatedKidVideosRoute: typeof AuthenticatedKidVideosRouteWithChildren
   AuthenticatedLyricalVideosRoute: typeof AuthenticatedLyricalVideosRoute
   AuthenticatedMotivationalVideosRoute: typeof AuthenticatedMotivationalVideosRoute
   AuthenticatedPresetsRoute: typeof AuthenticatedPresetsRoute
   AuthenticatedRepurposeRoute: typeof AuthenticatedRepurposeRoute
   AuthenticatedVideosRoute: typeof AuthenticatedVideosRoute
-  AuthenticatedWyrRoute: typeof AuthenticatedWyrRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
@@ -462,14 +517,15 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedCalendarRoute: AuthenticatedCalendarRoute,
   AuthenticatedComposeRoute: AuthenticatedComposeRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
+  AuthenticatedGamingVideosRoute: AuthenticatedGamingVideosRoute,
   AuthenticatedImagesToVideoRoute: AuthenticatedImagesToVideoRoute,
   AuthenticatedInboxRoute: AuthenticatedInboxRoute,
+  AuthenticatedKidVideosRoute: AuthenticatedKidVideosRouteWithChildren,
   AuthenticatedLyricalVideosRoute: AuthenticatedLyricalVideosRoute,
   AuthenticatedMotivationalVideosRoute: AuthenticatedMotivationalVideosRoute,
   AuthenticatedPresetsRoute: AuthenticatedPresetsRoute,
   AuthenticatedRepurposeRoute: AuthenticatedRepurposeRoute,
   AuthenticatedVideosRoute: AuthenticatedVideosRoute,
-  AuthenticatedWyrRoute: AuthenticatedWyrRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
@@ -488,13 +544,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
