@@ -971,11 +971,17 @@ function MotivationalVideosPage() {
     [lines, uppercase],
   );
 
-  /** Draws one frame: engine + optional intro / outro cards over the top. */
+  const introSec = intro.id !== "none" ? intro.seconds : 0;
+  const outroSec = outro.id !== "none" ? outro.seconds : 0;
+  /** Cards add their own time before and after the clip. */
+  const totalDuration = duration > 0 ? introSec + duration + outroSec : 0;
+
+  /** Draws one frame: intro card, then the clip, then the outro card. */
   const paint = useCallback(
     (ctx: CanvasRenderingContext2D, w: number, h: number, t: number, bd: Backdrop) => {
+      const clipT = Math.max(0, Math.min(duration || 0, t - introSec));
       renderEngine(ctx, template.engine, {
-        t,
+        t: clipT,
         w,
         h,
         aspect,
@@ -986,24 +992,24 @@ function MotivationalVideosPage() {
         dim,
         backdrop: bd,
       });
-      if (intro.id !== "none" && t < intro.seconds) {
+      if (introSec > 0 && t < introSec) {
         INTRO_ANIMATIONS.find((a) => a.id === intro.id)?.draw({
           ctx,
           w,
           h,
-          p: Math.min(1, t / Math.max(0.2, intro.seconds)),
+          p: Math.min(1, t / Math.max(0.2, introSec)),
           palette: paletteOf(intro.paletteId),
           title: intro.title,
           subtitle: intro.subtitle,
           logo: null,
         });
       }
-      if (outro.id !== "none" && duration > 0 && t > duration - outro.seconds) {
+      if (outroSec > 0 && duration > 0 && t >= introSec + duration) {
         OUTRO_ANIMATIONS.find((a) => a.id === outro.id)?.draw({
           ctx,
           w,
           h,
-          p: Math.min(1, (t - (duration - outro.seconds)) / Math.max(0.2, outro.seconds)),
+          p: Math.min(1, (t - introSec - duration) / Math.max(0.2, outroSec)),
           palette: paletteOf(outro.paletteId),
           title: outro.title,
           subtitle: outro.subtitle,
@@ -1011,7 +1017,7 @@ function MotivationalVideosPage() {
         });
       }
     },
-    [template, aspect, palette, shownLines, duration, author, dim, intro, outro],
+    [template, aspect, palette, shownLines, duration, author, dim, intro, outro, introSec, outroSec],
   );
 
   const drawAt = useCallback(
@@ -1037,13 +1043,26 @@ function MotivationalVideosPage() {
     const canvas = canvasRef.current;
     if (!canvas) return;
     let frames = 0;
+    const started = performance.now() / 1000 - timeRef.current;
     const tick = () => {
       const el = mediaEl();
-      const t = el ? el.currentTime : timeRef.current;
+      const t = performance.now() / 1000 - started;
       timeRef.current = t;
+      // The clip only rolls after the intro card has played.
+      if (el) {
+        if (t >= introSec && t < introSec + duration) {
+          if (el.paused) {
+            el.currentTime = Math.max(0, t - introSec);
+            el.play().catch(() => {});
+          }
+        } else if (!el.paused) {
+          el.pause();
+        }
+      }
       if (frames++ % 6 === 0) setCurrentTime(t);
       drawAt(canvas, t);
-      if (duration > 0 && t >= duration - 0.05) {
+      if (totalDuration > 0 && t >= totalDuration - 0.02) {
+        el?.pause();
         setPlaying(false);
         return;
       }
@@ -1051,7 +1070,7 @@ function MotivationalVideosPage() {
     };
     rafRef.current = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(rafRef.current);
-  }, [playing, duration, drawAt]);
+  }, [playing, duration, totalDuration, introSec, drawAt]);
 
   const togglePlay = async () => {
     const el = mediaEl();
@@ -1063,11 +1082,14 @@ function MotivationalVideosPage() {
       el.pause();
       setPlaying(false);
     } else {
-      try {
-        await el.play();
-      } catch {
-        toast.error("Couldn't start playback");
-        return;
+      el.currentTime = Math.max(0, timeRef.current - introSec);
+      if (timeRef.current >= introSec) {
+        try {
+          await el.play();
+        } catch {
+          toast.error("Couldn't start playback");
+          return;
+        }
       }
       setPlaying(true);
     }
@@ -1077,7 +1099,7 @@ function MotivationalVideosPage() {
     timeRef.current = v;
     setCurrentTime(v);
     const el = mediaEl();
-    if (el) el.currentTime = v;
+    if (el) el.currentTime = Math.max(0, v - introSec);
     const canvas = canvasRef.current;
     if (canvas) drawAt(canvas, v);
   };
@@ -1152,14 +1174,15 @@ function MotivationalVideosPage() {
 
       let running = true;
       const t0 = performance.now();
-      src?.start();
+      // Offset the audio so the intro card owns real time at the head.
+      src?.start(introSec > 0 ? ac.currentTime + introSec : 0);
       rec.start(100);
       const loop = () => {
         if (!running) return;
         const t = (performance.now() - t0) / 1000;
-        setExportProgress(Math.min(100, (t / duration) * 100));
+        setExportProgress(Math.min(100, (t / totalDuration) * 100));
         paint(octx, off.width, off.height, t, exportBackdrop);
-        if (t >= duration) {
+        if (t >= totalDuration) {
           running = false;
           try {
             src?.stop();
