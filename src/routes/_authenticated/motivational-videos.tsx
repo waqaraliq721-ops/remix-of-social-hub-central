@@ -1088,18 +1088,24 @@ function MotivationalVideosPage() {
   const paint = useCallback(
     (ctx: CanvasRenderingContext2D, w: number, h: number, t: number, bd: Backdrop) => {
       const clipT = Math.max(0, Math.min(duration || 0, t - introSec));
-      renderEngine(ctx, template.engine, {
-        t: clipT,
-        w,
-        h,
-        aspect,
-        palette,
-        lines: shownLines,
-        duration,
-        author,
-        dim,
-        backdrop: bd,
-      });
+      renderEngine(
+        ctx,
+        template.engine,
+        {
+          t: clipT,
+          w,
+          h,
+          aspect,
+          palette,
+          lines: shownLines,
+          duration,
+          author,
+          dim,
+          backdrop: bd,
+        },
+        style,
+      );
+
       if (introSec > 0 && t < introSec) {
         INTRO_ANIMATIONS.find((a) => a.id === intro.id)?.draw({
           ctx,
