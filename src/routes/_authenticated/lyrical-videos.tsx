@@ -112,7 +112,18 @@ const ENGINES: { id: EngineId; name: string; desc: string }[] = [
   { id: "waveform", name: "Waveform Pulse", desc: "Reactive bars with a big centred lyric." },
   { id: "typewriter", name: "Typewriter", desc: "Lyrics typed out in sync with the vocal." },
   { id: "cinebar", name: "Cinematic Bars", desc: "Letterboxed film look with lower-third lyrics." },
+  { id: "typo-serif", name: "Typo · Editorial Serif", desc: "Magazine serif lyric set with a hairline rule." },
+  { id: "typo-stack", name: "Typo · Word Stack", desc: "Words stacked left, lighting up as they're sung." },
+  { id: "typo-marquee", name: "Typo · Marquee", desc: "Condensed lyric scrolling between two rules." },
+  { id: "typo-gradient", name: "Typo · Gradient Fill", desc: "Huge gradient-filled uppercase lyric." },
+  { id: "typo-outline", name: "Typo · Outline Fill", desc: "Outlined letters filling with colour as sung." },
+  { id: "typo-justify", name: "Typo · Justified Block", desc: "Words justified edge to edge, alternating colour." },
+  { id: "typo-mono", name: "Typo · Mono Terminal", desc: "Monospace lyric typed with a blinking caret." },
+  { id: "typo-vertical", name: "Typo · Vertical Column", desc: "Letters stacked vertically, shimmering." },
+  { id: "typo-poster", name: "Typo · Poster Block", desc: "Condensed poster block, one phrase per line." },
+  { id: "typo-ticker", name: "Typo · Kinetic Ticker", desc: "Alternating left/right lyric ticker." },
 ];
+
 
 type Template = { id: string; name: string; engine: EngineId; palette: Palette };
 
