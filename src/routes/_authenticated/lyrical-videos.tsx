@@ -202,22 +202,121 @@ function easeOutCubic(x: number) {
   return 1 - Math.pow(1 - x, 3);
 }
 
+/** Set by renderEngine so the background can vary per template. */
+let BG_SEED = 0;
+
+function hashSeed(s: string) {
+  let n = 0;
+  for (let i = 0; i < s.length; i++) n = (n * 31 + s.charCodeAt(i)) >>> 0;
+  return n;
+}
+
+/**
+ * Animated, palette-driven background. Six looks keyed off the template so no
+ * two engines share a backdrop, and everything is painted edge to edge so the
+ * frame reads as one continuous surface (no visible top/bottom banding).
+ */
 function drawBg(ctx: CanvasRenderingContext2D, w: number, h: number, p: Palette, t: number) {
-  ctx.fillStyle = p.bg[0];
+  const variant = BG_SEED % 6;
+  const base = ctx.createLinearGradient(0, 0, w * 0.35, h);
+  base.addColorStop(0, p.bg[0]);
+  base.addColorStop(0.5, p.bg[1]);
+  base.addColorStop(1, p.bg[0]);
+  ctx.fillStyle = base;
   ctx.fillRect(0, 0, w, h);
-  const cx = w / 2 + Math.sin(t * 0.25) * w * 0.04;
-  const cy = h * 0.35 + Math.cos(t * 0.2) * h * 0.03;
-  const rad = Math.max(w, h) * 0.75;
-  const rg = ctx.createRadialGradient(cx, cy, rad * 0.05, cx, cy, rad);
-  rg.addColorStop(0, p.bg[1]);
-  rg.addColorStop(0.55, hexA(p.primary, 0.06));
-  rg.addColorStop(1, p.bg[0]);
-  ctx.fillStyle = rg;
-  ctx.fillRect(0, 0, w, h);
-  // film grain-ish vignette
-  const vg = ctx.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.25, w / 2, h / 2, Math.max(w, h) * 0.75);
+
+  ctx.save();
+  ctx.globalCompositeOperation = "lighter";
+
+  const blob = (cx: number, cy: number, rad: number, color: string, alpha: number) => {
+    const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, rad);
+    g.addColorStop(0, hexA(color, alpha));
+    g.addColorStop(1, hexA(color, 0));
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, w, h);
+  };
+
+  if (variant === 0) {
+    // Aurora — three slow drifting colour clouds.
+    blob(w * 0.3 + Math.sin(t * 0.21) * w * 0.18, h * 0.28 + Math.cos(t * 0.17) * h * 0.1, Math.max(w, h) * 0.55, p.primary, 0.22);
+    blob(w * 0.75 + Math.cos(t * 0.15) * w * 0.14, h * 0.7 + Math.sin(t * 0.19) * h * 0.12, Math.max(w, h) * 0.5, p.accent, 0.16);
+    blob(w * 0.5, h * 0.5 + Math.sin(t * 0.11) * h * 0.2, Math.max(w, h) * 0.45, p.bg[1], 0.3);
+  } else if (variant === 1) {
+    // Sweeping diagonal gradient band.
+    const off = ((t * 0.06) % 1) * 2 - 0.5;
+    const g = ctx.createLinearGradient(-w * off, 0, w * (1.4 - off), h);
+    g.addColorStop(0, hexA(p.primary, 0));
+    g.addColorStop(0.45, hexA(p.primary, 0.2));
+    g.addColorStop(0.55, hexA(p.accent, 0.16));
+    g.addColorStop(1, hexA(p.accent, 0));
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, w, h);
+    blob(w * 0.5, h * 0.45, Math.max(w, h) * 0.6, p.bg[1], 0.35);
+  } else if (variant === 2) {
+    // Slow rotating light rays.
+    ctx.save();
+    ctx.translate(w / 2, h * 0.42);
+    ctx.rotate(t * 0.06);
+    const rays = 12;
+    for (let i = 0; i < rays; i++) {
+      ctx.rotate((Math.PI * 2) / rays);
+      const g = ctx.createLinearGradient(0, 0, 0, -Math.max(w, h));
+      g.addColorStop(0, hexA(i % 2 ? p.primary : p.accent, 0.14));
+      g.addColorStop(1, hexA(p.primary, 0));
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.arc(0, 0, Math.max(w, h), -Math.PI / 2 - 0.11, -Math.PI / 2 + 0.11);
+      ctx.closePath();
+      ctx.fill();
+    }
+    ctx.restore();
+    blob(w * 0.5, h * 0.5, Math.max(w, h) * 0.5, p.bg[1], 0.3);
+  } else if (variant === 3) {
+    // Floating bokeh.
+    for (let i = 0; i < 16; i++) {
+      const s = (i * 97) % 100 / 100;
+      const cx = ((s * 1.7) % 1) * w + Math.sin(t * (0.12 + s * 0.2) + i) * w * 0.05;
+      const cy = ((s * 2.3 + t * 0.02 * (0.5 + s)) % 1) * h;
+      blob(cx, cy, Math.max(w, h) * (0.06 + s * 0.1), i % 3 ? p.primary : p.accent, 0.12);
+    }
+    blob(w * 0.5, h * 0.5, Math.max(w, h) * 0.55, p.bg[1], 0.25);
+  } else if (variant === 4) {
+    // Drifting soft stripes.
+    ctx.save();
+    ctx.translate(w / 2, h / 2);
+    ctx.rotate(-0.5);
+    const band = Math.max(w, h) * 0.16;
+    const shift = (t * band * 0.12) % (band * 2);
+    for (let x = -Math.max(w, h) - shift; x < Math.max(w, h); x += band * 2) {
+      const g = ctx.createLinearGradient(x, 0, x + band, 0);
+      g.addColorStop(0, hexA(p.primary, 0));
+      g.addColorStop(0.5, hexA(p.primary, 0.12));
+      g.addColorStop(1, hexA(p.primary, 0));
+      ctx.fillStyle = g;
+      ctx.fillRect(x, -Math.max(w, h), band, Math.max(w, h) * 2);
+    }
+    ctx.restore();
+    blob(w * 0.5, h * 0.4, Math.max(w, h) * 0.55, p.accent, 0.12);
+  } else {
+    // Breathing concentric rings.
+    for (let i = 0; i < 5; i++) {
+      const phase = (t * 0.12 + i / 5) % 1;
+      const rad = Math.max(w, h) * (0.15 + phase * 0.65);
+      ctx.strokeStyle = hexA(i % 2 ? p.primary : p.accent, 0.16 * (1 - phase));
+      ctx.lineWidth = Math.max(1, Math.min(w, h) * 0.006);
+      ctx.beginPath();
+      ctx.arc(w / 2, h * 0.45, rad, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    blob(w / 2, h * 0.45, Math.max(w, h) * 0.5, p.primary, 0.16);
+  }
+  ctx.restore();
+
+  // Even, full-frame vignette keeps the composition unified.
+  const vg = ctx.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.35, w / 2, h / 2, Math.max(w, h) * 0.8);
   vg.addColorStop(0, "rgba(0,0,0,0)");
-  vg.addColorStop(1, "rgba(0,0,0,0.55)");
+  vg.addColorStop(1, "rgba(0,0,0,0.4)");
   ctx.fillStyle = vg;
   ctx.fillRect(0, 0, w, h);
 }
