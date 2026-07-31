@@ -647,9 +647,15 @@ function drawLyricRoll(
     const dist = Math.abs(y - focusY);
     const norm = Math.min(1, dist / ((bottom - top) * 0.55));
     const active = i === idx;
-    const alpha = active ? 1 : Math.max(0.06, Math.pow(1 - norm, 1.9) * 0.75);
+    // Alpha-based edge fade instead of painting opaque bars over the frame —
+    // that used to make the lyric block read as a separate, darker panel.
+    const edge =
+      Math.max(0, Math.min(1, (y - top) / ((bottom - top) * 0.28))) *
+      Math.max(0, Math.min(1, (bottom - y) / ((bottom - top) * 0.28)));
+    const alpha = (active ? 1 : Math.max(0.05, Math.pow(1 - norm, 1.9) * 0.7)) * edge;
     const fs = active ? size * 1.18 : size * (1 - norm * 0.12);
     ctx.globalAlpha = alpha;
+
     ctx.font = `${active ? 700 : 500} ${Math.round(fs)}px ${FONT}`;
     ctx.fillStyle = active ? p.text : hexA(p.text, 0.85);
     if (opts.glow && active) {
