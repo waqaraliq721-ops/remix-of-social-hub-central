@@ -77,25 +77,8 @@ const ASPECTS: Record<AspectKey, { w: number; h: number; label: string }> = {
 };
 
 type LyricLine = { time: number; text: string; end?: number };
-type EngineId =
-  | "vinyl"
-  | "rolling"
-  | "karaoke"
-  | "spotify"
-  | "neon"
-  | "waveform"
-  | "typewriter"
-  | "cinebar"
-  | "typo-serif"
-  | "typo-stack"
-  | "typo-marquee"
-  | "typo-gradient"
-  | "typo-outline"
-  | "typo-justify"
-  | "typo-mono"
-  | "typo-vertical"
-  | "typo-poster"
-  | "typo-ticker";
+type EngineId = string;
+
 
 
 type Palette = {
