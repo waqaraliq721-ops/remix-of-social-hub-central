@@ -19,6 +19,8 @@ import { Route as ApiTranscribeRouteImport } from './routes/api/transcribe'
 import { Route as ApiRepurposeRouteImport } from './routes/api/repurpose'
 import { Route as AuthenticatedWyrRouteImport } from './routes/_authenticated/wyr'
 import { Route as AuthenticatedVideosRouteImport } from './routes/_authenticated/videos'
+import { Route as AuthenticatedRepurposeRouteImport } from './routes/_authenticated/repurpose'
+import { Route as AuthenticatedPresetsRouteImport } from './routes/_authenticated/presets'
 import { Route as AuthenticatedMotivationalVideosRouteImport } from './routes/_authenticated/motivational-videos'
 import { Route as AuthenticatedLyricalVideosRouteImport } from './routes/_authenticated/lyrical-videos'
 import { Route as AuthenticatedInboxRouteImport } from './routes/_authenticated/inbox'
@@ -76,6 +78,16 @@ const AuthenticatedWyrRoute = AuthenticatedWyrRouteImport.update({
 const AuthenticatedVideosRoute = AuthenticatedVideosRouteImport.update({
   id: '/videos',
   path: '/videos',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedRepurposeRoute = AuthenticatedRepurposeRouteImport.update({
+  id: '/repurpose',
+  path: '/repurpose',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedPresetsRoute = AuthenticatedPresetsRouteImport.update({
+  id: '/presets',
+  path: '/presets',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedMotivationalVideosRoute =
@@ -139,6 +151,8 @@ export interface FileRoutesByFullPath {
   '/inbox': typeof AuthenticatedInboxRoute
   '/lyrical-videos': typeof AuthenticatedLyricalVideosRoute
   '/motivational-videos': typeof AuthenticatedMotivationalVideosRoute
+  '/presets': typeof AuthenticatedPresetsRoute
+  '/repurpose': typeof AuthenticatedRepurposeRoute
   '/videos': typeof AuthenticatedVideosRoute
   '/wyr': typeof AuthenticatedWyrRoute
   '/api/repurpose': typeof ApiRepurposeRoute
@@ -159,6 +173,8 @@ export interface FileRoutesByTo {
   '/inbox': typeof AuthenticatedInboxRoute
   '/lyrical-videos': typeof AuthenticatedLyricalVideosRoute
   '/motivational-videos': typeof AuthenticatedMotivationalVideosRoute
+  '/presets': typeof AuthenticatedPresetsRoute
+  '/repurpose': typeof AuthenticatedRepurposeRoute
   '/videos': typeof AuthenticatedVideosRoute
   '/wyr': typeof AuthenticatedWyrRoute
   '/api/repurpose': typeof ApiRepurposeRoute
@@ -181,6 +197,8 @@ export interface FileRoutesById {
   '/_authenticated/inbox': typeof AuthenticatedInboxRoute
   '/_authenticated/lyrical-videos': typeof AuthenticatedLyricalVideosRoute
   '/_authenticated/motivational-videos': typeof AuthenticatedMotivationalVideosRoute
+  '/_authenticated/presets': typeof AuthenticatedPresetsRoute
+  '/_authenticated/repurpose': typeof AuthenticatedRepurposeRoute
   '/_authenticated/videos': typeof AuthenticatedVideosRoute
   '/_authenticated/wyr': typeof AuthenticatedWyrRoute
   '/api/repurpose': typeof ApiRepurposeRoute
@@ -203,6 +221,8 @@ export interface FileRouteTypes {
     | '/inbox'
     | '/lyrical-videos'
     | '/motivational-videos'
+    | '/presets'
+    | '/repurpose'
     | '/videos'
     | '/wyr'
     | '/api/repurpose'
@@ -223,6 +243,8 @@ export interface FileRouteTypes {
     | '/inbox'
     | '/lyrical-videos'
     | '/motivational-videos'
+    | '/presets'
+    | '/repurpose'
     | '/videos'
     | '/wyr'
     | '/api/repurpose'
@@ -244,6 +266,8 @@ export interface FileRouteTypes {
     | '/_authenticated/inbox'
     | '/_authenticated/lyrical-videos'
     | '/_authenticated/motivational-videos'
+    | '/_authenticated/presets'
+    | '/_authenticated/repurpose'
     | '/_authenticated/videos'
     | '/_authenticated/wyr'
     | '/api/repurpose'
@@ -336,6 +360,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedVideosRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/repurpose': {
+      id: '/_authenticated/repurpose'
+      path: '/repurpose'
+      fullPath: '/repurpose'
+      preLoaderRoute: typeof AuthenticatedRepurposeRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/presets': {
+      id: '/_authenticated/presets'
+      path: '/presets'
+      fullPath: '/presets'
+      preLoaderRoute: typeof AuthenticatedPresetsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/motivational-videos': {
       id: '/_authenticated/motivational-videos'
       path: '/motivational-videos'
@@ -412,6 +450,8 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedInboxRoute: typeof AuthenticatedInboxRoute
   AuthenticatedLyricalVideosRoute: typeof AuthenticatedLyricalVideosRoute
   AuthenticatedMotivationalVideosRoute: typeof AuthenticatedMotivationalVideosRoute
+  AuthenticatedPresetsRoute: typeof AuthenticatedPresetsRoute
+  AuthenticatedRepurposeRoute: typeof AuthenticatedRepurposeRoute
   AuthenticatedVideosRoute: typeof AuthenticatedVideosRoute
   AuthenticatedWyrRoute: typeof AuthenticatedWyrRoute
 }
@@ -426,6 +466,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedInboxRoute: AuthenticatedInboxRoute,
   AuthenticatedLyricalVideosRoute: AuthenticatedLyricalVideosRoute,
   AuthenticatedMotivationalVideosRoute: AuthenticatedMotivationalVideosRoute,
+  AuthenticatedPresetsRoute: AuthenticatedPresetsRoute,
+  AuthenticatedRepurposeRoute: AuthenticatedRepurposeRoute,
   AuthenticatedVideosRoute: AuthenticatedVideosRoute,
   AuthenticatedWyrRoute: AuthenticatedWyrRoute,
 }
