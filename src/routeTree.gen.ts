@@ -16,6 +16,7 @@ import { Route as ApiTtsGoogleRouteImport } from './routes/api/tts-google'
 import { Route as ApiTtsElevenlabsRouteImport } from './routes/api/tts-elevenlabs'
 import { Route as ApiTtsRouteImport } from './routes/api/tts'
 import { Route as ApiTranscribeRouteImport } from './routes/api/transcribe'
+import { Route as ApiRepurposeRouteImport } from './routes/api/repurpose'
 import { Route as AuthenticatedVideosRouteImport } from './routes/_authenticated/videos'
 import { Route as AuthenticatedMotivationalVideosRouteImport } from './routes/_authenticated/motivational-videos'
 import { Route as AuthenticatedLyricalVideosRouteImport } from './routes/_authenticated/lyrical-videos'
@@ -59,6 +60,11 @@ const ApiTtsRoute = ApiTtsRouteImport.update({
 const ApiTranscribeRoute = ApiTranscribeRouteImport.update({
   id: '/api/transcribe',
   path: '/api/transcribe',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiRepurposeRoute = ApiRepurposeRouteImport.update({
+  id: '/api/repurpose',
+  path: '/api/repurpose',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedVideosRoute = AuthenticatedVideosRouteImport.update({
@@ -128,6 +134,7 @@ export interface FileRoutesByFullPath {
   '/lyrical-videos': typeof AuthenticatedLyricalVideosRoute
   '/motivational-videos': typeof AuthenticatedMotivationalVideosRoute
   '/videos': typeof AuthenticatedVideosRoute
+  '/api/repurpose': typeof ApiRepurposeRoute
   '/api/transcribe': typeof ApiTranscribeRoute
   '/api/tts': typeof ApiTtsRoute
   '/api/tts-elevenlabs': typeof ApiTtsElevenlabsRoute
@@ -146,6 +153,7 @@ export interface FileRoutesByTo {
   '/lyrical-videos': typeof AuthenticatedLyricalVideosRoute
   '/motivational-videos': typeof AuthenticatedMotivationalVideosRoute
   '/videos': typeof AuthenticatedVideosRoute
+  '/api/repurpose': typeof ApiRepurposeRoute
   '/api/transcribe': typeof ApiTranscribeRoute
   '/api/tts': typeof ApiTtsRoute
   '/api/tts-elevenlabs': typeof ApiTtsElevenlabsRoute
@@ -166,6 +174,7 @@ export interface FileRoutesById {
   '/_authenticated/lyrical-videos': typeof AuthenticatedLyricalVideosRoute
   '/_authenticated/motivational-videos': typeof AuthenticatedMotivationalVideosRoute
   '/_authenticated/videos': typeof AuthenticatedVideosRoute
+  '/api/repurpose': typeof ApiRepurposeRoute
   '/api/transcribe': typeof ApiTranscribeRoute
   '/api/tts': typeof ApiTtsRoute
   '/api/tts-elevenlabs': typeof ApiTtsElevenlabsRoute
@@ -186,6 +195,7 @@ export interface FileRouteTypes {
     | '/lyrical-videos'
     | '/motivational-videos'
     | '/videos'
+    | '/api/repurpose'
     | '/api/transcribe'
     | '/api/tts'
     | '/api/tts-elevenlabs'
@@ -204,6 +214,7 @@ export interface FileRouteTypes {
     | '/lyrical-videos'
     | '/motivational-videos'
     | '/videos'
+    | '/api/repurpose'
     | '/api/transcribe'
     | '/api/tts'
     | '/api/tts-elevenlabs'
@@ -223,6 +234,7 @@ export interface FileRouteTypes {
     | '/_authenticated/lyrical-videos'
     | '/_authenticated/motivational-videos'
     | '/_authenticated/videos'
+    | '/api/repurpose'
     | '/api/transcribe'
     | '/api/tts'
     | '/api/tts-elevenlabs'
@@ -233,6 +245,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
+  ApiRepurposeRoute: typeof ApiRepurposeRoute
   ApiTranscribeRoute: typeof ApiTranscribeRoute
   ApiTtsRoute: typeof ApiTtsRoute
   ApiTtsElevenlabsRoute: typeof ApiTtsElevenlabsRoute
@@ -288,6 +301,13 @@ declare module '@tanstack/react-router' {
       path: '/api/transcribe'
       fullPath: '/api/transcribe'
       preLoaderRoute: typeof ApiTranscribeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/repurpose': {
+      id: '/api/repurpose'
+      path: '/api/repurpose'
+      fullPath: '/api/repurpose'
+      preLoaderRoute: typeof ApiRepurposeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/videos': {
@@ -396,6 +416,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
+  ApiRepurposeRoute: ApiRepurposeRoute,
   ApiTranscribeRoute: ApiTranscribeRoute,
   ApiTtsRoute: ApiTtsRoute,
   ApiTtsElevenlabsRoute: ApiTtsElevenlabsRoute,
