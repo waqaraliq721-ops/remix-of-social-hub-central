@@ -1686,11 +1686,16 @@ function LyricalVideosPage() {
     }
   };
 
-  /** Engine frame plus optional intro / outro cards. */
+  const introSec = intro.id !== "none" ? intro.seconds : 0;
+  const outroSec = outro.id !== "none" ? outro.seconds : 0;
+  /** Intro and outro cards extend the timeline instead of covering the song. */
+  const totalDuration = introSec + audioDuration + outroSec;
+
   const paint = useCallback(
     (ctx: CanvasRenderingContext2D, w: number, h: number, t: number) => {
+      const songT = Math.max(0, Math.min(audioDuration || 0, t - introSec));
       renderEngine(ctx, template.engine, {
-        t,
+        t: songT,
         w,
         h,
         aspect,
@@ -1701,24 +1706,24 @@ function LyricalVideosPage() {
         lyrics: parsedLyrics,
         duration: audioDuration,
       });
-      if (intro.id !== "none" && t < intro.seconds) {
+      if (introSec > 0 && t < introSec) {
         INTRO_ANIMATIONS.find((a) => a.id === intro.id)?.draw({
           ctx,
           w,
           h,
-          p: Math.min(1, t / Math.max(0.2, intro.seconds)),
+          p: Math.min(1, t / Math.max(0.2, introSec)),
           palette: paletteOf(intro.paletteId),
           title: intro.title || title,
           subtitle: intro.subtitle || artist,
           logo: null,
         });
       }
-      if (outro.id !== "none" && audioDuration > 0 && t > audioDuration - outro.seconds) {
+      if (outroSec > 0 && t >= introSec + audioDuration) {
         OUTRO_ANIMATIONS.find((a) => a.id === outro.id)?.draw({
           ctx,
           w,
           h,
-          p: Math.min(1, (t - (audioDuration - outro.seconds)) / Math.max(0.2, outro.seconds)),
+          p: Math.min(1, (t - introSec - audioDuration) / Math.max(0.2, outroSec)),
           palette: paletteOf(outro.paletteId),
           title: outro.title,
           subtitle: outro.subtitle,
@@ -1726,7 +1731,19 @@ function LyricalVideosPage() {
         });
       }
     },
-    [aspect, template, title, artist, coverImg, parsedLyrics, audioDuration, intro, outro],
+    [
+      aspect,
+      template,
+      title,
+      artist,
+      coverImg,
+      parsedLyrics,
+      audioDuration,
+      intro,
+      outro,
+      introSec,
+      outroSec,
+    ],
   );
 
   const drawAt = useCallback(
@@ -1753,11 +1770,23 @@ function LyricalVideosPage() {
     let frames = 0;
     const tick = () => {
       const audio = audioRef.current;
-      const t = audio ? audio.currentTime : performance.now() / 1000 - startedAtRef.current;
+      const t = performance.now() / 1000 - startedAtRef.current;
       timeRef.current = t;
+      // Audio only starts once the intro card has played out.
+      if (audio) {
+        if (t >= introSec && t < introSec + audioDuration) {
+          if (audio.paused) {
+            audio.currentTime = Math.max(0, t - introSec);
+            audio.play().catch(() => {});
+          }
+        } else if (!audio.paused) {
+          audio.pause();
+        }
+      }
       if (frames++ % 6 === 0) setCurrentTime(t);
       drawAt(canvas, t);
-      if (audioDuration > 0 && t >= audioDuration) {
+      if (totalDuration > 0 && t >= totalDuration) {
+        if (audio) audio.pause();
         setPlaying(false);
         return;
       }
@@ -1765,7 +1794,7 @@ function LyricalVideosPage() {
     };
     rafRef.current = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(rafRef.current);
-  }, [playing, audioDuration, drawAt]);
+  }, [playing, audioDuration, totalDuration, introSec, drawAt]);
 
   const togglePlay = async () => {
     if (!audioRef.current) {
@@ -1779,12 +1808,14 @@ function LyricalVideosPage() {
     } else {
       const startFrom = pausedAtRef.current || 0;
       startedAtRef.current = performance.now() / 1000 - startFrom;
-      audioRef.current.currentTime = startFrom;
-      try {
-        await audioRef.current.play();
-      } catch {
-        toast.error("Couldn't start audio playback");
-        return;
+      audioRef.current.currentTime = Math.max(0, startFrom - introSec);
+      if (startFrom >= introSec) {
+        try {
+          await audioRef.current.play();
+        } catch {
+          toast.error("Couldn't start audio playback");
+          return;
+        }
       }
       setPlaying(true);
     }
@@ -1795,7 +1826,7 @@ function LyricalVideosPage() {
     pausedAtRef.current = v;
     setCurrentTime(v);
     startedAtRef.current = performance.now() / 1000 - v;
-    if (audioRef.current) audioRef.current.currentTime = v;
+    if (audioRef.current) audioRef.current.currentTime = Math.max(0, v - introSec);
     const canvas = canvasRef.current;
     if (canvas) drawAt(canvas, v);
   };
@@ -1850,14 +1881,15 @@ function LyricalVideosPage() {
 
       let running = true;
       const t0 = performance.now();
-      src.start();
+      // Delay the song so the intro card gets its own real time at the head.
+      src.start(ac.currentTime + introSec);
       rec.start(100);
       const frameLoop = () => {
         if (!running) return;
         const t = (performance.now() - t0) / 1000;
-        setExportProgress(Math.min(100, (t / audioDuration) * 100));
+        setExportProgress(Math.min(100, (t / totalDuration) * 100));
         paint(octx, off.width, off.height, t);
-        if (t >= audioDuration) {
+        if (t >= totalDuration) {
           running = false;
           try {
             src.stop();
