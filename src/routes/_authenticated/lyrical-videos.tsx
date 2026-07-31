@@ -321,6 +321,37 @@ function drawBg(ctx: CanvasRenderingContext2D, w: number, h: number, p: Palette,
   ctx.fillRect(0, 0, w, h);
 }
 
+/**
+ * Wrap + auto-shrink so a lyric always fits inside the safe area.
+ * Returns the rows and the font size actually used.
+ */
+function layoutText(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  opts: {
+    maxW: number;
+    maxH: number;
+    start: number;
+    weight: number | string;
+    family: string;
+    lineH?: number;
+    min?: number;
+  },
+): { rows: string[]; size: number } {
+  const lineH = opts.lineH ?? 1.18;
+  const min = opts.min ?? 12;
+  let size = Math.max(min, Math.round(opts.start));
+  for (;;) {
+    ctx.font = `${opts.weight} ${size}px ${opts.family}`;
+    const rows = wrapText(ctx, text, opts.maxW);
+    const fits =
+      rows.length * size * lineH <= opts.maxH &&
+      rows.every((r) => ctx.measureText(r).width <= opts.maxW);
+    if (fits || size <= min) return { rows, size };
+    size = Math.max(min, Math.round(size * 0.92));
+  }
+}
+
 function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
   const words = text.split(" ");
   const lines: string[] = [];
