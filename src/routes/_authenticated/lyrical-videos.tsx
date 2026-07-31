@@ -2104,7 +2104,7 @@ function LyricalVideosPage() {
                 <span className="w-16 text-xs text-muted-foreground">{fmtTime(currentTime)}</span>
                 <Slider
                   min={0}
-                  max={Math.max(audioDuration, 0.01)}
+                  max={Math.max(totalDuration, 0.01)}
                   step={0.05}
                   value={[currentTime]}
                   onValueChange={(v) => seek(v[0])}
