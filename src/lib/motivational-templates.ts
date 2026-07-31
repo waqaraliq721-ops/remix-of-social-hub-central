@@ -875,6 +875,492 @@ export const EXTRA_MOTIVATIONAL_ENGINES: Engine[] = [
   filmGrain,
   tickerRail,
   marqueeBand,
+  gritPoster,
+  neonStack,
+  paperPress,
+  boldBlock,
+  railStack,
 ];
 
 export const EXTRA_MOTIVATIONAL_MAP = new Map(EXTRA_MOTIVATIONAL_ENGINES.map((e) => [e.id, e]));
+
+// -------------------- grit poster --------------------
+
+const gritPoster: Engine = {
+  id: "grit-poster",
+  name: "Grit Poster",
+  desc: "Near-black textured poster with HUD ticks, corner brackets and a tracked progress rail.",
+  draw: (ctx, r, kit) => {
+    const { w, h, palette: p } = r;
+    // textured near-black wash + vignette
+    ctx.save();
+    ctx.fillStyle = "#050505";
+    ctx.globalAlpha = 0.55;
+    ctx.fillRect(0, 0, w, h);
+    ctx.restore();
+    ctx.save();
+    ctx.globalAlpha = 0.045;
+    ctx.fillStyle = "#ffffff";
+    for (let i = 0; i < 260; i++) {
+      const n = (i * 7919 + Math.floor(r.t * 8) * 5171) % 100000;
+      const x = (n / 100000) * w;
+      const y = (((n * 13 + i * 97) % 100000) / 100000) * h;
+      ctx.fillRect(x, y, 2, 2);
+    }
+    ctx.restore();
+    const vg = ctx.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.15, w / 2, h / 2, Math.max(w, h) * 0.7);
+    vg.addColorStop(0, "rgba(0,0,0,0)");
+    vg.addColorStop(1, "rgba(0,0,0,0.68)");
+    ctx.fillStyle = vg;
+    ctx.fillRect(0, 0, w, h);
+
+    // corner brackets (HUD chrome)
+    const inset = Math.min(w, h) * 0.06;
+    const tick = inset * 0.55;
+    ctx.strokeStyle = kit.hexA(p.primary, 0.85);
+    ctx.lineWidth = Math.max(2, h * 0.0032);
+    [
+      [inset, inset, 1, 1],
+      [w - inset, inset, -1, 1],
+      [inset, h - inset, 1, -1],
+      [w - inset, h - inset, -1, -1],
+    ].forEach(([x, y, sx, sy]) => {
+      ctx.beginPath();
+      ctx.moveTo(x, y + sy * tick);
+      ctx.lineTo(x, y);
+      ctx.lineTo(x + sx * tick, y);
+      ctx.stroke();
+    });
+
+    // vertical tick scales, left + right, with subtle drift
+    const drift = Math.sin(r.t * 0.6) * h * 0.004;
+    ctx.font = `600 ${Math.round(h * 0.012)}px ${kit.MONO}`;
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = kit.hexA(p.text, 0.4);
+    for (let i = 0; i <= 8; i++) {
+      const y = inset * 1.6 + (i * (h - inset * 3.2)) / 8 + drift;
+      ctx.strokeStyle = kit.hexA(p.text, 0.28);
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(inset * 0.55, y);
+      ctx.lineTo(inset * 0.85, y);
+      ctx.stroke();
+      ctx.textAlign = "left";
+      ctx.fillText(String(i * 12).padStart(2, "0"), inset * 0.9, y);
+      ctx.beginPath();
+      ctx.moveTo(w - inset * 0.85, y);
+      ctx.lineTo(w - inset * 0.55, y);
+      ctx.stroke();
+      ctx.textAlign = "right";
+      ctx.fillText(String(100 - i * 12).padStart(2, "0"), w - inset * 0.9, y);
+    }
+    ctx.textAlign = "center";
+
+    // bordered tag box
+    ctx.save();
+    ctx.font = `700 ${Math.round(h * 0.015)}px ${kit.MONO}`;
+    const tag = "MOTIVATIONAL // NO.01";
+    const tw = ctx.measureText(tag).width;
+    ctx.strokeStyle = kit.hexA(p.primary, 0.8);
+    ctx.lineWidth = Math.max(1, h * 0.0012);
+    ctx.strokeRect(w / 2 - tw / 2 - h * 0.018, h * 0.18, tw + h * 0.036, h * 0.036);
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = kit.hexA(p.text, 0.85);
+    ctx.fillText(tag, w / 2, h * 0.198);
+    ctx.restore();
+
+    const { line, index, appear } = state(kit, r);
+    if (line) {
+      const words = line.text.toUpperCase().split(" ").filter(Boolean);
+      const accentIdx = Math.min(words.length - 1, Math.max(0, Math.floor(words.length / 2)));
+      const { rows, size } = layout(
+        ctx,
+        kit,
+        words.join(" "),
+        w * 0.78,
+        h * 0.4,
+        baseSize(r, 0.078, 0.096),
+        `900 {s}px ${kit.COND}`,
+        1.02,
+      );
+      ctx.save();
+      ctx.globalAlpha = appear;
+      ctx.font = `900 ${size}px ${kit.COND}`;
+      softShadow(ctx, size * 0.3);
+      let y = h * 0.5 - ((rows.length - 1) * size * 1.02) / 2 + (1 - appear) * size * 0.25;
+      let wordCount = 0;
+      for (const row of rows) {
+        const rowWords = row.split(" ");
+        const widths = rowWords.map((wd) => ctx.measureText(wd + " ").width);
+        const total = widths.reduce((a, b) => a + b, 0);
+        let x = w / 2 - total / 2;
+        ctx.textAlign = "left";
+        rowWords.forEach((wd, i) => {
+          ctx.fillStyle = wordCount === accentIdx ? p.primary : p.text;
+          ctx.fillText(wd, x, y);
+          x += widths[i];
+          wordCount++;
+        });
+        ctx.textAlign = "center";
+        y += size * 1.02;
+      }
+      ctx.restore();
+
+      // thin rule with X marker
+      ctx.save();
+      ctx.globalAlpha = appear;
+      ctx.strokeStyle = kit.hexA(p.text, 0.4);
+      ctx.lineWidth = Math.max(1, h * 0.0012);
+      ctx.beginPath();
+      ctx.moveTo(w * 0.3, y + size * 0.28);
+      ctx.lineTo(w / 2 - h * 0.02, y + size * 0.28);
+      ctx.moveTo(w / 2 + h * 0.02, y + size * 0.28);
+      ctx.lineTo(w * 0.7, y + size * 0.28);
+      ctx.stroke();
+      ctx.font = `700 ${Math.round(h * 0.02)}px ${kit.MONO}`;
+      ctx.fillStyle = p.primary;
+      ctx.fillText("×", w / 2, y + size * 0.28);
+      ctx.restore();
+
+      // letter-spaced subline
+      const sub = (r.author || `CHAPTER ${String(index + 1).padStart(2, "0")}`)
+        .toUpperCase()
+        .split("")
+        .join(" ");
+      ctx.save();
+      ctx.globalAlpha = appear * 0.75;
+      ctx.font = `600 ${Math.round(h * 0.017)}px ${kit.FONT}`;
+      ctx.fillStyle = kit.hexA(p.text, 0.75);
+      ctx.fillText(sub, w / 2, y + size * 0.55);
+      ctx.restore();
+    }
+
+    // bottom labelled progress bar tracking video time
+    const prog = r.duration > 0 ? Math.min(1, r.t / r.duration) : 0;
+    const barY = h * 0.92;
+    const barW = w * 0.78;
+    ctx.font = `600 ${Math.round(h * 0.013)}px ${kit.MONO}`;
+    ctx.textAlign = "left";
+    ctx.textBaseline = "bottom";
+    ctx.fillStyle = kit.hexA(p.text, 0.55);
+    ctx.fillText("PROGRESS", w / 2 - barW / 2, barY - h * 0.012);
+    ctx.textAlign = "right";
+    ctx.fillText(`${Math.round(prog * 100)}%`, w / 2 + barW / 2, barY - h * 0.012);
+    ctx.fillStyle = kit.hexA(p.text, 0.18);
+    ctx.fillRect(w / 2 - barW / 2, barY, barW, Math.max(2, h * 0.0026));
+    ctx.fillStyle = p.primary;
+    ctx.fillRect(w / 2 - barW / 2, barY, barW * prog, Math.max(2, h * 0.0026));
+    ctx.textAlign = "center";
+    ctx.textBaseline = "alphabetic";
+  },
+};
+
+// -------------------- neon stack --------------------
+
+const neonStack: Engine = {
+  id: "neon-stack",
+  name: "Neon Stack",
+  desc: "Stacked type on black: a whisper word, a flanked accent word, and a glowing headline.",
+  draw: (ctx, r, kit) => {
+    const { w, h, palette: p } = r;
+    ctx.fillStyle = "#000000";
+    ctx.globalAlpha = 0.5;
+    ctx.fillRect(0, 0, w, h);
+    ctx.globalAlpha = 1;
+    const { line, appear } = state(kit, r);
+    if (!line) return;
+    const words = line.text.toUpperCase().split(" ").filter(Boolean);
+    const top = words[0] ?? "";
+    const mid = words[1] ?? words[0] ?? "";
+    const glow = words.length > 2 ? words.slice(2).join(" ") : words[words.length - 1] ?? "";
+    const bottom = (r.author || "STAY THE COURSE").toUpperCase();
+
+    const pulse = 0.85 + Math.sin(r.t * 2.2) * 0.15;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+
+    ctx.save();
+    ctx.globalAlpha = appear;
+    const topSize = kit.fitFont(ctx, top, w * 0.6, baseSize(r, 0.036, 0.045), `700 {s}px ${kit.FONT}`);
+    ctx.font = `700 ${topSize}px ${kit.FONT}`;
+    ctx.fillStyle = p.text;
+    ctx.fillText(top, w / 2, h * 0.24 - (1 - appear) * h * 0.03);
+    ctx.restore();
+
+    ctx.save();
+    ctx.globalAlpha = appear;
+    const midSize = Math.round(h * 0.02);
+    ctx.font = `700 ${midSize}px ${kit.FONT}`;
+    const midW = ctx.measureText(mid.split("").join(" ")).width;
+    ctx.strokeStyle = kit.hexA(p.accent, 0.7);
+    ctx.lineWidth = Math.max(1, h * 0.0012);
+    ctx.beginPath();
+    ctx.moveTo(w / 2 - midW / 2 - h * 0.09, h * 0.32);
+    ctx.lineTo(w / 2 - midW / 2 - h * 0.02, h * 0.32);
+    ctx.moveTo(w / 2 + midW / 2 + h * 0.02, h * 0.32);
+    ctx.lineTo(w / 2 + midW / 2 + h * 0.09, h * 0.32);
+    ctx.stroke();
+    ctx.fillStyle = p.accent;
+    ctx.fillText(mid.split("").join(" "), w / 2, h * 0.32);
+    ctx.restore();
+
+    const { rows, size } = layout(
+      ctx,
+      kit,
+      glow,
+      w * 0.86,
+      h * 0.34,
+      baseSize(r, 0.11, 0.14),
+      `900 {s}px ${kit.FONT}`,
+      1.05,
+    );
+    ctx.save();
+    ctx.globalAlpha = appear;
+    ctx.font = `900 ${size}px ${kit.FONT}`;
+    ctx.shadowColor = kit.hexA(p.primary, 0.95 * pulse);
+    ctx.shadowBlur = size * 0.9 * pulse;
+    ctx.fillStyle = p.primary;
+    let y = h * 0.54 - ((rows.length - 1) * size * 1.05) / 2 + (1 - appear) * size * 0.2;
+    for (const row of rows) {
+      ctx.fillText(row, w / 2, y);
+      y += size * 1.05;
+    }
+    ctx.shadowBlur = 0;
+    ctx.restore();
+
+    ctx.save();
+    ctx.globalAlpha = appear * 0.85;
+    const bSize = Math.round(h * 0.019);
+    ctx.font = `600 ${bSize}px ${kit.FONT}`;
+    const spaced = bottom.split("").join(" ");
+    ctx.fillStyle = p.text;
+    ctx.fillText(spaced, w / 2, y + size * 0.18);
+    const uw = ctx.measureText(spaced).width;
+    ctx.strokeStyle = kit.hexA(p.text, 0.5);
+    ctx.lineWidth = Math.max(1, h * 0.0012);
+    ctx.beginPath();
+    ctx.moveTo(w / 2 - uw * 0.25, y + size * 0.32);
+    ctx.lineTo(w / 2 + uw * 0.25, y + size * 0.32);
+    ctx.stroke();
+    ctx.restore();
+  },
+};
+
+// -------------------- paper press --------------------
+
+const paperPress: Engine = {
+  id: "paper-press",
+  name: "Paper Press",
+  desc: "Warm paper grain with left-aligned condensed lines, an ink slab and a script flourish.",
+  draw: (ctx, r, kit) => {
+    const { w, h, palette: p } = r;
+    ctx.save();
+    ctx.fillStyle = "#f4ecdd";
+    ctx.globalAlpha = 0.94;
+    ctx.fillRect(0, 0, w, h);
+    ctx.restore();
+    ctx.save();
+    ctx.globalAlpha = 0.05;
+    ctx.fillStyle = "#3a2c1a";
+    for (let i = 0; i < 320; i++) {
+      const n = (i * 6113 + 2003) % 100000;
+      const x = (n / 100000) * w;
+      const y = (((n * 11 + i * 71) % 100000) / 100000) * h;
+      ctx.fillRect(x, y, 1.4, 1.4);
+    }
+    ctx.restore();
+
+    const { line, appear } = state(kit, r);
+    if (!line) return;
+    const ink = "#241b10";
+    const words = line.text.toUpperCase().split(" ").filter(Boolean);
+    const x = w * 0.1;
+    const maxW = w * 0.8;
+    const size = kit.fitFont(ctx, words.join(" "), maxW, baseSize(r, 0.07, 0.088), `800 {s}px ${kit.COND}`);
+    ctx.font = `800 ${size}px ${kit.COND}`;
+    const rows = kit.wrapText(ctx, words.join(" "), maxW);
+    ctx.textAlign = "left";
+    ctx.textBaseline = "alphabetic";
+    let y = h * 0.5 - ((rows.length - 1) * size * 1.14) / 2;
+    const lastRowIdx = rows.length - 1;
+
+    rows.forEach((row, i) => {
+      const a = Math.max(0, Math.min(1, appear * 1.6 - i * 0.25));
+      ctx.save();
+      ctx.globalAlpha = a;
+      const isAccent = i === Math.max(0, rows.length - 2);
+      if (i === lastRowIdx) {
+        const rw = ctx.measureText(row).width;
+        ctx.fillStyle = kit.hexA(ink, 0.92);
+        ctx.save();
+        ctx.translate(x - size * 0.1, y - size * 0.82);
+        ctx.rotate(-0.02);
+        kit.roundRect(ctx, 0, 0, rw + size * 0.4, size * 1.05, size * 0.08);
+        ctx.fill();
+        ctx.restore();
+        ctx.fillStyle = "#f4ecdd";
+      } else {
+        ctx.fillStyle = isAccent ? "#b0552f" : ink;
+      }
+      ctx.fillText(row, x + (1 - a) * size * 0.35, y);
+      if (i < lastRowIdx) {
+        const rw = ctx.measureText(row).width;
+        ctx.strokeStyle = kit.hexA(ink, 0.35);
+        ctx.lineWidth = Math.max(1, size * 0.03);
+        ctx.beginPath();
+        ctx.moveTo(x + rw + size * 0.18, y - size * 0.28);
+        ctx.lineTo(x + rw + size * 0.34, y - size * 0.28);
+        ctx.stroke();
+      }
+      ctx.restore();
+      y += size * 1.14;
+    });
+
+    ctx.save();
+    ctx.globalAlpha = appear;
+    ctx.font = `italic 500 ${Math.round(size * 0.42)}px ${kit.SERIF}`;
+    ctx.fillStyle = "#b0552f";
+    ctx.fillText(r.author ? r.author : "with grit", x + size * 0.2, y - size * 0.15);
+    ctx.restore();
+
+    ctx.strokeStyle = kit.hexA(ink, 0.5);
+    ctx.lineWidth = Math.max(1, h * 0.0015);
+    ctx.beginPath();
+    ctx.moveTo(w * 0.06, h * 0.9);
+    ctx.lineTo(w * 0.94, h * 0.9);
+    ctx.stroke();
+    ctx.textAlign = "center";
+  },
+};
+
+// -------------------- bold block --------------------
+
+const boldBlock: Engine = {
+  id: "bold-block",
+  name: "Bold Block",
+  desc: "Saturated flat colour field with massive left-aligned caps and inverted blocks.",
+  draw: (ctx, r, kit) => {
+    const { w, h, palette: p } = r;
+    ctx.save();
+    ctx.globalAlpha = 0.96;
+    ctx.fillStyle = p.primary;
+    ctx.fillRect(0, 0, w, h);
+    ctx.restore();
+
+    const { line, appear } = state(kit, r);
+    if (!line) return;
+    const x = w * 0.08;
+    const maxW = w * 0.84;
+    const words = line.text.toUpperCase().split(" ").filter(Boolean);
+    const size = kit.fitFont(ctx, words.join(" "), maxW, baseSize(r, 0.075, 0.095), `900 {s}px ${kit.FONT}`);
+    ctx.font = `900 ${size}px ${kit.FONT}`;
+    const rows = kit.wrapText(ctx, words.join(" "), maxW);
+    ctx.textAlign = "left";
+    ctx.textBaseline = "alphabetic";
+    let y = h * 0.5 - ((rows.length - 1) * size * 1.12) / 2;
+
+    // top dash marks
+    ctx.save();
+    ctx.globalAlpha = appear * 0.8;
+    ctx.fillStyle = "#0b0b0c";
+    for (let i = 0; i < 5; i++) ctx.fillRect(x + i * size * 0.5, y - size * 1.5, size * 0.28, Math.max(3, h * 0.006));
+    ctx.restore();
+
+    rows.forEach((row, i) => {
+      const a = Math.max(0, Math.min(1, appear * 1.5 - i * 0.18));
+      const drift = (1 - a) * size * 0.3;
+      ctx.save();
+      ctx.globalAlpha = a;
+      const rw = ctx.measureText(row).width;
+      if (i % 2 === 1) {
+        ctx.fillStyle = "#0b0b0c";
+        ctx.fillRect(x - size * 0.08, y - size * 0.86, rw + size * 0.32, size * 1.08);
+        ctx.fillStyle = "#ffffff";
+      } else {
+        ctx.fillStyle = "#0b0b0c";
+      }
+      ctx.fillText(row, x + size * 0.08 + drift, y);
+      ctx.restore();
+      y += size * 1.12;
+    });
+
+    ctx.save();
+    ctx.globalAlpha = appear * 0.8;
+    ctx.fillStyle = "#0b0b0c";
+    for (let i = 0; i < 5; i++) ctx.fillRect(x + i * size * 0.5, y + size * 0.5, size * 0.28, Math.max(3, h * 0.006));
+    ctx.restore();
+    ctx.textAlign = "center";
+    kit.drawAuthor(ctx, r, y + size * 1.1);
+  },
+};
+
+// -------------------- rail stack --------------------
+
+const railStack: Engine = {
+  id: "rail-stack",
+  name: "Rail Stack",
+  desc: "Charcoal backdrop with a vertical accent rail beside stacked heavy caps and a tag line.",
+  draw: (ctx, r, kit) => {
+    const { w, h, palette: p } = r;
+    ctx.save();
+    ctx.fillStyle = "#111113";
+    ctx.globalAlpha = 0.7;
+    ctx.fillRect(0, 0, w, h);
+    ctx.restore();
+
+    const { line, appear } = state(kit, r);
+    if (!line) return;
+    const railX = w * 0.1;
+    const words = line.text.toUpperCase().split(" ").filter(Boolean);
+    const x = railX + w * 0.045;
+    const maxW = w * 0.78;
+    const size = kit.fitFont(ctx, words.join(" "), maxW, baseSize(r, 0.068, 0.086), `900 {s}px ${kit.COND}`);
+    ctx.font = `900 ${size}px ${kit.COND}`;
+    const rows = kit.wrapText(ctx, words.join(" "), maxW);
+    ctx.textAlign = "left";
+    ctx.textBaseline = "alphabetic";
+    const blockH = rows.length * size * 1.1;
+    let y = h * 0.5 - blockH / 2 + size * 0.8;
+    const startY = y - size * 0.9;
+
+    ctx.save();
+    ctx.globalAlpha = appear;
+    ctx.fillStyle = p.primary;
+    ctx.fillRect(railX, startY, Math.max(4, w * 0.008), blockH + size * 0.2);
+    ctx.restore();
+
+    rows.forEach((row, i) => {
+      const a = Math.max(0, Math.min(1, appear * 1.5 - i * 0.2));
+      ctx.save();
+      ctx.globalAlpha = a;
+      ctx.fillStyle = i === rows.length - 1 ? p.primary : p.text;
+      ctx.fillText(row, x + (1 - a) * w * 0.03, y);
+      ctx.restore();
+      y += size * 1.1;
+    });
+
+    // caption with one accent word
+    const capWords = (r.author || "MOVE WITH INTENT").toUpperCase().split(" ");
+    const mid = Math.floor(capWords.length / 2);
+    ctx.save();
+    ctx.globalAlpha = appear * 0.85;
+    ctx.font = `600 ${Math.round(h * 0.017)}px ${kit.FONT}`;
+    let cx = x;
+    capWords.forEach((wd, i) => {
+      ctx.fillStyle = i === mid ? p.primary : kit.hexA(p.text, 0.85);
+      const spaced = wd.split("").join(" ") + "   ";
+      ctx.fillText(spaced, cx, y + size * 0.3);
+      cx += ctx.measureText(spaced).width;
+    });
+    ctx.restore();
+
+    ctx.save();
+    ctx.globalAlpha = appear;
+    ctx.fillStyle = p.primary;
+    ctx.fillRect(x, y + size * 0.5, w * 0.14, Math.max(3, h * 0.0035));
+    ctx.restore();
+    ctx.textAlign = "center";
+  },
+};
+
