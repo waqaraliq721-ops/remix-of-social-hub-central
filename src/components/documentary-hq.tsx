@@ -1025,7 +1025,7 @@ export function DocumentaryHQ() {
       </div>
 
       {/* Middle: preview */}
-      <div className="space-y-4">
+      <div className="space-y-4 lg:sticky lg:top-4 lg:self-start lg:max-h-[calc(100vh-5rem)] lg:overflow-y-auto lg:pr-1">
         <Card>
           <CardContent className="p-4">
             <div className="mx-auto overflow-hidden rounded-lg bg-black" style={{ maxWidth: 900 }}>

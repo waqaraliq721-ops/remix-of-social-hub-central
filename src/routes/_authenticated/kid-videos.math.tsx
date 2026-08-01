@@ -797,7 +797,7 @@ function MathPage() {
       {exporting && <Progress value={exportProgress} />}
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
-        <div className="space-y-4">
+        <div className="space-y-4 lg:sticky lg:top-4 lg:self-start lg:max-h-[calc(100vh-5rem)] lg:overflow-y-auto lg:pr-1">
           <Card>
             <CardContent className="flex justify-center p-4">
               <canvas
