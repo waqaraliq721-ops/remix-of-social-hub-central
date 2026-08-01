@@ -463,9 +463,10 @@ function MathPage() {
 
       // ---- expression ----
       const exprY = h * (aspect === "16:9" ? 0.36 : 0.32);
-      {
+      if (styles.question?.visible ?? true) {
         const qAnim = computeAnim(anims.question ?? defaultAnim(), local);
         ctx.save();
+        applyStyle(ctx, styles.question, w / 2, exprY, w, h);
         applyAnim(ctx, qAnim, w / 2, exprY);
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
@@ -501,6 +502,7 @@ function MathPage() {
         return { x: M, y: optTop + i * (rowH + gap) };
       });
 
+      if (styles.options?.visible ?? true)
       r.options.forEach((opt, i) => {
         const letter = String.fromCharCode(65 + i);
         const isCorrect = i === r.correctIndex;
@@ -512,6 +514,7 @@ function MathPage() {
         const cx0 = pos.x + colW / 2;
         const cy0 = pos.y + rowH / 2;
         ctx.save();
+        applyStyle(ctx, styles.options, cx0, cy0, w, h);
         applyAnim(ctx, optAnim, cx0, cy0);
         let alpha = 1;
         let scale = 1;
@@ -535,6 +538,22 @@ function MathPage() {
           ctx.strokeStyle = "#facc15";
           ctx.lineWidth = Math.max(3, rowH * 0.08);
           ctx.stroke();
+          if (styles.answer?.visible ?? true) {
+            const ansAnim = computeAnim(anims.answer ?? defaultAnim(), local - guessDur);
+            ctx.save();
+            applyStyle(ctx, styles.answer, pos.x + colW - rowH * 0.3, pos.y + rowH * 0.3, w, h);
+            applyAnim(ctx, ansAnim, pos.x + colW - rowH * 0.3, pos.y + rowH * 0.3);
+            ctx.beginPath();
+            ctx.arc(pos.x + colW - rowH * 0.3, pos.y + rowH * 0.3, rowH * 0.22, 0, Math.PI * 2);
+            ctx.fillStyle = "#22c55e";
+            ctx.fill();
+            ctx.fillStyle = "#ffffff";
+            ctx.font = `900 ${Math.round(rowH * 0.28)}px ${FX_FONT}`;
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText("✓", pos.x + colW - rowH * 0.3, pos.y + rowH * 0.32);
+            ctx.restore();
+          }
         }
 
         // letter badge
@@ -559,29 +578,49 @@ function MathPage() {
         ctx.restore();
       });
 
-      // ---- bottom timer bar ----
-      if (showTimer) {
+      // ---- countdown timer ----
+      if (showTimer && (styles.timer?.visible ?? true)) {
+        const timerAnim = computeAnim(anims.timer ?? defaultAnim(), local);
+        const remaining = Math.max(0, guessDur - local);
+        const tr = Math.min(w, h) * 0.05;
+        const tx = w - M - tr;
+        const ty = h - M - tr;
+        ctx.save();
+        applyStyle(ctx, styles.timer, tx, ty, w, h);
+        applyAnim(ctx, timerAnim, tx, ty);
+        drawTimer(ctx, timerStyle, tx, ty, tr, remaining, guessDur, {
+          primary: pal.primary,
+          accent: pal.accent,
+          text: pal.text,
+        }, absT);
+        ctx.restore();
+      }
+
+      // ---- bottom time bar ----
+      if (showTimer && (styles.timebar?.visible ?? true)) {
         const timebarAnim = computeAnim(anims.timebar ?? defaultAnim(), local);
         const barW = w - M * 2.4;
         const barH = Math.min(w, h) * 0.022;
         const barY = h - M * 0.9;
-        const frac = Math.max(0, Math.min(1, local / Math.max(0.01, guessDur)));
+        const frac = 1 - Math.max(0, Math.min(1, local / Math.max(0.01, guessDur)));
         ctx.save();
-        ctx.globalAlpha *= timebarAnim.opacity;
-        roundRect(ctx, w / 2 - barW / 2, barY, barW, barH, barH / 2);
-        ctx.fillStyle = "rgba(255,255,255,0.2)";
-        ctx.fill();
-        roundRect(ctx, w / 2 - barW / 2, barY, barW * frac, barH, barH / 2);
-        ctx.fillStyle = frac > 0.8 ? "#ef4444" : pal.primary;
-        ctx.fill();
-        ctx.beginPath();
-        ctx.arc(w / 2 - barW / 2 + barW * frac, barY + barH / 2, barH * 1.1, 0, Math.PI * 2);
-        ctx.fillStyle = "#ffffff";
-        ctx.fill();
+        applyStyle(ctx, styles.timebar, w / 2, barY + barH / 2, w, h);
+        applyAnim(ctx, timebarAnim, w / 2, barY + barH / 2);
+        drawTimeBar(
+          ctx,
+          timeBarStyle,
+          w / 2 - barW / 2,
+          barY,
+          barW,
+          barH,
+          frac,
+          { primary: pal.primary, accent: pal.accent, text: pal.text },
+          absT,
+        );
         ctx.restore();
       }
     },
-    [aspect, anims, drawBackground, heading, pal, revealSecs, showTimer],
+    [aspect, anims, styles, backgroundId, backgroundIntensity, timerStyle, timeBarStyle, heading, pal, revealSecs, showTimer],
   );
 
   const drawFrame = useCallback(
