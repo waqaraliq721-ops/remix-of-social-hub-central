@@ -218,6 +218,16 @@ export type BackgroundId =
   | "stripes"
   | "spotlight"
   | "hex"
+  | "ripple"
+  | "plasma"
+  | "checker"
+  | "bokeh"
+  | "triangles"
+  | "swirl"
+  | "comets"
+  | "curtain"
+  | "pulse-rings"
+  | "zigzag"
   | "solid";
 
 export const BACKGROUNDS: { id: BackgroundId; name: string }[] = [
@@ -235,8 +245,19 @@ export const BACKGROUNDS: { id: BackgroundId; name: string }[] = [
   { id: "stripes", name: "Diagonal stripes" },
   { id: "spotlight", name: "Spotlight" },
   { id: "hex", name: "Hex glow" },
+  { id: "ripple", name: "Ripples" },
+  { id: "plasma", name: "Plasma" },
+  { id: "checker", name: "Checkerboard" },
+  { id: "bokeh", name: "Bokeh lights" },
+  { id: "triangles", name: "Triangles" },
+  { id: "swirl", name: "Swirl" },
+  { id: "comets", name: "Comets" },
+  { id: "curtain", name: "Curtain" },
+  { id: "pulse-rings", name: "Pulse rings" },
+  { id: "zigzag", name: "Zigzag" },
   { id: "solid", name: "Solid" },
 ];
+
 
 export type BgColors = {
   bg: [string, string];
