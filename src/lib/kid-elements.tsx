@@ -496,6 +496,157 @@ export function drawBackground(
       }
       break;
     }
+    case "ripple": {
+      ctx.globalCompositeOperation = "screen";
+      for (let i = 0; i < 6; i++) {
+        const phase = (t * 0.35 + i / 6) % 1;
+        const r = Math.max(w, h) * 0.75 * phase;
+        ctx.beginPath();
+        ctx.arc(w / 2, h * 0.5, r, 0, Math.PI * 2);
+        ctx.strokeStyle = hexToRgba(i % 2 ? colors.accent : colors.primary, (1 - phase) * 0.25 * I);
+        ctx.lineWidth = 6 + (1 - phase) * 14;
+        ctx.stroke();
+      }
+      break;
+    }
+    case "plasma": {
+      ctx.globalCompositeOperation = "screen";
+      for (let i = 0; i < 7; i++) {
+        const cx = w * (0.5 + Math.sin(t * 0.3 + i * 1.1) * 0.38);
+        const cy = h * (0.5 + Math.cos(t * 0.24 + i * 0.8) * 0.4);
+        const r = Math.min(w, h) * (0.22 + rnd(i) * 0.2);
+        const rg = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+        rg.addColorStop(0, hexToRgba(i % 2 ? colors.accent : colors.primary, 0.3 * I));
+        rg.addColorStop(1, hexToRgba(i % 2 ? colors.accent : colors.primary, 0));
+        ctx.fillStyle = rg;
+        ctx.fillRect(0, 0, w, h);
+      }
+      break;
+    }
+    case "checker": {
+      const s = 110;
+      const off = (t * 22) % (s * 2);
+      for (let y = -s; y < h + s; y += s) {
+        for (let x = -s * 2; x < w + s; x += s) {
+          const on = (Math.round((x + off) / s) + Math.round(y / s)) % 2 === 0;
+          if (!on) continue;
+          ctx.fillStyle = hexToRgba(colors.primary, 0.07 * I);
+          ctx.fillRect(x + off, y, s, s);
+        }
+      }
+      break;
+    }
+    case "bokeh": {
+      ctx.globalCompositeOperation = "screen";
+      for (let i = 0; i < 24; i++) {
+        const x = ((rnd(i * 3.3) * w + t * (6 + rnd(i) * 14)) % (w + 200)) - 100;
+        const y = h * rnd(i * 6.1) + Math.sin(t * 0.4 + i) * 24;
+        const r = (30 + rnd(i * 2.2) * 90) * I;
+        const rg = ctx.createRadialGradient(x, y, 0, x, y, r);
+        rg.addColorStop(0, hexToRgba(i % 3 ? colors.primary : colors.accent, 0.22));
+        rg.addColorStop(1, hexToRgba(i % 3 ? colors.primary : colors.accent, 0));
+        ctx.fillStyle = rg;
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      break;
+    }
+    case "triangles": {
+      const s = 150;
+      for (let y = -s, row = 0; y < h + s; y += s, row++) {
+        for (let x = -s; x < w + s; x += s) {
+          const p = Math.sin(t * 1.1 + (x + y) / 260 + row) * 0.5 + 0.5;
+          ctx.beginPath();
+          ctx.moveTo(x, y + s);
+          ctx.lineTo(x + s / 2, y);
+          ctx.lineTo(x + s, y + s);
+          ctx.closePath();
+          ctx.fillStyle = hexToRgba((row + x / s) % 2 ? colors.accent : colors.primary, (0.03 + p * 0.07) * I);
+          ctx.fill();
+        }
+      }
+      break;
+    }
+    case "swirl": {
+      ctx.globalCompositeOperation = "screen";
+      ctx.translate(w / 2, h / 2);
+      ctx.rotate(t * 0.12 * I);
+      for (let i = 0; i < 18; i++) {
+        ctx.save();
+        ctx.rotate((i / 18) * Math.PI * 2);
+        const g = ctx.createLinearGradient(0, 0, Math.max(w, h) * 0.7, 0);
+        g.addColorStop(0, hexToRgba(i % 2 ? colors.accent : colors.primary, 0.16 * I));
+        g.addColorStop(1, "rgba(0,0,0,0)");
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.arc(0, 0, Math.max(w, h) * 0.75, 0, 0.14);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+      }
+      break;
+    }
+    case "comets": {
+      ctx.globalCompositeOperation = "screen";
+      for (let i = 0; i < 14; i++) {
+        const prog = (t * (0.12 + rnd(i) * 0.2) + rnd(i * 4.4)) % 1;
+        const x = -w * 0.2 + prog * w * 1.4;
+        const y = h * rnd(i * 2.9) + prog * h * 0.2;
+        const len = 120 + rnd(i * 5) * 220;
+        const g = ctx.createLinearGradient(x - len, y - len * 0.2, x, y);
+        g.addColorStop(0, "rgba(0,0,0,0)");
+        g.addColorStop(1, hexToRgba(i % 2 ? colors.accent : colors.primary, 0.5 * I));
+        ctx.strokeStyle = g;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(x - len, y - len * 0.2);
+        ctx.lineTo(x, y);
+        ctx.stroke();
+      }
+      break;
+    }
+    case "curtain": {
+      const n = 16;
+      const cw = w / n;
+      for (let i = 0; i < n; i++) {
+        const amp = (Math.sin(t * 1.1 + i * 0.7) * 0.5 + 0.5) * 0.12 * I;
+        const g = ctx.createLinearGradient(0, 0, 0, h);
+        g.addColorStop(0, hexToRgba(i % 2 ? colors.accent : colors.primary, amp));
+        g.addColorStop(1, "rgba(0,0,0,0)");
+        ctx.fillStyle = g;
+        ctx.fillRect(i * cw, 0, cw, h);
+      }
+      break;
+    }
+    case "pulse-rings": {
+      for (let i = 0; i < 5; i++) {
+        const phase = (t * 0.5 + i / 5) % 1;
+        const r = Math.min(w, h) * (0.1 + phase * 0.55);
+        ctx.beginPath();
+        ctx.arc(w / 2, h / 2, r, 0, Math.PI * 2);
+        ctx.strokeStyle = hexToRgba(colors.accent, (1 - phase) * 0.3 * I);
+        ctx.lineWidth = 4;
+        ctx.stroke();
+      }
+      break;
+    }
+    case "zigzag": {
+      const step = 70;
+      ctx.lineWidth = 4;
+      for (let row = 0, y = -step; y < h + step; y += step, row++) {
+        ctx.beginPath();
+        const off = Math.sin(t * 0.9 + row * 0.4) * step * 0.5 * I;
+        for (let x = -step; x < w + step; x += step) {
+          const yy = y + ((x / step) % 2 === 0 ? -step * 0.3 : step * 0.3) + off;
+          x === -step ? ctx.moveTo(x, yy) : ctx.lineTo(x, yy);
+        }
+        ctx.strokeStyle = hexToRgba(row % 2 ? colors.accent : colors.primary, 0.09 * I);
+        ctx.stroke();
+      }
+      break;
+    }
     default:
       break;
   }
