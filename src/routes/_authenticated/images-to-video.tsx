@@ -1708,7 +1708,7 @@ function ImagesToVideoPage() {
         </Card>
 
         {/* CENTER — Preview */}
-        <div className="min-w-0 space-y-4 lg:overflow-hidden">
+        <div className="min-w-0 space-y-4 lg:min-h-0 lg:overflow-y-auto lg:pr-2">
           <Card>
             <CardContent className="p-4">
               <div className="flex justify-center">
