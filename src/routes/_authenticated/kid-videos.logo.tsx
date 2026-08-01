@@ -250,8 +250,21 @@ function LogoPage() {
       const bgAnim = computeAnim(anims.background ?? defaultAnim(), local);
       ctx.save();
       applyAnim(ctx, bgAnim, w / 2, h / 2);
-      drawBackground(ctx, w, h, absT);
+      drawSharedBackground(
+        ctx,
+        backgroundId,
+        { bg: pal.bg, primary: pal.primary, accent: pal.accent },
+        w,
+        h,
+        absT,
+        backgroundIntensity,
+      );
       ctx.restore();
+      const v = ctx.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.15, w / 2, h / 2, Math.max(w, h) * 0.75);
+      v.addColorStop(0, "rgba(0,0,0,0)");
+      v.addColorStop(1, "rgba(0,0,0,0.4)");
+      ctx.fillStyle = v;
+      ctx.fillRect(0, 0, w, h);
 
       const guessDur = Math.max(0.5, dur - revealSecs);
       const revealing = local >= guessDur;
@@ -259,12 +272,13 @@ function LogoPage() {
       const M = Math.min(w, h) * 0.06;
 
       // ---- star round badge, top-left ----
-      {
-        const badgeAnim = computeAnim(anims.badge ?? defaultAnim(), local);
+      if (styles.roundNumber?.visible ?? true) {
+        const badgeAnim = computeAnim(anims.roundNumber ?? defaultAnim(), local);
         const r0 = Math.min(w, h) * 0.055;
         const bx = M + r0;
         const by = M + r0;
         ctx.save();
+        applyStyle(ctx, styles.roundNumber, bx, by, w, h);
         applyAnim(ctx, badgeAnim, bx, by);
         ctx.beginPath();
         ctx.arc(bx, by, r0, 0, Math.PI * 2);
@@ -285,12 +299,13 @@ function LogoPage() {
       }
 
       // ---- lightning badge, top-right ----
-      {
-        const badgeAnim = computeAnim(anims.badge ?? defaultAnim(), local);
+      if (styles.roundNumber?.visible ?? true) {
+        const badgeAnim = computeAnim(anims.roundNumber ?? defaultAnim(), local);
         const r0 = Math.min(w, h) * 0.055;
         const bx = w - M - r0;
         const by = M + r0;
         ctx.save();
+        applyStyle(ctx, styles.roundNumber, bx, by, w, h);
         applyAnim(ctx, badgeAnim, bx, by);
         ctx.beginPath();
         ctx.arc(bx, by, r0, 0, Math.PI * 2);
@@ -326,13 +341,14 @@ function LogoPage() {
       }
 
       // ---- title ----
-      {
+      if (styles.title?.visible ?? true) {
         const titleAnim = computeAnim(anims.title ?? defaultAnim(), local);
         const words = heading.toUpperCase().split(" ");
         const last = words.pop() ?? "";
         const rest = words.join(" ");
         const ts = Math.round(Math.min(w, h) * 0.05);
         ctx.save();
+        applyStyle(ctx, styles.title, w / 2, M + ts * 0.5, w, h);
         applyAnim(ctx, titleAnim, w / 2, M + ts * 0.5);
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
@@ -361,9 +377,10 @@ function LogoPage() {
       const cardH = cardW;
       const cx = w / 2;
       const cy = cardTop + (cardBottom - cardTop) / 2;
-      {
+      if (styles.logo?.visible ?? true) {
         const logoAnim = computeAnim(anims.logo ?? defaultAnim(), local);
         ctx.save();
+        applyStyle(ctx, styles.logo, cx, cy, w, h);
         applyAnim(ctx, logoAnim, cx, cy);
         ctx.fillStyle = hexA("#000000", 0.35);
         roundRect(ctx, cx - cardW / 2 + cardH * 0.03, cy - cardH / 2 + cardH * 0.03, cardW, cardH, cardH * 0.12);
@@ -395,61 +412,109 @@ function LogoPage() {
 
       // ---- answer reveal ----
       if (revealing && r.answer.trim()) {
-        const answerAnim = computeAnim(anims.answer ?? defaultAnim(), local - guessDur);
         const bandH = Math.min(w, h) * 0.18;
         const bandY = cardBottom + Math.min(w, h) * 0.02;
         const bcx = w / 2;
         const bcy = bandY + bandH / 2;
+
+        if (styles.card?.visible ?? true) {
+          const cardAnim = computeAnim(anims.card ?? defaultAnim(), local - guessDur);
+          ctx.save();
+          ctx.globalAlpha *= revealK;
+          applyStyle(ctx, styles.card, bcx, bcy, w, h);
+          applyAnim(ctx, cardAnim, bcx, bcy);
+          ctx.fillStyle = hexA("#000000", 0.6);
+          roundRect(ctx, M, bandY, w - M * 2, bandH, bandH * 0.25);
+          ctx.fill();
+          ctx.strokeStyle = hexA(pal.accent, 0.85);
+          ctx.lineWidth = Math.max(2, bandH * 0.04);
+          ctx.stroke();
+          ctx.restore();
+        }
+
+        if (styles.hint?.visible ?? true) {
+          const hintAnim = computeAnim(anims.hint ?? defaultAnim(), local - guessDur);
+          const ls = Math.round(bandH * 0.22);
+          ctx.save();
+          ctx.globalAlpha *= revealK;
+          applyStyle(ctx, styles.hint, bcx, bandY + bandH * 0.26, w, h);
+          applyAnim(ctx, hintAnim, bcx, bandY + bandH * 0.26);
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.font = `800 ${ls}px ${FX_FONT}`;
+          ctx.fillStyle = pal.accent;
+          ctx.fillText("ANSWER", bcx, bandY + bandH * 0.26);
+          ctx.restore();
+        }
+
+        if (styles.answer?.visible ?? true) {
+          const answerAnim = computeAnim(anims.answer ?? defaultAnim(), local - guessDur);
+          ctx.save();
+          ctx.globalAlpha *= revealK;
+          applyStyle(ctx, styles.answer, bcx, bandY + bandH * 0.66, w, h);
+          applyAnim(ctx, answerAnim, bcx, bandY + bandH * 0.66);
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          const answer = r.answer.toUpperCase();
+          const asz = fitText(ctx, answer, w - M * 2 - bandH * 0.5, bandH * 0.4, 900);
+          ctx.font = `900 ${asz}px ${FX_FONT}`;
+          ctx.fillStyle = pal.text;
+          ctx.shadowColor = hexA(pal.accent, 0.5);
+          ctx.shadowBlur = asz * 0.35;
+          ctx.fillText(answer, bcx, bandY + bandH * 0.66);
+          ctx.restore();
+        }
+      }
+
+      // ---- bottom time bar ----
+      const barW = w - M * 2.4;
+      const barH = Math.min(w, h) * 0.022;
+      const barY = h - M * 0.9;
+      if (showTimer && (styles.timebar?.visible ?? true)) {
+        const timebarAnim = computeAnim(anims.timebar ?? defaultAnim(), local);
+        const frac = Math.max(0, Math.min(1, local / Math.max(0.01, guessDur)));
         ctx.save();
-        ctx.globalAlpha *= revealK;
-        applyAnim(ctx, answerAnim, bcx, bcy);
-        ctx.fillStyle = hexA("#000000", 0.6);
-        roundRect(ctx, M, bandY, w - M * 2, bandH, bandH * 0.25);
-        ctx.fill();
-        ctx.strokeStyle = hexA(pal.accent, 0.85);
-        ctx.lineWidth = Math.max(2, bandH * 0.04);
-        ctx.stroke();
-
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        const ls = Math.round(bandH * 0.22);
-        ctx.font = `800 ${ls}px ${FX_FONT}`;
-        ctx.fillStyle = pal.accent;
-        ctx.fillText("ANSWER", bcx, bandY + bandH * 0.26);
-
-        const answer = r.answer.toUpperCase();
-        const asz = fitText(ctx, answer, w - M * 2 - bandH * 0.5, bandH * 0.4, 900);
-        ctx.font = `900 ${asz}px ${FX_FONT}`;
-        ctx.fillStyle = pal.text;
-        ctx.shadowColor = hexA(pal.accent, 0.5);
-        ctx.shadowBlur = asz * 0.35;
-        ctx.fillText(answer, bcx, bandY + bandH * 0.66);
+        applyStyle(ctx, styles.timebar, w / 2, barY + barH / 2, w, h);
+        applyAnim(ctx, timebarAnim, w / 2, barY + barH / 2);
+        drawTimeBar(
+          ctx,
+          timeBarStyle,
+          w / 2 - barW / 2,
+          barY,
+          barW,
+          barH,
+          frac,
+          { primary: pal.primary, accent: pal.accent, text: pal.text },
+          absT,
+        );
         ctx.restore();
       }
 
-      // ---- bottom timer bar ----
-      if (showTimer) {
-        const timebarAnim = computeAnim(anims.timebar ?? defaultAnim(), local);
-        const barW = w - M * 2.4;
-        const barH = Math.min(w, h) * 0.022;
-        const barY = h - M * 0.9;
-        const frac = Math.max(0, Math.min(1, local / Math.max(0.01, guessDur)));
+      // ---- countdown timer ----
+      if (showTimer && (styles.timer?.visible ?? true)) {
+        const timerAnim = computeAnim(anims.timer ?? defaultAnim(), local);
+        const remaining = Math.max(0, guessDur - local);
+        const tr = Math.min(w, h) * 0.045;
+        const tx = w - M - tr;
+        const ty = barY - tr * 1.6;
         ctx.save();
-        ctx.globalAlpha *= timebarAnim.opacity;
-        roundRect(ctx, w / 2 - barW / 2, barY, barW, barH, barH / 2);
-        ctx.fillStyle = "rgba(255,255,255,0.2)";
-        ctx.fill();
-        roundRect(ctx, w / 2 - barW / 2, barY, barW * frac, barH, barH / 2);
-        ctx.fillStyle = frac > 0.8 ? "#ef4444" : pal.primary;
-        ctx.fill();
-        ctx.beginPath();
-        ctx.arc(w / 2 - barW / 2 + barW * frac, barY + barH / 2, barH * 1.1, 0, Math.PI * 2);
-        ctx.fillStyle = "#ffffff";
-        ctx.fill();
+        applyStyle(ctx, styles.timer, tx, ty, w, h);
+        applyAnim(ctx, timerAnim, tx, ty);
+        drawTimer(
+          ctx,
+          timerStyle,
+          tx,
+          ty,
+          tr,
+          remaining,
+          guessDur,
+          { primary: pal.primary, accent: pal.accent, text: pal.text },
+          absT,
+        );
         ctx.restore();
       }
     },
-    [aspect, anims, drawBackground, heading, pal, revealSecs, showTimer],
+    [aspect, anims, styles, backgroundId, backgroundIntensity, heading, pal, revealSecs, showTimer, timerStyle, timeBarStyle],
   );
 
   const drawFrame = useCallback(
@@ -772,6 +837,32 @@ function LogoPage() {
           </Card>
 
           <ColorCustomiser base={basePalette} value={colors} onChange={setColors} />
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Background & timers</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <BackgroundPicker
+                value={backgroundId}
+                onChange={setBackgroundId}
+                intensity={backgroundIntensity}
+                onIntensityChange={setBackgroundIntensity}
+              />
+              <TimerStylePicker value={timerStyle} onChange={setTimerStyle} />
+              <TimeBarStylePicker value={timeBarStyle} onChange={setTimeBarStyle} />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Element layout</CardTitle>
+              <CardDescription>Position, scale, rotation and visibility per element.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ElementStyleGroup items={ELEMENT_LIST} values={styles} onChange={setStyleFor} />
+            </CardContent>
+          </Card>
 
           <Card>
             <CardHeader>
