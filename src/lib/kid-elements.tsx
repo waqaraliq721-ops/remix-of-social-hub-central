@@ -840,6 +840,112 @@ export function drawTimer(
       ctx.fillText(label, 0, s * 1.5);
       break;
     }
+    case "neon-ring": {
+      ctx.shadowColor = stroke;
+      ctx.shadowBlur = r * 0.7;
+      ctx.beginPath();
+      ctx.arc(0, 0, r, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * p);
+      ctx.strokeStyle = stroke;
+      ctx.lineCap = "round";
+      ctx.lineWidth = r * 0.16;
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = colors.text;
+      ctx.font = `800 ${r * 0.95}px system-ui, sans-serif`;
+      ctx.fillText(label, 0, r * 0.04);
+      break;
+    }
+    case "flip-card": {
+      const wpx = r * 1.7;
+      const hpx = r * 2;
+      ctx.beginPath();
+      ctx.roundRect(-wpx / 2, -hpx / 2, wpx, hpx, r * 0.22);
+      ctx.fillStyle = "rgba(12,12,16,0.92)";
+      ctx.fill();
+      ctx.strokeStyle = hexToRgba(stroke, 0.9);
+      ctx.lineWidth = 3;
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(-wpx / 2, 0);
+      ctx.lineTo(wpx / 2, 0);
+      ctx.strokeStyle = "rgba(0,0,0,0.6)";
+      ctx.lineWidth = 4;
+      ctx.stroke();
+      ctx.fillStyle = colors.text;
+      ctx.font = `800 ${hpx * 0.6}px system-ui, sans-serif`;
+      ctx.fillText(label, 0, hpx * 0.02);
+      break;
+    }
+    case "bubble": {
+      const rr = r * (1 + (1 - p) * 0.08);
+      ctx.beginPath();
+      ctx.arc(0, 0, rr, 0, Math.PI * 2);
+      ctx.fillStyle = hexToRgba(stroke, 0.85);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(-rr * 0.3, -rr * 0.35, rr * 0.25, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(255,255,255,0.35)";
+      ctx.fill();
+      ctx.fillStyle = colors.text;
+      ctx.font = `800 ${r * 0.9}px system-ui, sans-serif`;
+      ctx.fillText(label, 0, r * 0.04);
+      break;
+    }
+    case "shield": {
+      const s = r * 1.25;
+      ctx.beginPath();
+      ctx.moveTo(0, -s * 1.2);
+      ctx.lineTo(s, -s * 0.6);
+      ctx.lineTo(s * 0.75, s);
+      ctx.lineTo(0, s * 1.35);
+      ctx.lineTo(-s * 0.75, s);
+      ctx.lineTo(-s, -s * 0.6);
+      ctx.closePath();
+      ctx.fillStyle = hexToRgba(stroke, 0.25);
+      ctx.fill();
+      ctx.strokeStyle = stroke;
+      ctx.lineWidth = r * 0.12;
+      ctx.stroke();
+      ctx.fillStyle = colors.text;
+      ctx.font = `800 ${r * 0.95}px system-ui, sans-serif`;
+      ctx.fillText(label, 0, r * 0.06);
+      break;
+    }
+    case "arc": {
+      ctx.beginPath();
+      ctx.arc(0, r * 0.4, r * 1.1, Math.PI, Math.PI * 2);
+      ctx.strokeStyle = hexToRgba(colors.text, 0.18);
+      ctx.lineWidth = r * 0.2;
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(0, r * 0.4, r * 1.1, Math.PI, Math.PI + Math.PI * p);
+      ctx.strokeStyle = stroke;
+      ctx.lineCap = "round";
+      ctx.lineWidth = r * 0.2;
+      ctx.stroke();
+      ctx.fillStyle = colors.text;
+      ctx.font = `800 ${r * 0.85}px system-ui, sans-serif`;
+      ctx.fillText(label, 0, r * 0.05);
+      break;
+    }
+    case "bars": {
+      const n = 5;
+      const bw = r * 0.32;
+      const gap = r * 0.16;
+      const start = -((n * bw + (n - 1) * gap) / 2);
+      for (let i = 0; i < n; i++) {
+        const on = p > i / n;
+        const bh = r * (0.5 + i * 0.28);
+        ctx.beginPath();
+        ctx.roundRect(start + i * (bw + gap), r * 0.9 - bh, bw, bh, bw * 0.3);
+        ctx.fillStyle = on ? stroke : hexToRgba(colors.text, 0.18);
+        ctx.fill();
+      }
+      ctx.fillStyle = colors.text;
+      ctx.font = `800 ${r * 0.7}px system-ui, sans-serif`;
+      ctx.fillText(label, 0, -r * 0.9);
+      break;
+    }
     default: {
       ctx.fillStyle = urgent ? colors.accent : colors.text;
       ctx.font = `800 ${r * 1.6}px system-ui, sans-serif`;
