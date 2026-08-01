@@ -969,6 +969,12 @@ export type TimeBarStyleId =
   | "ticks"
   | "dual"
   | "thin"
+  | "candy"
+  | "chevrons"
+  | "beads"
+  | "wave-bar"
+  | "neon-outline"
+  | "step-blocks"
   | "none";
 
 export const TIMEBAR_STYLES: { id: TimeBarStyleId; name: string }[] = [
@@ -980,6 +986,13 @@ export const TIMEBAR_STYLES: { id: TimeBarStyleId; name: string }[] = [
   { id: "ticks", name: "Ticks" },
   { id: "dual", name: "Dual (centre out)" },
   { id: "thin", name: "Thin line" },
+  { id: "candy", name: "Candy stripes" },
+  { id: "chevrons", name: "Chevrons" },
+  { id: "beads", name: "Beads" },
+  { id: "wave-bar", name: "Wave bar" },
+  { id: "neon-outline", name: "Neon outline" },
+  { id: "step-blocks", name: "Step blocks" },
+  { id: "none", name: "Hidden" },
   { id: "none", name: "Hidden" },
 ];
 
