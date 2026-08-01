@@ -2361,7 +2361,7 @@ function LyricalVideosPage() {
               <div className="mx-auto flex justify-center rounded-xl bg-black p-2">
                 <canvas
                   ref={canvasRef}
-                  className="max-h-[70vh] w-auto rounded-lg"
+                  className="max-h-[58vh] w-auto rounded-lg"
                   style={{ aspectRatio: `${dims.w} / ${dims.h}`, maxWidth: "100%", height: "auto" }}
                 />
               </div>
