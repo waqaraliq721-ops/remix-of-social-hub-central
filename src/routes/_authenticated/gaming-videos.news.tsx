@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  Newspaper, ArrowLeft, Play, Pause, Download, Loader2, Plus, Trash2, ImagePlus, Music, Upload, Wand2,
+  Newspaper, ArrowLeft, Play, Pause, Download, Loader2, Plus, Trash2, ImagePlus, Music, Upload, Wand2, X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Progress } from "@/components/ui/progress";
 import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
@@ -113,6 +114,18 @@ function NewsPage() {
   const [voice, setVoice] = useState(TTS_VOICES.elevenlabs[0].id);
   const [generating, setGenerating] = useState(false);
 
+  const [gVoProvider, setGVoProvider] = useState<TtsProvider>("elevenlabs");
+  const [gVoVoice, setGVoVoice] = useState(TTS_VOICES.elevenlabs[0].id);
+  const [gVoScript, setGVoScript] = useState("");
+  const [gVoUrl, setGVoUrl] = useState<string | null>(null);
+  const [gVoBlob, setGVoBlob] = useState<Blob | null>(null);
+  const [gVoDuration, setGVoDuration] = useState(0);
+  const [gVoLoading, setGVoLoading] = useState(false);
+  const [gVoError, setGVoError] = useState<string | null>(null);
+  const [gVoVolume, setGVoVolume] = useState(0.9);
+  const [matchVoDuration, setMatchVoDuration] = useState(false);
+  const gVoAudioRef = useRef<HTMLAudioElement | null>(null);
+
   const [intro, setIntro] = useState<CardConfig>({ ...defaultIntro, title: "Gaming News" });
   const [outro, setOutro] = useState<CardConfig>({ ...defaultOutro, title: "Follow for daily recaps" });
 
@@ -135,17 +148,21 @@ function NewsPage() {
   const itemDur = useCallback((it: NewsItem) => Math.max(perItem, (it.voDur || 0) + 0.6), [perItem]);
 
   const timeline = useMemo(() => {
-    let t = intro.id !== "none" ? intro.seconds : 0;
+    const introEnd = intro.id !== "none" ? intro.seconds : 0;
+    let t = introEnd;
     const segs = items.map((it, i) => {
       const start = t;
       const dur = itemDur(it);
       t += dur;
       return { item: it, index: i, start, dur };
     });
-    const outroStart = t;
-    const total = t + (outro.id !== "none" ? outro.seconds : 0);
-    return { segs, outroStart, total, introEnd: intro.id !== "none" ? intro.seconds : 0 };
-  }, [items, itemDur, intro, outro]);
+    let outroStart = t;
+    if (matchVoDuration && gVoDuration > 0) {
+      outroStart = Math.max(outroStart, introEnd + gVoDuration);
+    }
+    const total = outroStart + (outro.id !== "none" ? outro.seconds : 0);
+    return { segs, outroStart, total, introEnd };
+  }, [items, itemDur, intro, outro, matchVoDuration, gVoDuration]);
 
   const setItem = (id: string, patch: Partial<NewsItem>) =>
     setItems((its) => its.map((it) => (it.id === id ? { ...it, ...patch } : it)));
@@ -187,6 +204,57 @@ function NewsPage() {
     } finally {
       setGenerating(false);
     }
+  };
+
+  const composeGVoScript = useCallback(() => {
+    const lines = items
+      .filter((it) => it.headline.trim())
+      .map((it) => `${it.headline}. ${it.subtext} `.trim());
+    return [showName ? `${showName}.` : "", ...lines].filter(Boolean).join(" ");
+  }, [items, showName]);
+
+  const useMyContent = () => setGVoScript(composeGVoScript());
+
+  useEffect(() => {
+    if (gVoAudioRef.current) gVoAudioRef.current.volume = gVoVolume;
+  }, [gVoVolume]);
+
+  const generateGlobalVoiceover = async () => {
+    const script = gVoScript.trim() || composeGVoScript();
+    if (!script) {
+      setGVoError("Add some news items or a script first.");
+      return;
+    }
+    setGVoScript(script);
+    setGVoLoading(true);
+    setGVoError(null);
+    try {
+      const { url, blob } = await generateSpeech(script, { provider: gVoProvider, voice: gVoVoice });
+      const dur = await blobDuration(blob);
+      if (gVoUrl) URL.revokeObjectURL(gVoUrl);
+      gVoAudioRef.current?.pause();
+      const el = new Audio(url);
+      el.volume = gVoVolume;
+      gVoAudioRef.current = el;
+      setGVoUrl(url);
+      setGVoBlob(blob);
+      setGVoDuration(dur);
+      toast.success("Voiceover generated");
+    } catch (e) {
+      setGVoError(e instanceof Error ? e.message : "Voiceover failed");
+    } finally {
+      setGVoLoading(false);
+    }
+  };
+
+  const clearGlobalVoiceover = () => {
+    if (gVoUrl) URL.revokeObjectURL(gVoUrl);
+    gVoAudioRef.current?.pause();
+    gVoAudioRef.current = null;
+    setGVoUrl(null);
+    setGVoBlob(null);
+    setGVoDuration(0);
+    setGVoError(null);
   };
 
   // ---------------- rendering ----------------
@@ -448,6 +516,7 @@ function NewsPage() {
           timeRef.current = 0;
           playedRef.current.clear();
           musicElRef.current?.pause();
+          gVoAudioRef.current?.pause();
         }
         for (const seg of timeline.segs) {
           if (seg.item.voUrl && !playedRef.current.has(seg.item.id) && timeRef.current >= seg.start && timeRef.current < seg.start + 0.35) {
@@ -460,6 +529,15 @@ function NewsPage() {
         setTime(timeRef.current);
       }
       lastRef.current = now;
+      if (gVoAudioRef.current) {
+        const target = timeRef.current - timeline.introEnd;
+        if (!playing || target < 0 || target > gVoDuration + 0.2) {
+          if (!gVoAudioRef.current.paused) gVoAudioRef.current.pause();
+        } else if (gVoAudioRef.current.paused || Math.abs(gVoAudioRef.current.currentTime - target) > 0.4) {
+          gVoAudioRef.current.currentTime = target;
+          void gVoAudioRef.current.play().catch(() => {});
+        }
+      }
       drawFrame(ctx, timeRef.current);
       rafRef.current = requestAnimationFrame(loop);
     };
@@ -471,6 +549,7 @@ function NewsPage() {
     if (playing) {
       audioElRef.current?.pause();
       musicElRef.current?.pause();
+      gVoAudioRef.current?.pause();
       setPlaying(false);
     } else {
       if (timeRef.current >= timeline.total - 0.05) {
@@ -499,6 +578,15 @@ function NewsPage() {
       const stream = canvas.captureStream(fps);
       const audioCtx = new AudioContext();
       const dest = audioCtx.createMediaStreamDestination();
+      if (gVoBlob) {
+        const buf = await audioCtx.decodeAudioData(await gVoBlob.arrayBuffer());
+        const src = audioCtx.createBufferSource();
+        src.buffer = buf;
+        const gain = audioCtx.createGain();
+        gain.gain.value = gVoVolume;
+        src.connect(gain).connect(dest);
+        src.start(audioCtx.currentTime + timeline.introEnd);
+      }
       for (const seg of timeline.segs) {
         if (!seg.item.voBlob) continue;
         const buf = await audioCtx.decodeAudioData(await seg.item.voBlob.arrayBuffer());
