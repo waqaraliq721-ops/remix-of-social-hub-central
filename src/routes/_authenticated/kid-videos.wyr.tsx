@@ -988,7 +988,7 @@ function WyrPage() {
     setRounds((rs) => rs.map((r) => ({ ...r, pctA: 20 + Math.round(Math.random() * 60) })));
 
   return (
-    <div className="mx-auto max-w-7xl space-y-6 p-6">
+    <div className="mx-auto max-w-7xl space-y-6 p-6 lg:flex lg:h-full lg:flex-col lg:space-y-0 lg:overflow-hidden">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight">
@@ -1016,9 +1016,9 @@ function WyrPage() {
 
       {exporting && <Progress value={exportProgress} />}
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
+      <div className="grid gap-6 lg:mt-6 lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(0,1fr)_380px] lg:overflow-hidden">
         {/* preview */}
-        <div className="space-y-4 lg:sticky lg:top-4 lg:z-10 lg:self-start">
+        <div className="min-w-0 space-y-4 lg:overflow-hidden">
           <Card>
             <CardContent className="flex justify-center p-4">
               <canvas
@@ -1139,7 +1139,7 @@ function WyrPage() {
         </div>
 
         {/* controls */}
-        <div className="space-y-4">
+        <div className="space-y-4 lg:min-h-0 lg:overflow-y-auto lg:pr-2">
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Format & style</CardTitle>

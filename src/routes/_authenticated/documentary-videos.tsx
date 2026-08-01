@@ -1250,7 +1250,7 @@ function DocumentaryVideosPage() {
   };
 
   return (
-    <div className="mx-auto max-w-[1600px] p-6">
+    <div className="mx-auto max-w-[1600px] p-6 lg:flex lg:h-full lg:flex-col lg:overflow-hidden">
       <div className="mb-6 flex items-start gap-4">
         <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-600 to-stone-700 text-white shadow-lg">
           <Clock3 className="h-6 w-6" />
@@ -1264,15 +1264,15 @@ function DocumentaryVideosPage() {
         </div>
       </div>
 
-      <Tabs defaultValue="templates" className="w-full">
+      <Tabs defaultValue="templates" className="w-full lg:flex lg:min-h-0 lg:flex-1 lg:flex-col lg:overflow-hidden">
         <TabsList className="mb-4">
           <TabsTrigger value="templates">Templates</TabsTrigger>
           <TabsTrigger value="hq">HQ YT Vids</TabsTrigger>
         </TabsList>
-        <TabsContent value="templates">
-      <div className="grid gap-6 lg:grid-cols-[380px_1fr_360px]">
+        <TabsContent value="templates" className="lg:min-h-0 lg:flex-1 lg:overflow-hidden">
+      <div className="grid gap-6 lg:h-full lg:min-h-0 lg:grid-cols-[380px_minmax(0,1fr)_360px] lg:overflow-hidden">
         {/* Left: media + narration + transcript */}
-        <div className="space-y-4">
+        <div className="space-y-4 lg:min-h-0 lg:overflow-y-auto lg:pr-2">
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Background footage</CardTitle>
@@ -1482,7 +1482,7 @@ function DocumentaryVideosPage() {
         </div>
 
         {/* Center: preview */}
-        <div className="space-y-4 lg:sticky lg:top-4 lg:z-10 lg:self-start">
+        <div className="min-w-0 space-y-4 lg:overflow-hidden">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0">
               <div>
@@ -1585,7 +1585,7 @@ function DocumentaryVideosPage() {
         </div>
 
         {/* Right: templates + controls */}
-        <div className="space-y-4">
+        <div className="space-y-4 lg:min-h-0 lg:overflow-y-auto lg:pr-2">
           <ColorCustomiser
             base={{
               bg: template.palette.bg,
@@ -1689,7 +1689,7 @@ function DocumentaryVideosPage() {
         </div>
       </div>
         </TabsContent>
-        <TabsContent value="hq">
+        <TabsContent value="hq" className="lg:min-h-0 lg:flex-1 lg:overflow-hidden">
           <DocumentaryHQ />
         </TabsContent>
       </Tabs>

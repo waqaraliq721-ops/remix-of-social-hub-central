@@ -2143,7 +2143,7 @@ function LyricalVideosPage() {
     engineFilter === "all" ? TEMPLATES : TEMPLATES.filter((t) => t.engine === engineFilter);
 
   return (
-    <div className="mx-auto max-w-[1600px] p-6">
+    <div className="mx-auto max-w-[1600px] p-6 lg:flex lg:h-full lg:flex-col lg:overflow-hidden">
       <div className="mb-6 flex items-start gap-4">
         <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-400 to-orange-600 text-white shadow-lg">
           <Music4 className="h-6 w-6" />
@@ -2157,9 +2157,9 @@ function LyricalVideosPage() {
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[380px_1fr_360px]">
+      <div className="grid gap-6 lg:min-h-0 lg:flex-1 lg:grid-cols-[380px_minmax(0,1fr)_360px] lg:overflow-hidden">
         {/* Left: track + lyrics */}
-        <div className="space-y-4">
+        <div className="space-y-4 lg:min-h-0 lg:overflow-y-auto lg:pr-2">
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Track</CardTitle>
@@ -2341,7 +2341,7 @@ function LyricalVideosPage() {
         </div>
 
         {/* Center: preview */}
-        <div className="space-y-4 lg:sticky lg:top-4 lg:z-10 lg:self-start">
+        <div className="min-w-0 space-y-4 lg:overflow-hidden">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0">
               <div>
@@ -2408,7 +2408,7 @@ function LyricalVideosPage() {
         </div>
 
         {/* Right: templates */}
-        <div className="space-y-4">
+        <div className="space-y-4 lg:min-h-0 lg:overflow-y-auto lg:pr-2">
           <IntroOutroCard
             intro={intro}
             outro={outro}

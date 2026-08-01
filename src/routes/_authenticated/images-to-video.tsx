@@ -1470,7 +1470,7 @@ function ImagesToVideoPage() {
   };
 
   return (
-    <div className="mx-auto max-w-[1400px] p-4 md:p-6">
+    <div className="mx-auto max-w-[1400px] p-4 md:p-6 lg:flex lg:h-full lg:flex-col lg:overflow-hidden">
       <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div>
           <div className="mb-2 inline-flex items-center gap-2 rounded-full border bg-background/60 px-2.5 py-0.5 text-xs text-muted-foreground">
@@ -1498,9 +1498,9 @@ function ImagesToVideoPage() {
         </div>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(320px,380px)_1fr_minmax(320px,400px)]">
+      <div className="grid gap-4 lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(320px,380px)_minmax(0,1fr)_minmax(320px,400px)] lg:overflow-hidden">
         {/* LEFT — Images with per-clip motion/transition */}
-        <Card>
+        <Card className="lg:min-h-0 lg:overflow-y-auto">
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center justify-between text-sm font-semibold uppercase tracking-wider text-muted-foreground">
               <span className="flex items-center gap-2">
@@ -1708,7 +1708,7 @@ function ImagesToVideoPage() {
         </Card>
 
         {/* CENTER — Preview */}
-        <div className="space-y-4 lg:sticky lg:top-4 lg:z-10 lg:self-start">
+        <div className="min-w-0 space-y-4 lg:overflow-hidden">
           <Card>
             <CardContent className="p-4">
               <div className="flex justify-center">
@@ -1795,7 +1795,7 @@ function ImagesToVideoPage() {
         </div>
 
         {/* RIGHT — Audio + Captions */}
-        <div className="space-y-4">
+        <div className="space-y-4 lg:min-h-0 lg:overflow-y-auto lg:pr-2">
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">

@@ -17,13 +17,13 @@ export const Route = createFileRoute("/_authenticated")({
 function Layout() {
   return (
     <SidebarProvider>
-      <div className="flex min-h-screen w-full bg-background">
+      <div className="flex h-screen w-full overflow-hidden bg-background">
         <AppSidebar />
-        <div className="flex flex-1 flex-col">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
           <header className="flex h-14 items-center border-b bg-card/40 px-3 backdrop-blur">
             <SidebarTrigger />
           </header>
-          <main className="flex-1 overflow-auto">
+          <main className="min-h-0 flex-1 overflow-auto">
             <Outlet />
           </main>
         </div>

@@ -895,9 +895,9 @@ export function DocumentaryHQ() {
   // -------------------- UI --------------------
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[380px_1fr_360px]">
+    <div className="grid gap-6 lg:h-full lg:min-h-0 lg:grid-cols-[380px_minmax(0,1fr)_360px] lg:overflow-hidden">
       {/* Left: media library + timeline */}
-      <div className="space-y-4">
+      <div className="space-y-4 lg:min-h-0 lg:overflow-y-auto lg:pr-2">
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Media library</CardTitle>
@@ -1025,7 +1025,7 @@ export function DocumentaryHQ() {
       </div>
 
       {/* Middle: preview */}
-      <div className="space-y-4 lg:sticky lg:top-4 lg:z-10 lg:self-start">
+      <div className="min-w-0 space-y-4 lg:overflow-hidden">
         <Card>
           <CardContent className="p-4">
             <div className="mx-auto overflow-hidden rounded-lg bg-black" style={{ maxWidth: 900 }}>
@@ -1269,7 +1269,7 @@ export function DocumentaryHQ() {
       </div>
 
       {/* Right: global settings */}
-      <div className="space-y-4">
+      <div className="space-y-4 lg:min-h-0 lg:overflow-y-auto lg:pr-2">
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Grade & effects</CardTitle>
