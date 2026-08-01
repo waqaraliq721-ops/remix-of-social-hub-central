@@ -31,13 +31,95 @@ export type ElementStyleSpec = {
   opacity: number;
   /** Whether the element is drawn at all. */
   visible: boolean;
+  /** Visual style variant (1..5) for the element's plate/chrome. */
+  variant: number;
 };
 
+export const ELEMENT_VARIANTS: { id: number; name: string }[] = [
+  { id: 1, name: "Style 1 · Glass" },
+  { id: 2, name: "Style 2 · Solid card" },
+  { id: 3, name: "Style 3 · Outline" },
+  { id: 4, name: "Style 4 · Gradient" },
+  { id: 5, name: "Style 5 · Sticker" },
+];
+
 export function defaultStyle(partial?: Partial<ElementStyleSpec>): ElementStyleSpec {
-  return { dx: 0, dy: 0, scale: 1, rotate: 0, opacity: 1, visible: true, ...partial };
+  return { dx: 0, dy: 0, scale: 1, rotate: 0, opacity: 1, visible: true, variant: 1, ...partial };
 }
 
 export const IDENTITY_STYLE = defaultStyle();
+
+/**
+ * Paints one of five element plate styles behind content. Colours come from the
+ * active palette so every variant stays on-theme.
+ */
+export function drawPanel(
+  ctx: CanvasRenderingContext2D,
+  variant: number,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  r: number,
+  colors: { primary: string; accent: string; text: string },
+  tone: string = colors.primary,
+) {
+  const v = Math.max(1, Math.min(5, Math.round(variant || 1)));
+  ctx.save();
+  const path = (rr: number, ox = 0, oy = 0) => {
+    ctx.beginPath();
+    ctx.roundRect(x + ox, y + oy, w, h, rr);
+  };
+  switch (v) {
+    case 1: {
+      path(r);
+      ctx.fillStyle = "rgba(255,255,255,0.10)";
+      ctx.fill();
+      ctx.strokeStyle = hexToRgba(colors.text, 0.25);
+      ctx.lineWidth = Math.max(2, h * 0.02);
+      ctx.stroke();
+      break;
+    }
+    case 2: {
+      path(r);
+      ctx.fillStyle = hexToRgba(tone, 0.92);
+      ctx.fill();
+      break;
+    }
+    case 3: {
+      path(r);
+      ctx.fillStyle = "rgba(0,0,0,0.35)";
+      ctx.fill();
+      ctx.strokeStyle = tone;
+      ctx.lineWidth = Math.max(3, h * 0.045);
+      ctx.stroke();
+      break;
+    }
+    case 4: {
+      const g = ctx.createLinearGradient(x, y, x + w, y + h);
+      g.addColorStop(0, hexToRgba(tone, 0.95));
+      g.addColorStop(1, hexToRgba(colors.accent, 0.9));
+      path(r);
+      ctx.fillStyle = g;
+      ctx.fill();
+      break;
+    }
+    default: {
+      path(r, h * 0.06, h * 0.08);
+      ctx.fillStyle = "rgba(0,0,0,0.45)";
+      ctx.fill();
+      path(r);
+      ctx.fillStyle = hexToRgba(tone, 0.95);
+      ctx.fill();
+      ctx.strokeStyle = hexToRgba(colors.text, 0.9);
+      ctx.lineWidth = Math.max(3, h * 0.04);
+      ctx.stroke();
+      break;
+    }
+  }
+  ctx.restore();
+}
+
 
 /**
  * Applies an element style around a centre point. Caller must ctx.save()/restore().
