@@ -1139,7 +1139,7 @@ function WyrPage() {
         </div>
 
         {/* controls */}
-        <div className="space-y-4">
+        <div className="space-y-4 lg:min-h-0 lg:overflow-y-auto lg:pr-2">
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Format & style</CardTitle>
