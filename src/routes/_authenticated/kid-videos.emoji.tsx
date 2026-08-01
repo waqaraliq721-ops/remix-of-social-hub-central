@@ -923,14 +923,14 @@ function EmojiPage() {
       {exporting && <Progress value={exportProgress} />}
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
-        <div className="space-y-4 lg:sticky lg:top-4 lg:self-start lg:max-h-[calc(100vh-5rem)] lg:overflow-y-auto lg:pr-1">
+        <div className="space-y-4 lg:sticky lg:top-4 lg:z-10 lg:self-start">
           <Card>
             <CardContent className="flex justify-center p-4">
               <canvas
                 ref={canvasRef}
                 width={dims.w}
                 height={dims.h}
-                className="max-h-[70vh] w-auto rounded-xl border bg-black"
+                className="max-h-[58vh] w-auto rounded-xl border bg-black"
                 style={{ aspectRatio: `${dims.w}/${dims.h}` }}
               />
             </CardContent>
