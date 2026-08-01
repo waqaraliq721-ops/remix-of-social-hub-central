@@ -57,6 +57,21 @@ import {
   applyAnim,
   type ElementAnimSpec,
 } from "@/lib/kid-anim";
+import {
+  ElementStyleGroup,
+  defaultStyle,
+  applyStyle,
+  type ElementStyleSpec,
+  drawBackground as drawSharedBackground,
+  BackgroundPicker,
+  type BackgroundId,
+  drawTimer,
+  TimerStylePicker,
+  type TimerStyleId,
+  drawTimeBar,
+  TimeBarStylePicker,
+  type TimeBarStyleId,
+} from "@/lib/kid-elements";
 
 export const Route = createFileRoute("/_authenticated/kid-videos/emoji")({
   head: () => ({
@@ -108,6 +123,28 @@ function defaultAnimMap(): Record<string, ElementAnimSpec> {
     timer: defaultAnim({ preset: "zoom-in", loop: "pulse", intensity: 0.6 }),
     timebar: defaultAnim({ preset: "fade", duration: 0.3 }),
     roundNo: defaultAnim({ preset: "fade" }),
+  };
+}
+
+const STYLE_ELEMENTS: { key: string; label: string }[] = [
+  { key: "title", label: "Heading" },
+  { key: "emoji", label: "Emoji row" },
+  { key: "answer", label: "Answer text" },
+  { key: "hint", label: "Hint" },
+  { key: "timer", label: "Timer" },
+  { key: "timebar", label: "Progress bar" },
+  { key: "roundNo", label: "Round number" },
+];
+
+function defaultStyleMap(): Record<string, ElementStyleSpec> {
+  return {
+    title: defaultStyle(),
+    emoji: defaultStyle(),
+    answer: defaultStyle(),
+    hint: defaultStyle(),
+    timer: defaultStyle(),
+    timebar: defaultStyle(),
+    roundNo: defaultStyle(),
   };
 }
 
@@ -240,6 +277,13 @@ function EmojiPage() {
   const [anims, setAnims] = useState<Record<string, ElementAnimSpec>>(defaultAnimMap());
   const setAnim = (key: string, spec: ElementAnimSpec) =>
     setAnims((a) => ({ ...a, [key]: spec }));
+  const [styles, setStyles] = useState<Record<string, ElementStyleSpec>>(defaultStyleMap());
+  const setElStyle = (key: string, spec: ElementStyleSpec) =>
+    setStyles((s) => ({ ...s, [key]: spec }));
+  const [background, setBackground] = useState<BackgroundId>("gradient");
+  const [bgIntensity, setBgIntensity] = useState(1);
+  const [timerStyle, setTimerStyle] = useState<TimerStyleId>("ring");
+  const [timebarStyle, setTimebarStyle] = useState<TimeBarStyleId>("thin");
 
   const [provider, setProvider] = useState<TtsProvider>("elevenlabs");
   const [voice, setVoice] = useState(TTS_VOICES.elevenlabs[0].id);
@@ -290,34 +334,15 @@ function EmojiPage() {
 
   const drawBackground = useCallback(
     (ctx: CanvasRenderingContext2D, w: number, h: number, t: number) => {
-      const g = ctx.createLinearGradient(0, 0, w * 0.35, h);
-      g.addColorStop(0, pal.bg[0]);
-      g.addColorStop(1, pal.bg[1]);
-      ctx.fillStyle = g;
-      ctx.fillRect(0, 0, w, h);
-
-      // slow drifting glow blobs — same surface top to bottom
-      const blobs = [
-        { x: 0.2, y: 0.25, c: pal.primary, r: 0.55 },
-        { x: 0.85, y: 0.7, c: pal.accent, r: 0.5 },
-      ];
-      blobs.forEach((b, i) => {
-        const dx = Math.sin(t * 0.22 + i * 2.1) * w * 0.035;
-        const dy = Math.cos(t * 0.18 + i * 1.4) * h * 0.025;
-        const rad = Math.min(w, h) * b.r;
-        const rg = ctx.createRadialGradient(
-          w * b.x + dx,
-          h * b.y + dy,
-          0,
-          w * b.x + dx,
-          h * b.y + dy,
-          rad,
-        );
-        rg.addColorStop(0, hexA(b.c, style === "clean" ? 0.1 : 0.18));
-        rg.addColorStop(1, hexA(b.c, 0));
-        ctx.fillStyle = rg;
-        ctx.fillRect(0, 0, w, h);
-      });
+      drawSharedBackground(
+        ctx,
+        background,
+        { bg: [pal.bg[0], pal.bg[1]], primary: pal.primary, accent: pal.accent },
+        w,
+        h,
+        t,
+        bgIntensity,
+      );
 
       if (style === "chalk") {
         ctx.strokeStyle = hexA(pal.text, 0.06);
@@ -363,7 +388,7 @@ function EmojiPage() {
       ctx.fillStyle = v;
       ctx.fillRect(0, 0, w, h);
     },
-    [pal, style],
+    [pal, style, background, bgIntensity],
   );
 
   const drawConfetti = useCallback(
@@ -407,36 +432,42 @@ function EmojiPage() {
       const M = Math.min(w, h) * 0.07; // safe margin
 
       // ---- header banner ----
-      const titleAnim = computeAnim(anims.title ?? defaultAnim(), local);
-      ctx.save();
-      applyAnim(ctx, titleAnim, w / 2, M + Math.round(Math.min(w, h) * (aspect === "16:9" ? 0.055 : 0.045)) * 0.9);
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
+      const titleStyleSpec = styles.title ?? defaultStyle();
       const hs = Math.round(Math.min(w, h) * (aspect === "16:9" ? 0.055 : 0.045));
-      ctx.font = `900 ${hs}px ${FX_FONT}`;
-      const title = uppercase ? heading.toUpperCase() : heading;
-      const tw = Math.min(ctx.measureText(title).width, w - M * 2 - hs * 1.4);
-      const padX = hs * 0.75;
       const by = M + hs * 0.9;
-      ctx.globalAlpha *= inK;
-      ctx.fillStyle = hexA("#000000", 0.42);
-      roundRect(ctx, w / 2 - tw / 2 - padX, by - hs * 0.95, tw + padX * 2, hs * 1.9, hs);
-      ctx.fill();
-      ctx.strokeStyle = hexA(pal.primary, 0.7);
-      ctx.lineWidth = Math.max(2, hs * 0.05);
-      ctx.stroke();
-      ctx.fillStyle = pal.text;
-      ctx.fillText(title, w / 2, by, w - M * 2 - padX * 2);
-      ctx.restore();
+      if (titleStyleSpec.visible) {
+        const titleAnim = computeAnim(anims.title ?? defaultAnim(), local);
+        ctx.save();
+        applyStyle(ctx, titleStyleSpec, w / 2, by, w, h);
+        applyAnim(ctx, titleAnim, w / 2, by);
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.font = `900 ${hs}px ${FX_FONT}`;
+        const title = uppercase ? heading.toUpperCase() : heading;
+        const tw = Math.min(ctx.measureText(title).width, w - M * 2 - hs * 1.4);
+        const padX = hs * 0.75;
+        ctx.globalAlpha *= inK;
+        ctx.fillStyle = hexA("#000000", 0.42);
+        roundRect(ctx, w / 2 - tw / 2 - padX, by - hs * 0.95, tw + padX * 2, hs * 1.9, hs);
+        ctx.fill();
+        ctx.strokeStyle = hexA(pal.primary, 0.7);
+        ctx.lineWidth = Math.max(2, hs * 0.05);
+        ctx.stroke();
+        ctx.fillStyle = pal.text;
+        ctx.fillText(title, w / 2, by, w - M * 2 - padX * 2);
+        ctx.restore();
+      }
 
       // ---- round number / category chips ----
       const chipY = by + hs * 1.9;
       const chips: { label: string; color: string }[] = [];
       if (showRoundNo) chips.push({ label: `Round ${index + 1}`, color: pal.primary });
       if (showCategory && r.category.trim()) chips.push({ label: r.category, color: pal.accent });
-      if (chips.length) {
+      const roundNoStyleSpec = styles.roundNo ?? defaultStyle();
+      if (chips.length && roundNoStyleSpec.visible) {
         const roundAnim = computeAnim(anims.roundNo ?? defaultAnim(), local);
         ctx.save();
+        applyStyle(ctx, roundNoStyleSpec, w / 2, chipY, w, h);
         applyAnim(ctx, roundAnim, w / 2, chipY);
         ctx.textAlign = "left";
         ctx.textBaseline = "middle";
@@ -495,7 +526,8 @@ function EmojiPage() {
 
       // emojis, laid out on a fitted row (wraps to two rows if needed)
       const list = emojiList(r.emojis);
-      if (list.length) {
+      const emojiStyleSpec = styles.emoji ?? defaultStyle();
+      if (list.length && emojiStyleSpec.visible) {
         const perRow = list.length > 4 ? Math.ceil(list.length / 2) : list.length;
         const rows: string[][] = [];
         for (let i = 0; i < list.length; i += perRow) rows.push(list.slice(i, i + perRow));
@@ -506,6 +538,7 @@ function EmojiPage() {
         const size = maxCell * 0.92 * emojiScale;
         const emojiAnim = computeAnim(anims.emoji ?? defaultAnim(), local);
         ctx.save();
+        applyStyle(ctx, emojiStyleSpec, cx, cyCard, w, h);
         applyAnim(ctx, emojiAnim, cx, cyCard);
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
@@ -530,13 +563,15 @@ function EmojiPage() {
       }
 
       // ---- hint ----
-      if (showHint && r.hint.trim() && !revealing) {
+      const hintStyleSpec = styles.hint ?? defaultStyle();
+      if (showHint && r.hint.trim() && !revealing && hintStyleSpec.visible) {
+        const s = Math.round(Math.min(w, h) * 0.032);
         ctx.save();
+        applyStyle(ctx, hintStyleSpec, cx, cardTop + cardH + s * 1.8, w, h);
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
-        const s = Math.round(Math.min(w, h) * 0.032);
         ctx.font = `600 ${s}px ${FX_FONT}`;
-        ctx.globalAlpha = inK * 0.9;
+        ctx.globalAlpha *= inK * 0.9;
         ctx.fillStyle = pal.muted;
         const rowsH = wrapText(ctx, `Hint: ${r.hint}`, cardW * 0.9);
         rowsH.forEach((line, i) => {
@@ -545,45 +580,66 @@ function EmojiPage() {
         ctx.restore();
       }
 
-      // ---- countdown ----
-      if (showTimer && !revealing) {
+      // ---- countdown timer ----
+      const timerStyleSpec = styles.timer ?? defaultStyle();
+      if (showTimer && !revealing && timerStyleSpec.visible) {
         const left = Math.max(0, guessDur - local);
-        const frac = Math.max(0, Math.min(1, left / guessDur));
         const rr = Math.min(w, h) * 0.065;
         const ccx = w - M - rr;
         const ccy = h - M - rr;
         const timerAnim = computeAnim(anims.timer ?? defaultAnim(), local);
         ctx.save();
+        applyStyle(ctx, timerStyleSpec, ccx, ccy, w, h);
         applyAnim(ctx, timerAnim, ccx, ccy);
-        ctx.beginPath();
-        ctx.arc(ccx, ccy, rr, 0, Math.PI * 2);
-        ctx.fillStyle = "rgba(0,0,0,0.5)";
-        ctx.fill();
-        ctx.lineCap = "round";
-        ctx.lineWidth = Math.max(3, rr * 0.13);
-        ctx.strokeStyle = hexA(pal.text, 0.18);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.arc(ccx, ccy, rr, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * frac);
-        ctx.strokeStyle = frac < 0.3 ? "#ef4444" : pal.primary;
-        ctx.stroke();
-        const tick = 1 - (left % 1);
-        ctx.fillStyle = pal.text;
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        const ts = Math.round(rr * 0.85 * (1 + 0.06 * (1 - tick) * bounce));
-        ctx.font = `900 ${ts}px ${FX_FONT}`;
-        ctx.fillText(String(Math.ceil(left)), ccx, ccy + rr * 0.04);
+        drawTimer(
+          ctx,
+          timerStyle,
+          ccx,
+          ccy,
+          rr,
+          left,
+          guessDur,
+          { primary: pal.primary, accent: "#ef4444", text: pal.text },
+          local,
+        );
+        ctx.restore();
+      }
+
+      // ---- time bar ----
+      const timebarStyleSpec = styles.timebar ?? defaultStyle();
+      if (timebarStyleSpec.visible) {
+        const barW = w - M * 2;
+        const barH = Math.max(6, h * 0.012);
+        const barX = M;
+        const barY = M * 0.55;
+        const frac2 = Math.max(0, Math.min(1, 1 - local / Math.max(0.01, dur)));
+        const timebarAnim = computeAnim(anims.timebar ?? defaultAnim(), local);
+        ctx.save();
+        applyStyle(ctx, timebarStyleSpec, barX + barW / 2, barY + barH / 2, w, h);
+        applyAnim(ctx, timebarAnim, barX + barW / 2, barY + barH / 2);
+        drawTimeBar(
+          ctx,
+          timebarStyle,
+          barX,
+          barY,
+          barW,
+          barH,
+          frac2,
+          { primary: pal.primary, accent: pal.accent, text: pal.text },
+          local,
+        );
         ctx.restore();
       }
 
       // ---- answer reveal ----
-      if (revealing && r.answer.trim()) {
+      const answerStyleSpec = styles.answer ?? defaultStyle();
+      if (revealing && r.answer.trim() && answerStyleSpec.visible) {
         if (style === "confetti") drawConfetti(ctx, w, h, (local - guessDur) / Math.max(0.6, revealSecs));
         const answerAnim = computeAnim(anims.answer ?? defaultAnim(), local - guessDur);
         const bandH0 = Math.min(w, h) * 0.2;
         const bandY0 = h - M - bandH0;
         ctx.save();
+        applyStyle(ctx, answerStyleSpec, w / 2, bandY0 + bandH0 / 2, w, h);
         applyAnim(ctx, answerAnim, w / 2, bandY0 + bandH0 / 2);
         ctx.globalAlpha *= revealK;
         const bandH = bandH0;
@@ -631,6 +687,9 @@ function EmojiPage() {
       showRoundNo,
       showTimer,
       style,
+      styles,
+      timerStyle,
+      timebarStyle,
       uppercase,
     ],
   );
@@ -1165,6 +1224,40 @@ function EmojiPage() {
                 )}
                 Generate voiceover for all rounds
               </Button>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Background</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <BackgroundPicker
+                value={background}
+                onChange={setBackground}
+                intensity={bgIntensity}
+                onIntensityChange={setBgIntensity}
+              />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Timer & bar</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <TimerStylePicker value={timerStyle} onChange={setTimerStyle} />
+              <TimeBarStylePicker value={timebarStyle} onChange={setTimebarStyle} />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Layout</CardTitle>
+              <CardDescription>Position, scale, rotation and visibility per element.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ElementStyleGroup items={STYLE_ELEMENTS} values={styles} onChange={setElStyle} />
             </CardContent>
           </Card>
 

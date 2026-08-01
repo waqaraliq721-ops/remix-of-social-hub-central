@@ -28,7 +28,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import {
   transcribeFile,
@@ -49,6 +49,7 @@ import {
 } from "@/components/intro-outro-card";
 import { INTRO_ANIMATIONS, OUTRO_ANIMATIONS } from "@/lib/video-fx";
 import { ColorCustomiser, applyOverrides, type ColorOverrides } from "@/components/color-customiser";
+import { DocumentaryHQ } from "@/components/documentary-hq";
 
 export const Route = createFileRoute("/_authenticated/documentary-videos")({
   head: () => ({
@@ -1016,7 +1017,20 @@ function DocumentaryVideosPage() {
     (canvas: HTMLCanvasElement, t: number) => {
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
-      paint(ctx, canvas.width, canvas.height, t, backdrop);
+      try {
+        paint(ctx, canvas.width, canvas.height, t, backdrop);
+      } catch (err) {
+        // A single bad asset (e.g. a video frame mid-decode, or a template
+        // throwing on an edge-case time) must never kill the render loop —
+        // fall back to a plain frame so the preview keeps playing.
+        console.warn("Documentary preview draw failed", err);
+        try {
+          ctx.fillStyle = "#000000";
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+        } catch {
+          /* noop */
+        }
+      }
     },
     [paint, backdrop],
   );
@@ -1026,8 +1040,26 @@ function DocumentaryVideosPage() {
     if (!canvas) return;
     canvas.width = dims.w;
     canvas.height = dims.h;
-    drawAt(canvas, timeRef.current);
+    try {
+      drawAt(canvas, timeRef.current);
+    } catch (err) {
+      console.warn("Documentary preview initial draw failed", err);
+    }
   }, [dims.w, dims.h, drawAt]);
+
+  // Repaint whenever any preview-affecting input changes, even while
+  // paused/no media — otherwise the canvas can be stuck showing a stale or
+  // blank frame after toggling a template/control before playback starts.
+  useEffect(() => {
+    if (playing) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    try {
+      drawAt(canvas, timeRef.current);
+    } catch (err) {
+      console.warn("Documentary preview repaint failed", err);
+    }
+  }, [drawAt, playing]);
 
   useEffect(() => {
     if (!playing) return;
@@ -1055,7 +1087,11 @@ function DocumentaryVideosPage() {
         } else if (!vd.paused) vd.pause();
       }
       if (frames++ % 6 === 0) setCurrentTime(t);
-      drawAt(canvas, t);
+      try {
+        drawAt(canvas, t);
+      } catch (err) {
+        console.warn("Documentary preview frame failed", err);
+      }
       if (totalDuration > 0 && t >= totalDuration - 0.02) {
         el?.pause();
         vd?.pause();
@@ -1228,6 +1264,12 @@ function DocumentaryVideosPage() {
         </div>
       </div>
 
+      <Tabs defaultValue="templates" className="w-full">
+        <TabsList className="mb-4">
+          <TabsTrigger value="templates">Templates</TabsTrigger>
+          <TabsTrigger value="hq">HQ YT Vids</TabsTrigger>
+        </TabsList>
+        <TabsContent value="templates">
       <div className="grid gap-6 lg:grid-cols-[380px_1fr_360px]">
         {/* Left: media + narration + transcript */}
         <div className="space-y-4">
@@ -1646,6 +1688,11 @@ function DocumentaryVideosPage() {
           </Card>
         </div>
       </div>
+        </TabsContent>
+        <TabsContent value="hq">
+          <DocumentaryHQ />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
