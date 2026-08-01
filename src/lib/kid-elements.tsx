@@ -667,6 +667,12 @@ export type TimerStyleId =
   | "square"
   | "dots"
   | "hourglass"
+  | "neon-ring"
+  | "flip-card"
+  | "bubble"
+  | "shield"
+  | "arc"
+  | "bars"
   | "none";
 
 export const TIMER_STYLES: { id: TimerStyleId; name: string }[] = [
@@ -677,6 +683,12 @@ export const TIMER_STYLES: { id: TimerStyleId; name: string }[] = [
   { id: "square", name: "Square frame" },
   { id: "dots", name: "Dot countdown" },
   { id: "hourglass", name: "Hourglass" },
+  { id: "neon-ring", name: "Neon ring" },
+  { id: "flip-card", name: "Flip card" },
+  { id: "bubble", name: "Bubble" },
+  { id: "shield", name: "Shield" },
+  { id: "arc", name: "Half arc" },
+  { id: "bars", name: "Bar stack" },
   { id: "plain", name: "Plain number" },
   { id: "none", name: "Hidden" },
 ];
