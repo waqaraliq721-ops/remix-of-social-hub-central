@@ -856,6 +856,83 @@ function NewsPage() {
 
           <Card>
             <CardHeader>
+              <CardTitle className="text-base">Narrator voiceover</CardTitle>
+              <CardDescription>A single narration track for the whole recap, mixed into the export.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="grid grid-cols-2 gap-2">
+                <Select
+                  value={gVoProvider}
+                  onValueChange={(v) => {
+                    const p = v as TtsProvider;
+                    setGVoProvider(p);
+                    setGVoVoice(TTS_VOICES[p][0].id);
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {TTS_PROVIDERS.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={gVoVoice} onValueChange={setGVoVoice}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {TTS_VOICES[gVoProvider].map((v) => (
+                      <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs text-muted-foreground">Script</Label>
+                  <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={useMyContent}>
+                    Use my content
+                  </Button>
+                </div>
+                <Textarea
+                  value={gVoScript}
+                  onChange={(e) => setGVoScript(e.target.value)}
+                  placeholder="Click “Use my content” to auto-write a script from your headlines, or write your own."
+                  className="min-h-24 text-sm"
+                />
+              </div>
+              <Button onClick={generateGlobalVoiceover} disabled={gVoLoading} className="w-full">
+                {gVoLoading ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Wand2 className="mr-1 h-4 w-4" />}
+                {gVoUrl ? "Regenerate voiceover" : "Generate voiceover"}
+              </Button>
+              {gVoError && <p className="text-xs text-destructive">{gVoError}</p>}
+              {gVoUrl && (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <audio controls src={gVoUrl} className="h-9 flex-1">
+                      <track kind="captions" />
+                    </audio>
+                    <Button size="icon" variant="ghost" onClick={clearGlobalVoiceover}>
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Voiceover volume · {Math.round(gVoVolume * 100)}%</Label>
+                    <Slider value={[gVoVolume]} min={0} max={1} step={0.05} onValueChange={([v]) => setGVoVolume(v)} />
+                  </div>
+                  <label className="flex items-center justify-between gap-2 text-sm">
+                    Match duration to voiceover
+                    <Switch checked={matchVoDuration} onCheckedChange={setMatchVoDuration} />
+                  </label>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
               <CardTitle className="text-base">Music</CardTitle>
               <CardDescription>Optional background bed, mixed into the export.</CardDescription>
             </CardHeader>

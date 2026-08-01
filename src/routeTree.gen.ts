@@ -26,6 +26,7 @@ import { Route as AuthenticatedKidVideosRouteImport } from './routes/_authentica
 import { Route as AuthenticatedInboxRouteImport } from './routes/_authenticated/inbox'
 import { Route as AuthenticatedImagesToVideoRouteImport } from './routes/_authenticated/images-to-video'
 import { Route as AuthenticatedGamingVideosRouteImport } from './routes/_authenticated/gaming-videos'
+import { Route as AuthenticatedDocumentaryVideosRouteImport } from './routes/_authenticated/documentary-videos'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedComposeRouteImport } from './routes/_authenticated/compose'
 import { Route as AuthenticatedCalendarRouteImport } from './routes/_authenticated/calendar'
@@ -129,6 +130,12 @@ const AuthenticatedGamingVideosRoute =
     path: '/gaming-videos',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedDocumentaryVideosRoute =
+  AuthenticatedDocumentaryVideosRouteImport.update({
+    id: '/documentary-videos',
+    path: '/documentary-videos',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
@@ -217,6 +224,7 @@ export interface FileRoutesByFullPath {
   '/calendar': typeof AuthenticatedCalendarRoute
   '/compose': typeof AuthenticatedComposeRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/documentary-videos': typeof AuthenticatedDocumentaryVideosRoute
   '/gaming-videos': typeof AuthenticatedGamingVideosRouteWithChildren
   '/images-to-video': typeof AuthenticatedImagesToVideoRoute
   '/inbox': typeof AuthenticatedInboxRoute
@@ -249,6 +257,7 @@ export interface FileRoutesByTo {
   '/calendar': typeof AuthenticatedCalendarRoute
   '/compose': typeof AuthenticatedComposeRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/documentary-videos': typeof AuthenticatedDocumentaryVideosRoute
   '/images-to-video': typeof AuthenticatedImagesToVideoRoute
   '/inbox': typeof AuthenticatedInboxRoute
   '/lyrical-videos': typeof AuthenticatedLyricalVideosRoute
@@ -281,6 +290,7 @@ export interface FileRoutesById {
   '/_authenticated/calendar': typeof AuthenticatedCalendarRoute
   '/_authenticated/compose': typeof AuthenticatedComposeRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
+  '/_authenticated/documentary-videos': typeof AuthenticatedDocumentaryVideosRoute
   '/_authenticated/gaming-videos': typeof AuthenticatedGamingVideosRouteWithChildren
   '/_authenticated/images-to-video': typeof AuthenticatedImagesToVideoRoute
   '/_authenticated/inbox': typeof AuthenticatedInboxRoute
@@ -315,6 +325,7 @@ export interface FileRouteTypes {
     | '/calendar'
     | '/compose'
     | '/dashboard'
+    | '/documentary-videos'
     | '/gaming-videos'
     | '/images-to-video'
     | '/inbox'
@@ -347,6 +358,7 @@ export interface FileRouteTypes {
     | '/calendar'
     | '/compose'
     | '/dashboard'
+    | '/documentary-videos'
     | '/images-to-video'
     | '/inbox'
     | '/lyrical-videos'
@@ -378,6 +390,7 @@ export interface FileRouteTypes {
     | '/_authenticated/calendar'
     | '/_authenticated/compose'
     | '/_authenticated/dashboard'
+    | '/_authenticated/documentary-videos'
     | '/_authenticated/gaming-videos'
     | '/_authenticated/images-to-video'
     | '/_authenticated/inbox'
@@ -535,6 +548,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedGamingVideosRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/documentary-videos': {
+      id: '/_authenticated/documentary-videos'
+      path: '/documentary-videos'
+      fullPath: '/documentary-videos'
+      preLoaderRoute: typeof AuthenticatedDocumentaryVideosRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/dashboard': {
       id: '/_authenticated/dashboard'
       path: '/dashboard'
@@ -685,6 +705,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedCalendarRoute: typeof AuthenticatedCalendarRoute
   AuthenticatedComposeRoute: typeof AuthenticatedComposeRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
+  AuthenticatedDocumentaryVideosRoute: typeof AuthenticatedDocumentaryVideosRoute
   AuthenticatedGamingVideosRoute: typeof AuthenticatedGamingVideosRouteWithChildren
   AuthenticatedImagesToVideoRoute: typeof AuthenticatedImagesToVideoRoute
   AuthenticatedInboxRoute: typeof AuthenticatedInboxRoute
@@ -702,6 +723,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedCalendarRoute: AuthenticatedCalendarRoute,
   AuthenticatedComposeRoute: AuthenticatedComposeRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
+  AuthenticatedDocumentaryVideosRoute: AuthenticatedDocumentaryVideosRoute,
   AuthenticatedGamingVideosRoute: AuthenticatedGamingVideosRouteWithChildren,
   AuthenticatedImagesToVideoRoute: AuthenticatedImagesToVideoRoute,
   AuthenticatedInboxRoute: AuthenticatedInboxRoute,
