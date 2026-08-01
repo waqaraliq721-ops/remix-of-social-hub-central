@@ -1029,7 +1029,7 @@ export function DocumentaryHQ() {
         <Card>
           <CardContent className="p-4">
             <div className="mx-auto overflow-hidden rounded-lg bg-black" style={{ maxWidth: 900 }}>
-              <canvas ref={canvasRef} className="block w-full" style={{ aspectRatio: `${W} / ${H}` }} />
+              <canvas ref={canvasRef} className="mx-auto block max-h-[58vh] w-full object-contain" style={{ aspectRatio: `${W} / ${H}` }} />
             </div>
             <div className="mt-3 flex items-center gap-3">
               <Button size="icon" variant="secondary" onClick={togglePlay}>
