@@ -453,7 +453,7 @@ function RepurposePage() {
   };
 
   return (
-    <div className="mx-auto max-w-7xl space-y-6 p-6">
+    <div className="mx-auto max-w-7xl space-y-6 p-6 lg:flex lg:h-full lg:flex-col lg:space-y-0 lg:overflow-hidden">
       <div>
         <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight">
           <Scissors className="h-6 w-6" /> Repurpose long-form
@@ -464,8 +464,8 @@ function RepurposePage() {
         </p>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[380px_minmax(0,1fr)]">
-        <div className="space-y-4">
+      <div className="grid gap-6 lg:mt-6 lg:min-h-0 lg:flex-1 lg:grid-cols-[380px_minmax(0,1fr)] lg:overflow-hidden">
+        <div className="space-y-4 lg:min-h-0 lg:overflow-y-auto lg:pr-2">
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Source</CardTitle>
@@ -655,7 +655,7 @@ function RepurposePage() {
           />
         </div>
 
-        <div className="space-y-4 lg:sticky lg:top-4 lg:z-10 lg:self-start">
+        <div className="min-w-0 space-y-4 lg:overflow-hidden">
           <Card>
             <CardContent className="flex flex-col items-center gap-3 p-4">
               <canvas
