@@ -31,13 +31,95 @@ export type ElementStyleSpec = {
   opacity: number;
   /** Whether the element is drawn at all. */
   visible: boolean;
+  /** Visual style variant (1..5) for the element's plate/chrome. */
+  variant: number;
 };
 
+export const ELEMENT_VARIANTS: { id: number; name: string }[] = [
+  { id: 1, name: "Style 1 · Glass" },
+  { id: 2, name: "Style 2 · Solid card" },
+  { id: 3, name: "Style 3 · Outline" },
+  { id: 4, name: "Style 4 · Gradient" },
+  { id: 5, name: "Style 5 · Sticker" },
+];
+
 export function defaultStyle(partial?: Partial<ElementStyleSpec>): ElementStyleSpec {
-  return { dx: 0, dy: 0, scale: 1, rotate: 0, opacity: 1, visible: true, ...partial };
+  return { dx: 0, dy: 0, scale: 1, rotate: 0, opacity: 1, visible: true, variant: 1, ...partial };
 }
 
 export const IDENTITY_STYLE = defaultStyle();
+
+/**
+ * Paints one of five element plate styles behind content. Colours come from the
+ * active palette so every variant stays on-theme.
+ */
+export function drawPanel(
+  ctx: CanvasRenderingContext2D,
+  variant: number,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  r: number,
+  colors: { primary: string; accent: string; text: string },
+  tone: string = colors.primary,
+) {
+  const v = Math.max(1, Math.min(5, Math.round(variant || 1)));
+  ctx.save();
+  const path = (rr: number, ox = 0, oy = 0) => {
+    ctx.beginPath();
+    ctx.roundRect(x + ox, y + oy, w, h, rr);
+  };
+  switch (v) {
+    case 1: {
+      path(r);
+      ctx.fillStyle = "rgba(255,255,255,0.10)";
+      ctx.fill();
+      ctx.strokeStyle = hexToRgba(colors.text, 0.25);
+      ctx.lineWidth = Math.max(2, h * 0.02);
+      ctx.stroke();
+      break;
+    }
+    case 2: {
+      path(r);
+      ctx.fillStyle = hexToRgba(tone, 0.92);
+      ctx.fill();
+      break;
+    }
+    case 3: {
+      path(r);
+      ctx.fillStyle = "rgba(0,0,0,0.35)";
+      ctx.fill();
+      ctx.strokeStyle = tone;
+      ctx.lineWidth = Math.max(3, h * 0.045);
+      ctx.stroke();
+      break;
+    }
+    case 4: {
+      const g = ctx.createLinearGradient(x, y, x + w, y + h);
+      g.addColorStop(0, hexToRgba(tone, 0.95));
+      g.addColorStop(1, hexToRgba(colors.accent, 0.9));
+      path(r);
+      ctx.fillStyle = g;
+      ctx.fill();
+      break;
+    }
+    default: {
+      path(r, h * 0.06, h * 0.08);
+      ctx.fillStyle = "rgba(0,0,0,0.45)";
+      ctx.fill();
+      path(r);
+      ctx.fillStyle = hexToRgba(tone, 0.95);
+      ctx.fill();
+      ctx.strokeStyle = hexToRgba(colors.text, 0.9);
+      ctx.lineWidth = Math.max(3, h * 0.04);
+      ctx.stroke();
+      break;
+    }
+  }
+  ctx.restore();
+}
+
 
 /**
  * Applies an element style around a centre point. Caller must ctx.save()/restore().
@@ -74,6 +156,24 @@ export function ElementStyleControls({
         <Button variant="ghost" size="sm" className="h-6 px-2" onClick={() => onChange(defaultStyle())}>
           <RotateCcw className="mr-1 h-3 w-3" /> Reset
         </Button>
+      </div>
+      <div>
+        <Label className="text-[11px] text-muted-foreground">Element style</Label>
+        <Select
+          value={String(value.variant ?? 1)}
+          onValueChange={(v) => set({ variant: Number(v) })}
+        >
+          <SelectTrigger className="h-8 text-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {ELEMENT_VARIANTS.map((o) => (
+              <SelectItem key={o.id} value={String(o.id)}>
+                {o.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
       <div>
         <Label className="text-[11px] text-muted-foreground">X · {value.dx.toFixed(0)}%</Label>
@@ -118,6 +218,16 @@ export type BackgroundId =
   | "stripes"
   | "spotlight"
   | "hex"
+  | "ripple"
+  | "plasma"
+  | "checker"
+  | "bokeh"
+  | "triangles"
+  | "swirl"
+  | "comets"
+  | "curtain"
+  | "pulse-rings"
+  | "zigzag"
   | "solid";
 
 export const BACKGROUNDS: { id: BackgroundId; name: string }[] = [
@@ -135,8 +245,19 @@ export const BACKGROUNDS: { id: BackgroundId; name: string }[] = [
   { id: "stripes", name: "Diagonal stripes" },
   { id: "spotlight", name: "Spotlight" },
   { id: "hex", name: "Hex glow" },
+  { id: "ripple", name: "Ripples" },
+  { id: "plasma", name: "Plasma" },
+  { id: "checker", name: "Checkerboard" },
+  { id: "bokeh", name: "Bokeh lights" },
+  { id: "triangles", name: "Triangles" },
+  { id: "swirl", name: "Swirl" },
+  { id: "comets", name: "Comets" },
+  { id: "curtain", name: "Curtain" },
+  { id: "pulse-rings", name: "Pulse rings" },
+  { id: "zigzag", name: "Zigzag" },
   { id: "solid", name: "Solid" },
 ];
+
 
 export type BgColors = {
   bg: [string, string];
@@ -375,6 +496,157 @@ export function drawBackground(
       }
       break;
     }
+    case "ripple": {
+      ctx.globalCompositeOperation = "screen";
+      for (let i = 0; i < 6; i++) {
+        const phase = (t * 0.35 + i / 6) % 1;
+        const r = Math.max(w, h) * 0.75 * phase;
+        ctx.beginPath();
+        ctx.arc(w / 2, h * 0.5, r, 0, Math.PI * 2);
+        ctx.strokeStyle = hexToRgba(i % 2 ? colors.accent : colors.primary, (1 - phase) * 0.25 * I);
+        ctx.lineWidth = 6 + (1 - phase) * 14;
+        ctx.stroke();
+      }
+      break;
+    }
+    case "plasma": {
+      ctx.globalCompositeOperation = "screen";
+      for (let i = 0; i < 7; i++) {
+        const cx = w * (0.5 + Math.sin(t * 0.3 + i * 1.1) * 0.38);
+        const cy = h * (0.5 + Math.cos(t * 0.24 + i * 0.8) * 0.4);
+        const r = Math.min(w, h) * (0.22 + rnd(i) * 0.2);
+        const rg = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+        rg.addColorStop(0, hexToRgba(i % 2 ? colors.accent : colors.primary, 0.3 * I));
+        rg.addColorStop(1, hexToRgba(i % 2 ? colors.accent : colors.primary, 0));
+        ctx.fillStyle = rg;
+        ctx.fillRect(0, 0, w, h);
+      }
+      break;
+    }
+    case "checker": {
+      const s = 110;
+      const off = (t * 22) % (s * 2);
+      for (let y = -s; y < h + s; y += s) {
+        for (let x = -s * 2; x < w + s; x += s) {
+          const on = (Math.round((x + off) / s) + Math.round(y / s)) % 2 === 0;
+          if (!on) continue;
+          ctx.fillStyle = hexToRgba(colors.primary, 0.07 * I);
+          ctx.fillRect(x + off, y, s, s);
+        }
+      }
+      break;
+    }
+    case "bokeh": {
+      ctx.globalCompositeOperation = "screen";
+      for (let i = 0; i < 24; i++) {
+        const x = ((rnd(i * 3.3) * w + t * (6 + rnd(i) * 14)) % (w + 200)) - 100;
+        const y = h * rnd(i * 6.1) + Math.sin(t * 0.4 + i) * 24;
+        const r = (30 + rnd(i * 2.2) * 90) * I;
+        const rg = ctx.createRadialGradient(x, y, 0, x, y, r);
+        rg.addColorStop(0, hexToRgba(i % 3 ? colors.primary : colors.accent, 0.22));
+        rg.addColorStop(1, hexToRgba(i % 3 ? colors.primary : colors.accent, 0));
+        ctx.fillStyle = rg;
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      break;
+    }
+    case "triangles": {
+      const s = 150;
+      for (let y = -s, row = 0; y < h + s; y += s, row++) {
+        for (let x = -s; x < w + s; x += s) {
+          const p = Math.sin(t * 1.1 + (x + y) / 260 + row) * 0.5 + 0.5;
+          ctx.beginPath();
+          ctx.moveTo(x, y + s);
+          ctx.lineTo(x + s / 2, y);
+          ctx.lineTo(x + s, y + s);
+          ctx.closePath();
+          ctx.fillStyle = hexToRgba((row + x / s) % 2 ? colors.accent : colors.primary, (0.03 + p * 0.07) * I);
+          ctx.fill();
+        }
+      }
+      break;
+    }
+    case "swirl": {
+      ctx.globalCompositeOperation = "screen";
+      ctx.translate(w / 2, h / 2);
+      ctx.rotate(t * 0.12 * I);
+      for (let i = 0; i < 18; i++) {
+        ctx.save();
+        ctx.rotate((i / 18) * Math.PI * 2);
+        const g = ctx.createLinearGradient(0, 0, Math.max(w, h) * 0.7, 0);
+        g.addColorStop(0, hexToRgba(i % 2 ? colors.accent : colors.primary, 0.16 * I));
+        g.addColorStop(1, "rgba(0,0,0,0)");
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.arc(0, 0, Math.max(w, h) * 0.75, 0, 0.14);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+      }
+      break;
+    }
+    case "comets": {
+      ctx.globalCompositeOperation = "screen";
+      for (let i = 0; i < 14; i++) {
+        const prog = (t * (0.12 + rnd(i) * 0.2) + rnd(i * 4.4)) % 1;
+        const x = -w * 0.2 + prog * w * 1.4;
+        const y = h * rnd(i * 2.9) + prog * h * 0.2;
+        const len = 120 + rnd(i * 5) * 220;
+        const g = ctx.createLinearGradient(x - len, y - len * 0.2, x, y);
+        g.addColorStop(0, "rgba(0,0,0,0)");
+        g.addColorStop(1, hexToRgba(i % 2 ? colors.accent : colors.primary, 0.5 * I));
+        ctx.strokeStyle = g;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(x - len, y - len * 0.2);
+        ctx.lineTo(x, y);
+        ctx.stroke();
+      }
+      break;
+    }
+    case "curtain": {
+      const n = 16;
+      const cw = w / n;
+      for (let i = 0; i < n; i++) {
+        const amp = (Math.sin(t * 1.1 + i * 0.7) * 0.5 + 0.5) * 0.12 * I;
+        const g = ctx.createLinearGradient(0, 0, 0, h);
+        g.addColorStop(0, hexToRgba(i % 2 ? colors.accent : colors.primary, amp));
+        g.addColorStop(1, "rgba(0,0,0,0)");
+        ctx.fillStyle = g;
+        ctx.fillRect(i * cw, 0, cw, h);
+      }
+      break;
+    }
+    case "pulse-rings": {
+      for (let i = 0; i < 5; i++) {
+        const phase = (t * 0.5 + i / 5) % 1;
+        const r = Math.min(w, h) * (0.1 + phase * 0.55);
+        ctx.beginPath();
+        ctx.arc(w / 2, h / 2, r, 0, Math.PI * 2);
+        ctx.strokeStyle = hexToRgba(colors.accent, (1 - phase) * 0.3 * I);
+        ctx.lineWidth = 4;
+        ctx.stroke();
+      }
+      break;
+    }
+    case "zigzag": {
+      const step = 70;
+      ctx.lineWidth = 4;
+      for (let row = 0, y = -step; y < h + step; y += step, row++) {
+        ctx.beginPath();
+        const off = Math.sin(t * 0.9 + row * 0.4) * step * 0.5 * I;
+        for (let x = -step; x < w + step; x += step) {
+          const yy = y + ((x / step) % 2 === 0 ? -step * 0.3 : step * 0.3) + off;
+          x === -step ? ctx.moveTo(x, yy) : ctx.lineTo(x, yy);
+        }
+        ctx.strokeStyle = hexToRgba(row % 2 ? colors.accent : colors.primary, 0.09 * I);
+        ctx.stroke();
+      }
+      break;
+    }
     default:
       break;
   }
@@ -395,6 +667,12 @@ export type TimerStyleId =
   | "square"
   | "dots"
   | "hourglass"
+  | "neon-ring"
+  | "flip-card"
+  | "bubble"
+  | "shield"
+  | "arc"
+  | "bars"
   | "none";
 
 export const TIMER_STYLES: { id: TimerStyleId; name: string }[] = [
@@ -405,6 +683,12 @@ export const TIMER_STYLES: { id: TimerStyleId; name: string }[] = [
   { id: "square", name: "Square frame" },
   { id: "dots", name: "Dot countdown" },
   { id: "hourglass", name: "Hourglass" },
+  { id: "neon-ring", name: "Neon ring" },
+  { id: "flip-card", name: "Flip card" },
+  { id: "bubble", name: "Bubble" },
+  { id: "shield", name: "Shield" },
+  { id: "arc", name: "Half arc" },
+  { id: "bars", name: "Bar stack" },
   { id: "plain", name: "Plain number" },
   { id: "none", name: "Hidden" },
 ];
@@ -556,6 +840,112 @@ export function drawTimer(
       ctx.fillText(label, 0, s * 1.5);
       break;
     }
+    case "neon-ring": {
+      ctx.shadowColor = stroke;
+      ctx.shadowBlur = r * 0.7;
+      ctx.beginPath();
+      ctx.arc(0, 0, r, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * p);
+      ctx.strokeStyle = stroke;
+      ctx.lineCap = "round";
+      ctx.lineWidth = r * 0.16;
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = colors.text;
+      ctx.font = `800 ${r * 0.95}px system-ui, sans-serif`;
+      ctx.fillText(label, 0, r * 0.04);
+      break;
+    }
+    case "flip-card": {
+      const wpx = r * 1.7;
+      const hpx = r * 2;
+      ctx.beginPath();
+      ctx.roundRect(-wpx / 2, -hpx / 2, wpx, hpx, r * 0.22);
+      ctx.fillStyle = "rgba(12,12,16,0.92)";
+      ctx.fill();
+      ctx.strokeStyle = hexToRgba(stroke, 0.9);
+      ctx.lineWidth = 3;
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(-wpx / 2, 0);
+      ctx.lineTo(wpx / 2, 0);
+      ctx.strokeStyle = "rgba(0,0,0,0.6)";
+      ctx.lineWidth = 4;
+      ctx.stroke();
+      ctx.fillStyle = colors.text;
+      ctx.font = `800 ${hpx * 0.6}px system-ui, sans-serif`;
+      ctx.fillText(label, 0, hpx * 0.02);
+      break;
+    }
+    case "bubble": {
+      const rr = r * (1 + (1 - p) * 0.08);
+      ctx.beginPath();
+      ctx.arc(0, 0, rr, 0, Math.PI * 2);
+      ctx.fillStyle = hexToRgba(stroke, 0.85);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(-rr * 0.3, -rr * 0.35, rr * 0.25, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(255,255,255,0.35)";
+      ctx.fill();
+      ctx.fillStyle = colors.text;
+      ctx.font = `800 ${r * 0.9}px system-ui, sans-serif`;
+      ctx.fillText(label, 0, r * 0.04);
+      break;
+    }
+    case "shield": {
+      const s = r * 1.25;
+      ctx.beginPath();
+      ctx.moveTo(0, -s * 1.2);
+      ctx.lineTo(s, -s * 0.6);
+      ctx.lineTo(s * 0.75, s);
+      ctx.lineTo(0, s * 1.35);
+      ctx.lineTo(-s * 0.75, s);
+      ctx.lineTo(-s, -s * 0.6);
+      ctx.closePath();
+      ctx.fillStyle = hexToRgba(stroke, 0.25);
+      ctx.fill();
+      ctx.strokeStyle = stroke;
+      ctx.lineWidth = r * 0.12;
+      ctx.stroke();
+      ctx.fillStyle = colors.text;
+      ctx.font = `800 ${r * 0.95}px system-ui, sans-serif`;
+      ctx.fillText(label, 0, r * 0.06);
+      break;
+    }
+    case "arc": {
+      ctx.beginPath();
+      ctx.arc(0, r * 0.4, r * 1.1, Math.PI, Math.PI * 2);
+      ctx.strokeStyle = hexToRgba(colors.text, 0.18);
+      ctx.lineWidth = r * 0.2;
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(0, r * 0.4, r * 1.1, Math.PI, Math.PI + Math.PI * p);
+      ctx.strokeStyle = stroke;
+      ctx.lineCap = "round";
+      ctx.lineWidth = r * 0.2;
+      ctx.stroke();
+      ctx.fillStyle = colors.text;
+      ctx.font = `800 ${r * 0.85}px system-ui, sans-serif`;
+      ctx.fillText(label, 0, r * 0.05);
+      break;
+    }
+    case "bars": {
+      const n = 5;
+      const bw = r * 0.32;
+      const gap = r * 0.16;
+      const start = -((n * bw + (n - 1) * gap) / 2);
+      for (let i = 0; i < n; i++) {
+        const on = p > i / n;
+        const bh = r * (0.5 + i * 0.28);
+        ctx.beginPath();
+        ctx.roundRect(start + i * (bw + gap), r * 0.9 - bh, bw, bh, bw * 0.3);
+        ctx.fillStyle = on ? stroke : hexToRgba(colors.text, 0.18);
+        ctx.fill();
+      }
+      ctx.fillStyle = colors.text;
+      ctx.font = `800 ${r * 0.7}px system-ui, sans-serif`;
+      ctx.fillText(label, 0, -r * 0.9);
+      break;
+    }
     default: {
       ctx.fillStyle = urgent ? colors.accent : colors.text;
       ctx.font = `800 ${r * 1.6}px system-ui, sans-serif`;
@@ -579,6 +969,12 @@ export type TimeBarStyleId =
   | "ticks"
   | "dual"
   | "thin"
+  | "candy"
+  | "chevrons"
+  | "beads"
+  | "wave-bar"
+  | "neon-outline"
+  | "step-blocks"
   | "none";
 
 export const TIMEBAR_STYLES: { id: TimeBarStyleId; name: string }[] = [
@@ -590,6 +986,13 @@ export const TIMEBAR_STYLES: { id: TimeBarStyleId; name: string }[] = [
   { id: "ticks", name: "Ticks" },
   { id: "dual", name: "Dual (centre out)" },
   { id: "thin", name: "Thin line" },
+  { id: "candy", name: "Candy stripes" },
+  { id: "chevrons", name: "Chevrons" },
+  { id: "beads", name: "Beads" },
+  { id: "wave-bar", name: "Wave bar" },
+  { id: "neon-outline", name: "Neon outline" },
+  { id: "step-blocks", name: "Step blocks" },
+  { id: "none", name: "Hidden" },
   { id: "none", name: "Hidden" },
 ];
 
@@ -703,6 +1106,111 @@ export function drawTimeBar(
       ctx.arc(x + w * k, ty + th / 2, th * 1.5 + Math.sin(t * 6) * 1.5, 0, Math.PI * 2);
       ctx.fillStyle = col;
       ctx.fill();
+      break;
+    }
+    case "candy": {
+      track();
+      ctx.save();
+      ctx.beginPath();
+      ctx.roundRect(x, y, Math.max(h, w * k), h, h / 2);
+      ctx.clip();
+      ctx.fillStyle = col;
+      ctx.fillRect(x, y, w, h);
+      const off = (t * 40) % (h * 2);
+      ctx.strokeStyle = "rgba(255,255,255,0.28)";
+      ctx.lineWidth = h * 0.45;
+      for (let sx = x - h * 2 + off; sx < x + w + h * 2; sx += h * 2) {
+        ctx.beginPath();
+        ctx.moveTo(sx, y + h);
+        ctx.lineTo(sx + h, y);
+        ctx.stroke();
+      }
+      ctx.restore();
+      break;
+    }
+    case "chevrons": {
+      track();
+      ctx.save();
+      ctx.beginPath();
+      ctx.roundRect(x, y, Math.max(h, w * k), h, h / 2);
+      ctx.clip();
+      ctx.fillStyle = hexToRgba(col, 0.35);
+      ctx.fillRect(x, y, w, h);
+      const step = h * 1.4;
+      const off = (t * 60) % step;
+      ctx.fillStyle = col;
+      for (let sx = x - step + off; sx < x + w + step; sx += step) {
+        ctx.beginPath();
+        ctx.moveTo(sx, y);
+        ctx.lineTo(sx + h * 0.6, y + h / 2);
+        ctx.lineTo(sx, y + h);
+        ctx.lineTo(sx + h * 0.3, y + h);
+        ctx.lineTo(sx + h * 0.9, y + h / 2);
+        ctx.lineTo(sx + h * 0.3, y);
+        ctx.closePath();
+        ctx.fill();
+      }
+      ctx.restore();
+      break;
+    }
+    case "beads": {
+      const n = 14;
+      const gap = (w - h * n) / Math.max(1, n - 1);
+      for (let i = 0; i < n; i++) {
+        const cx = x + i * (h + gap) + h / 2;
+        const on = i / n < k;
+        ctx.beginPath();
+        ctx.arc(cx, y + h / 2, (h / 2) * (on ? 1 : 0.7), 0, Math.PI * 2);
+        ctx.fillStyle = on ? col : hexToRgba(colors.text, 0.18);
+        ctx.fill();
+      }
+      break;
+    }
+    case "wave-bar": {
+      track();
+      ctx.save();
+      ctx.beginPath();
+      ctx.roundRect(x, y, Math.max(h, w * k), h, h / 2);
+      ctx.clip();
+      ctx.beginPath();
+      ctx.moveTo(x, y + h);
+      for (let sx = x; sx <= x + w; sx += 8) {
+        ctx.lineTo(sx, y + h * 0.5 + Math.sin(sx / 28 + t * 5) * h * 0.35);
+      }
+      ctx.lineTo(x + w, y + h);
+      ctx.closePath();
+      ctx.fillStyle = col;
+      ctx.fill();
+      ctx.restore();
+      break;
+    }
+    case "neon-outline": {
+      ctx.beginPath();
+      ctx.roundRect(x, y, w, h, h / 2);
+      ctx.strokeStyle = hexToRgba(colors.text, 0.25);
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.shadowColor = col;
+      ctx.shadowBlur = h * 1.4;
+      ctx.beginPath();
+      ctx.roundRect(x + h * 0.18, y + h * 0.22, Math.max(h * 0.4, (w - h * 0.36) * k), h * 0.56, h * 0.28);
+      ctx.fillStyle = col;
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      break;
+    }
+    case "step-blocks": {
+      const n = 10;
+      const gap = h * 0.4;
+      const bw = (w - gap * (n - 1)) / n;
+      for (let i = 0; i < n; i++) {
+        const on = i / n < k;
+        const bh = h * (0.5 + (i / (n - 1)) * 0.5);
+        ctx.beginPath();
+        ctx.roundRect(x + i * (bw + gap), y + h - bh, bw, bh, bw * 0.2);
+        ctx.fillStyle = on ? col : hexToRgba(colors.text, 0.16);
+        ctx.fill();
+      }
       break;
     }
     default:

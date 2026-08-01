@@ -10,6 +10,7 @@ import {
   Plus,
   Upload,
   ArrowLeft,
+  Wand2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -63,6 +64,13 @@ import {
   type TimeBarStyleId,
   type ElementStyleSpec,
 } from "@/lib/kid-elements";
+import {
+  TTS_PROVIDERS,
+  TTS_VOICES,
+  generateSpeech,
+  blobDuration,
+  type TtsProvider,
+} from "@/lib/tts";
 
 export const Route = createFileRoute("/_authenticated/kid-videos/logo")({
   head: () => ({
@@ -167,10 +175,14 @@ type Round = {
   img: HTMLImageElement | null;
   answer: string;
   duration: number;
+  script: string;
+  voUrl: string | null;
+  voBlob: Blob | null;
+  voDur: number;
 };
 
 function emptyRound(): Round {
-  return { id: uid(), imgUrl: null, img: null, answer: "", duration: 6 };
+  return { id: uid(), imgUrl: null, img: null, answer: "", duration: 6, script: "", voUrl: null, voBlob: null, voDur: 0 };
 }
 
 function LogoPage() {
@@ -195,6 +207,11 @@ function LogoPage() {
   const [intro, setIntro] = useState<CardConfig>({ ...defaultIntro, title: "Guess The Logo" });
   const [outro, setOutro] = useState<CardConfig>({ ...defaultOutro, title: "How many did you get?" });
 
+  const [provider, setProvider] = useState<TtsProvider>("elevenlabs");
+  const [voice, setVoice] = useState(TTS_VOICES.elevenlabs[0].id);
+  const [voStyle, setVoStyle] = useState("Bright, playful game-show host for kids");
+  const [generating, setGenerating] = useState(false);
+
   const [playing, setPlaying] = useState(false);
   const [time, setTime] = useState(0);
   const [exporting, setExporting] = useState(false);
@@ -204,12 +221,17 @@ function LogoPage() {
   const rafRef = useRef(0);
   const timeRef = useRef(0);
   const lastRef = useRef(0);
+  const audioElRef = useRef<HTMLAudioElement | null>(null);
+  const playedRef = useRef<Set<string>>(new Set());
 
   const dims = ASPECTS[aspect];
   const basePalette = PALETTES.find((p) => p.id === paletteId) ?? PALETTES[0];
   const pal = useMemo(() => applyOverrides(basePalette, colors), [basePalette, colors]);
 
-  const roundDur = useCallback((r: Round) => Math.max(3, r.duration) + revealSecs, [revealSecs]);
+  const roundDur = useCallback(
+    (r: Round) => Math.max(Math.max(3, r.duration), (r.voDur || 0) + 0.6) + revealSecs,
+    [revealSecs],
+  );
 
   const timeline = useMemo(() => {
     let t = intro.id !== "none" ? intro.seconds : 0;
@@ -573,6 +595,15 @@ function LogoPage() {
           setPlaying(false);
           timeRef.current = 0;
         }
+        const seg = timeline.segs.find(
+          (sg) => timeRef.current >= sg.start && timeRef.current < sg.start + sg.dur,
+        );
+        if (seg && seg.round.voUrl && !playedRef.current.has(seg.round.id)) {
+          playedRef.current.add(seg.round.id);
+          const el = new Audio(seg.round.voUrl);
+          audioElRef.current = el;
+          void el.play().catch(() => {});
+        }
         setTime(timeRef.current);
       }
       lastRef.current = now;
@@ -585,11 +616,40 @@ function LogoPage() {
 
   const togglePlay = () => {
     if (playing) {
+      audioElRef.current?.pause();
       setPlaying(false);
     } else {
-      if (timeRef.current >= timeline.total - 0.05) timeRef.current = 0;
+      if (timeRef.current >= timeline.total - 0.05) {
+        timeRef.current = 0;
+        playedRef.current.clear();
+      }
       lastRef.current = 0;
       setPlaying(true);
+    }
+  };
+
+
+  const buildScript = (r: Round) =>
+    r.script.trim() || `Can you guess this logo? The answer is ${r.answer || "coming up"}!`;
+
+  const generateAll = async () => {
+    if (!rounds.length) return;
+    setGenerating(true);
+    try {
+      for (const r of rounds) {
+        const { url, blob } = await generateSpeech(buildScript(r), {
+          provider,
+          voice,
+          styleDirection: voStyle,
+        });
+        const dur = await blobDuration(blob);
+        setRound(r.id, { voUrl: url, voBlob: blob, voDur: dur });
+      }
+      toast.success("Voiceovers generated");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Voiceover failed");
+    } finally {
+      setGenerating(false);
     }
   };
 
@@ -606,6 +666,17 @@ function LogoPage() {
     try {
       const fps = 60;
       const stream = canvas.captureStream(fps);
+      const audioCtx = new AudioContext();
+      const dest = audioCtx.createMediaStreamDestination();
+      for (const seg of timeline.segs) {
+        if (!seg.round.voBlob) continue;
+        const buf = await audioCtx.decodeAudioData(await seg.round.voBlob.arrayBuffer());
+        const src = audioCtx.createBufferSource();
+        src.buffer = buf;
+        src.connect(dest);
+        src.start(audioCtx.currentTime + seg.start + 0.15);
+      }
+      dest.stream.getAudioTracks().forEach((tr) => stream.addTrack(tr));
       const mime = MediaRecorder.isTypeSupported("video/mp4;codecs=avc1")
         ? "video/mp4;codecs=avc1"
         : "video/webm;codecs=vp9";
@@ -685,7 +756,7 @@ function LogoPage() {
                 ref={canvasRef}
                 width={dims.w}
                 height={dims.h}
-                className="max-h-[58vh] w-auto rounded-xl border bg-black"
+                className="max-h-[58vh] h-auto w-auto max-w-full object-contain rounded-xl border bg-black"
                 style={{ aspectRatio: `${dims.w}/${dims.h}` }}
               />
             </CardContent>
@@ -871,6 +942,61 @@ function LogoPage() {
             </CardHeader>
             <CardContent>
               <AnimControlGroup items={ANIM_ELEMENTS} values={anims} onChange={setAnim} />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">AI voiceover</CardTitle>
+              <CardDescription>Pick any provider — no single provider can block you.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <Select
+                value={provider}
+                onValueChange={(v) => {
+                  const p = v as TtsProvider;
+                  setProvider(p);
+                  setVoice(TTS_VOICES[p][0].id);
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {TTS_PROVIDERS.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.name} — {p.note}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={voice} onValueChange={setVoice}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {TTS_VOICES[provider].map((v) => (
+                    <SelectItem key={v.id} value={v.id}>
+                      {v.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {provider === "google" && (
+                <Input
+                  value={voStyle}
+                  onChange={(e) => setVoStyle(e.target.value)}
+                  placeholder="Delivery direction"
+                />
+              )}
+              <Button onClick={generateAll} disabled={generating} className="w-full">
+                {generating ? (
+                  <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                ) : (
+                  <Wand2 className="mr-1 h-4 w-4" />
+                )}
+                Generate voiceover for all rounds
+              </Button>
             </CardContent>
           </Card>
 
