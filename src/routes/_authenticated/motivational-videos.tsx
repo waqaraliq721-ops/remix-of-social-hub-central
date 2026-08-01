@@ -1719,7 +1719,7 @@ function MotivationalVideosPage() {
               <div className="mx-auto flex justify-center rounded-xl bg-black p-2">
                 <canvas
                   ref={canvasRef}
-                  className="max-h-[58vh] w-auto max-w-full object-contain rounded-lg"
+                  className="max-h-[58vh] h-auto w-auto max-w-full object-contain rounded-lg"
                   style={{ aspectRatio: `${dims.w} / ${dims.h}`, maxWidth: "100%", height: "auto" }}
                 />
               </div>
