@@ -158,6 +158,24 @@ export function ElementStyleControls({
         </Button>
       </div>
       <div>
+        <Label className="text-[11px] text-muted-foreground">Element style</Label>
+        <Select
+          value={String(value.variant ?? 1)}
+          onValueChange={(v) => set({ variant: Number(v) })}
+        >
+          <SelectTrigger className="h-8 text-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {ELEMENT_VARIANTS.map((o) => (
+              <SelectItem key={o.id} value={String(o.id)}>
+                {o.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <div>
         <Label className="text-[11px] text-muted-foreground">X · {value.dx.toFixed(0)}%</Label>
         <Slider value={[value.dx]} min={-50} max={50} step={1} onValueChange={([v]) => set({ dx: v })} />
       </div>
