@@ -1766,3 +1766,648 @@ for (const e of TYPOGRAPHY_SOLID_ENGINES) {
   EXTRA_MOTIVATIONAL_ENGINES.push(e);
   EXTRA_MOTIVATIONAL_MAP.set(e.id, e);
 }
+
+// -------------------- 15 new: solid / paper / gradient backgrounds --------------------
+// Each of these ignores footage entirely and paints its own subtly-animated
+// backdrop (flat colour + breathing vignette + grain, warm paper grain, or a
+// drifting gradient). Every one uses a distinct text-reveal animation.
+
+function paintVignetteBreath(ctx: C, w: number, h: number, t: number, base = 0.4, amp = 0.1) {
+  const k = Math.max(0, Math.min(0.85, base + Math.sin(t * 0.4) * amp));
+  const vg = ctx.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.2, w / 2, h / 2, Math.max(w, h) * 0.75);
+  vg.addColorStop(0, "rgba(0,0,0,0)");
+  vg.addColorStop(1, `rgba(0,0,0,${k})`);
+  ctx.fillStyle = vg;
+  ctx.fillRect(0, 0, w, h);
+}
+
+function paintGrain(ctx: C, w: number, h: number, t: number, alpha = 0.045, color = "#ffffff", count = 240) {
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.fillStyle = color;
+  for (let i = 0; i < count; i++) {
+    const n = (i * 7919 + Math.floor(t * 10) * 5171) % 100000;
+    const x = (n / 100000) * w;
+    const y = (((n * 13 + i * 97) % 100000) / 100000) * h;
+    ctx.fillRect(x, y, 1.6, 1.6);
+  }
+  ctx.restore();
+}
+
+function paintSolidBreath(ctx: C, w: number, h: number, hex: string, t: number) {
+  paintFlatSolid(ctx, w, h, hex);
+  paintGrain(ctx, w, h, t, 0.035, "#ffffff", 200);
+  paintVignetteBreath(ctx, w, h, t, 0.4, 0.1);
+}
+
+function paintPaperBreath(ctx: C, w: number, h: number, t: number, base = "#f4ecdd") {
+  paintFlatSolid(ctx, w, h, base);
+  paintGrain(ctx, w, h, t, 0.05, "#3a2c1a", 320);
+  const k = 0.16 + Math.sin(t * 0.35) * 0.05;
+  const vg = ctx.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.25, w / 2, h / 2, Math.max(w, h) * 0.75);
+  vg.addColorStop(0, "rgba(0,0,0,0)");
+  vg.addColorStop(1, `rgba(60,40,20,${k})`);
+  ctx.fillStyle = vg;
+  ctx.fillRect(0, 0, w, h);
+}
+
+function paintDiagGradient(ctx: C, w: number, h: number, c0: string, c1: string, c2: string, t: number) {
+  const angle = 0.5 + Math.sin(t * 0.1) * 0.18;
+  const x0 = w * 0.5 - Math.cos(angle) * w * 0.7;
+  const y0 = h * 0.5 - Math.sin(angle) * h * 0.7;
+  const x1 = w * 0.5 + Math.cos(angle) * w * 0.7;
+  const y1 = h * 0.5 + Math.sin(angle) * h * 0.7;
+  const g = ctx.createLinearGradient(x0, y0, x1, y1);
+  g.addColorStop(0, c0);
+  g.addColorStop(0.5, c1);
+  g.addColorStop(1, c2);
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, w, h);
+  paintVignetteBreath(ctx, w, h, t, 0.28, 0.08);
+}
+
+// 1 — per-word cascade
+const gradWordCascade: Engine = {
+  id: "grad-word-cascade",
+  name: "Gradient · Word Cascade",
+  desc: "Drifting diagonal gradient with each word cascading in on a stagger.",
+  draw: (ctx, r, kit) => {
+    const { w, h, palette: p } = r;
+    paintDiagGradient(ctx, w, h, deepen(p.bg[0], 0.6), deepen(p.primary, 0.72), deepen(p.bg[1], 0.7), r.t);
+    const { line, appear } = state(kit, r);
+    if (!line) return;
+    const { rows, size } = layout(ctx, kit, line.text, w * 0.8, h * 0.4, baseSize(r, 0.062, 0.078), `800 {s}px ${kit.FONT}`, 1.2);
+    ctx.save();
+    ctx.font = `800 ${size}px ${kit.FONT}`;
+    softShadow(ctx, size * 0.3);
+    let y = h * 0.5 - ((rows.length - 1) * size * 1.2) / 2;
+    const totalWords = rows.reduce((a, row) => a + row.split(" ").length, 0);
+    let wordIdx = 0;
+    for (const row of rows) {
+      const words = row.split(" ");
+      const widths = words.map((wd) => ctx.measureText(wd + " ").width);
+      const total = widths.reduce((a, b) => a + b, 0);
+      let x = w / 2 - total / 2;
+      ctx.textAlign = "left";
+      ctx.textBaseline = "middle";
+      words.forEach((wd, i) => {
+        const localAppear = Math.max(0, Math.min(1, appear * totalWords * 1.15 - wordIdx));
+        const e = kit.easeOutCubic(localAppear);
+        ctx.save();
+        ctx.globalAlpha = e;
+        ctx.fillStyle = p.text;
+        ctx.fillText(wd, x, y + (1 - e) * size * 0.6);
+        ctx.restore();
+        x += widths[i];
+        wordIdx++;
+      });
+      y += size * 1.2;
+    }
+    ctx.restore();
+    ctx.textAlign = "center";
+    kit.drawAuthor(ctx, r, y + size * 0.2);
+  },
+};
+
+// 2 — letter-by-letter kinetic scale
+const solidKineticLetters: Engine = {
+  id: "solid-kinetic-letters",
+  name: "Solid · Kinetic Letters",
+  desc: "Breathing near-black field with letters scaling up into place one by one.",
+  draw: (ctx, r, kit) => {
+    const { w, h, palette: p } = r;
+    paintSolidBreath(ctx, w, h, deepen(p.bg[0], 0.82), r.t);
+    const { line, appear } = state(kit, r);
+    if (!line) return;
+    const text = line.text.toUpperCase();
+    const { rows, size } = layout(ctx, kit, text, w * 0.78, h * 0.4, baseSize(r, 0.07, 0.088), `900 {s}px ${kit.COND}`, 1.08);
+    ctx.font = `900 ${size}px ${kit.COND}`;
+    softShadow(ctx, size * 0.3);
+    let y = h * 0.5 - ((rows.length - 1) * size * 1.08) / 2;
+    const totalChars = rows.reduce((a, row) => a + row.length, 0);
+    let charIdx = 0;
+    for (const row of rows) {
+      const chars = row.split("");
+      const widths = chars.map((c) => ctx.measureText(c).width);
+      const total = widths.reduce((a, b) => a + b, 0);
+      let x = w / 2 - total / 2;
+      for (let i = 0; i < chars.length; i++) {
+        const localAppear = Math.max(0, Math.min(1, appear * totalChars * 1.3 - charIdx));
+        const e = kit.easeOutCubic(localAppear);
+        const scale = 0.4 + e * 0.6;
+        ctx.save();
+        ctx.globalAlpha = e;
+        ctx.translate(x + widths[i] / 2, y);
+        ctx.scale(scale, scale);
+        ctx.fillStyle = p.text;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(chars[i], 0, 0);
+        ctx.restore();
+        x += widths[i];
+        charIdx++;
+      }
+      y += size * 1.08;
+    }
+    kit.drawAuthor(ctx, r, y + size * 0.3);
+  },
+};
+
+// 3 — mask wipe reveal
+const gradWipeReveal: Engine = {
+  id: "grad-wipe-reveal",
+  name: "Gradient · Wipe Reveal",
+  desc: "Aurora gradient with the quote wiped on left-to-right through a moving edge.",
+  draw: (ctx, r, kit) => {
+    const { w, h, palette: p } = r;
+    paintAuroraGradient(ctx, w, h, p, r.t);
+    const { line, frac } = state(kit, r);
+    if (!line) return;
+    const { rows, size } = layout(ctx, kit, line.text, w * 0.78, h * 0.36, baseSize(r, 0.06, 0.075), `800 {s}px ${kit.FONT}`, 1.22);
+    const boxTop = h * 0.5 - (rows.length * size * 1.22) / 2 - size * 0.3;
+    const boxH = rows.length * size * 1.22 + size * 0.6;
+    const revealW = w * Math.min(1, frac * 1.6);
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, boxTop, revealW, boxH);
+    ctx.clip();
+    softShadow(ctx, size * 0.3);
+    drawRows(ctx, rows, w / 2, h * 0.5, size, 1.22, p.text);
+    ctx.restore();
+    ctx.save();
+    ctx.globalAlpha = Math.max(0, 1 - frac * 1.6);
+    ctx.fillStyle = p.primary;
+    ctx.fillRect(revealW - Math.max(2, w * 0.004), boxTop, Math.max(2, w * 0.004), boxH);
+    ctx.restore();
+    kit.drawAuthor(ctx, r, boxTop + boxH + size * 0.4);
+  },
+};
+
+// 4 — line-by-line slide with blur
+const paperSlideBlur: Engine = {
+  id: "paper-slide-blur",
+  name: "Paper · Slide Blur",
+  desc: "Warm paper grain with each line sliding up and sharpening out of a blur.",
+  draw: (ctx, r, kit) => {
+    const { w, h } = r;
+    paintPaperBreath(ctx, w, h, r.t);
+    const ink = "#241b10";
+    const { line, appear } = state(kit, r);
+    if (!line) return;
+    const { rows, size } = layout(ctx, kit, line.text, w * 0.76, h * 0.36, baseSize(r, 0.052, 0.066), `700 {s}px ${kit.FONT}`, 1.28);
+    ctx.font = `700 ${size}px ${kit.FONT}`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    let y = h * 0.5 - ((rows.length - 1) * size * 1.28) / 2;
+    rows.forEach((row, i) => {
+      const localAppear = Math.max(0, Math.min(1, appear * 1.6 - i * 0.28));
+      const e = kit.easeOutCubic(localAppear);
+      const blur = (1 - e) * 10;
+      ctx.save();
+      ctx.globalAlpha = e;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (ctx as any).filter = blur > 0.2 ? `blur(${blur}px)` : "none";
+      ctx.fillStyle = ink;
+      ctx.fillText(row, w / 2, y + (1 - e) * size * 0.5);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (ctx as any).filter = "none";
+      ctx.restore();
+      y += size * 1.28;
+    });
+    if (r.author) {
+      ctx.fillStyle = "#b0552f";
+      ctx.font = `600 ${Math.round(size * 0.3)}px ${kit.FONT}`;
+      ctx.fillText(r.author.toUpperCase(), w / 2, y + size * 0.2);
+    }
+  },
+};
+
+// 5 — typewriter with caret (gradient)
+const gradTypewriterCaret: Engine = {
+  id: "grad-typewriter-caret",
+  name: "Gradient · Typewriter Caret",
+  desc: "Slow vertical gradient drift with a monospace line typed out and a blinking caret.",
+  draw: (ctx, r, kit) => {
+    const { w, h, palette: p } = r;
+    paintVerticalGradient(ctx, w, h, deepen(p.primary, 0.68), deepen(p.bg[0], 0.9), r.t);
+    paintVignetteBreath(ctx, w, h, r.t, 0.22, 0.06);
+    const { line, frac } = state(kit, r);
+    if (!line) return;
+    const shown = line.text.slice(0, Math.ceil(line.text.length * Math.min(1, frac * 1.3)));
+    const { rows, size } = layout(ctx, kit, shown || " ", w * 0.74, h * 0.34, baseSize(r, 0.038, 0.048), `500 {s}px ${kit.MONO}`, 1.46);
+    ctx.save();
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    let y = h * 0.5 - ((rows.length - 1) * size * 1.46) / 2;
+    for (const row of rows) {
+      ctx.fillStyle = p.text;
+      ctx.fillText(row, w / 2, y);
+      y += size * 1.46;
+    }
+    const lastRow = rows[rows.length - 1] ?? "";
+    if (Math.floor(r.t * 2) % 2 === 0) {
+      const rw = ctx.measureText(lastRow).width;
+      ctx.fillStyle = p.accent;
+      ctx.fillRect(w / 2 + rw / 2 + size * 0.12, y - size * 1.46 - size * 0.42, size * 0.5, size * 0.84);
+    }
+    ctx.restore();
+    kit.drawAuthor(ctx, r, y + size * 0.2);
+  },
+};
+
+// 6 — split-flap
+const solidSplitFlap: Engine = {
+  id: "solid-split-flap",
+  name: "Solid · Split Flap",
+  desc: "Breathing solid field with a departures-board split-flap letter flip reveal.",
+  draw: (ctx, r, kit) => {
+    const { w, h, palette: p } = r;
+    paintSolidBreath(ctx, w, h, deepen(p.bg[0], 0.8), r.t);
+    const { line, appear } = state(kit, r);
+    if (!line) return;
+    const text = line.text.toUpperCase();
+    const { rows, size } = layout(ctx, kit, text, w * 0.8, h * 0.4, baseSize(r, 0.065, 0.082), `900 {s}px ${kit.MONO}`, 1.15);
+    ctx.font = `900 ${size}px ${kit.MONO}`;
+    let y = h * 0.5 - ((rows.length - 1) * size * 1.15) / 2;
+    const totalChars = rows.reduce((a, row) => a + row.length, 0);
+    let idx = 0;
+    for (const row of rows) {
+      const chars = row.split("");
+      const widths = chars.map((c) => ctx.measureText(c).width);
+      const cellW = Math.max(...widths, size * 0.1) * 1.08;
+      const total = chars.length * cellW;
+      let x = w / 2 - total / 2;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      for (const c of chars) {
+        const localAppear = Math.max(0, Math.min(1, appear * totalChars * 1.4 - idx));
+        const flap = Math.min(1, localAppear * 1.6);
+        const scaleY = flap < 1 ? Math.max(0.05, Math.abs(Math.cos(flap * Math.PI))) : 1;
+        ctx.save();
+        ctx.translate(x + cellW / 2, y);
+        ctx.scale(1, scaleY);
+        ctx.fillStyle = kit.hexA(p.text, 0.08);
+        kit.roundRect(ctx, -cellW / 2 + 2, -size * 0.62, cellW - 4, size * 1.24, size * 0.08);
+        ctx.fill();
+        ctx.fillStyle = flap < 1 ? p.primary : p.text;
+        ctx.fillText(c, 0, 0);
+        ctx.restore();
+        x += cellW;
+        idx++;
+      }
+      y += size * 1.15;
+    }
+    kit.drawAuthor(ctx, r, y + size * 0.3);
+  },
+};
+
+// 7 — vertical roll
+const paperVerticalRoll: Engine = {
+  id: "paper-vertical-roll",
+  name: "Paper · Vertical Roll",
+  desc: "Paper grain backdrop with each line rolling up into view through a clipped band.",
+  draw: (ctx, r, kit) => {
+    const { w, h } = r;
+    paintPaperBreath(ctx, w, h, r.t, "#efe6d2");
+    const ink = "#241b10";
+    const { line, appear } = state(kit, r);
+    if (!line) return;
+    const { rows, size } = layout(ctx, kit, line.text, w * 0.74, h * 0.34, baseSize(r, 0.056, 0.07), `800 {s}px ${kit.COND}`, 1.3);
+    ctx.font = `800 ${size}px ${kit.COND}`;
+    let y = h * 0.5 - ((rows.length - 1) * size * 1.3) / 2;
+    rows.forEach((row, i) => {
+      const localAppear = Math.max(0, Math.min(1, appear * 1.6 - i * 0.25));
+      const e = kit.easeOutCubic(localAppear);
+      const rowH = size * 1.3;
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(0, y - rowH / 2, w, rowH);
+      ctx.clip();
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillStyle = ink;
+      ctx.globalAlpha = e;
+      ctx.fillText(row, w / 2, y - (1 - e) * rowH);
+      ctx.restore();
+      y += size * 1.3;
+    });
+    if (r.author) {
+      ctx.fillStyle = "#b0552f";
+      ctx.font = `600 ${Math.round(size * 0.3)}px ${kit.FONT}`;
+      ctx.textAlign = "center";
+      ctx.fillText(r.author.toUpperCase(), w / 2, y + size * 0.2);
+    }
+  },
+};
+
+// 8 — scale-punch on beat
+const gradScalePunch: Engine = {
+  id: "grad-scale-punch",
+  name: "Gradient · Scale Punch",
+  desc: "Diagonal drifting gradient with the whole statement punching to the beat of each word.",
+  draw: (ctx, r, kit) => {
+    const { w, h, palette: p } = r;
+    paintDiagGradient(ctx, w, h, deepen(p.bg[1], 0.62), deepen(p.accent, 0.7), deepen(p.bg[0], 0.72), r.t);
+    const { line, appear } = state(kit, r);
+    if (!line) return;
+    let punch = 0;
+    if (line.words.length) {
+      const cur = kit.activeWord(line, r.t);
+      if (cur) punch = 1 - kit.easeOutCubic(Math.min(1, (r.t - cur.start) / 0.12));
+    } else {
+      punch = Math.max(0, 1 - (r.t - line.time) / 0.15);
+    }
+    const scale = 1 + punch * 0.14;
+    const { rows, size } = layout(ctx, kit, line.text.toUpperCase(), w * 0.78, h * 0.4, baseSize(r, 0.07, 0.088), `900 {s}px ${kit.FONT}`, 1.1);
+    ctx.save();
+    ctx.globalAlpha = appear;
+    ctx.translate(w / 2, h * 0.5);
+    ctx.scale(scale, scale);
+    ctx.translate(-w / 2, -h * 0.5);
+    softShadow(ctx, size * 0.35);
+    drawRows(ctx, rows, w / 2, h * 0.5, size, 1.1, p.text, (1 - appear) * size * 0.2);
+    ctx.restore();
+    kit.drawAuthor(ctx, r, h * 0.5 + rows.length * size * 0.62);
+  },
+};
+
+// 9 — rotating word swap
+const solidWordSwap: Engine = {
+  id: "solid-word-swap",
+  name: "Solid · Word Swap",
+  desc: "Solid accent field flipping through one word of the line at a time above a full caption.",
+  draw: (ctx, r, kit) => {
+    const { w, h, palette: p } = r;
+    paintSolidBreath(ctx, w, h, deepen(p.primary, 0.82), r.t);
+    const { line } = state(kit, r);
+    if (!line) return;
+    const words = line.text.split(" ").filter(Boolean);
+    if (!words.length) return;
+    const per = 0.85;
+    const idx = Math.floor(Math.max(0, r.t - line.time) / per) % words.length;
+    const localT = ((Math.max(0, r.t - line.time) % per) + per) % per;
+    const flip = Math.min(1, localT / 0.18);
+    const word = words[idx] ?? "";
+    const size = kit.fitFont(ctx, word.toUpperCase(), w * 0.8, baseSize(r, 0.09, 0.11), `900 {s}px ${kit.FONT}`);
+    ctx.save();
+    ctx.font = `900 ${size}px ${kit.FONT}`;
+    const scaleY = Math.max(0.08, Math.abs(Math.cos((1 - flip) * (Math.PI / 2))));
+    ctx.translate(w / 2, h * 0.44);
+    ctx.scale(1, scaleY);
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    softShadow(ctx, size * 0.3);
+    ctx.fillStyle = p.text;
+    ctx.fillText(word.toUpperCase(), 0, 0);
+    ctx.restore();
+    const { rows, size: capSize } = layout(ctx, kit, line.text.toUpperCase(), w * 0.72, h * 0.16, Math.round(h * 0.022), `600 {s}px ${kit.FONT}`, 1.3);
+    ctx.save();
+    ctx.globalAlpha = 0.75;
+    drawRows(ctx, rows, w / 2, h * 0.66, capSize, 1.3, kit.hexA(p.text, 0.75));
+    ctx.restore();
+    kit.drawAuthor(ctx, r, h * 0.66 + rows.length * capSize * 0.9);
+  },
+};
+
+// 10 — underline sweep
+const paperUnderlineSweep: Engine = {
+  id: "paper-underline-sweep",
+  name: "Paper · Underline Sweep",
+  desc: "Warm paper texture with a hand-drawn underline sweeping beneath the settled quote.",
+  draw: (ctx, r, kit) => {
+    const { w, h } = r;
+    paintPaperBreath(ctx, w, h, r.t, "#f7f0e2");
+    const ink = "#241b10";
+    const { line, appear, frac } = state(kit, r);
+    if (!line) return;
+    const { rows, size } = layout(ctx, kit, line.text, w * 0.74, h * 0.34, baseSize(r, 0.054, 0.068), `600 {s}px ${kit.SERIF}`, 1.3);
+    ctx.save();
+    ctx.globalAlpha = appear;
+    const end = drawRows(ctx, rows, w / 2, h * 0.5, size, 1.3, ink, (1 - appear) * size * 0.2);
+    ctx.restore();
+    const lastRow = rows[rows.length - 1] ?? "";
+    ctx.font = `600 ${size}px ${kit.SERIF}`;
+    const rw = ctx.measureText(lastRow).width;
+    const sweep = Math.min(1, frac * 1.4);
+    ctx.save();
+    ctx.strokeStyle = "#b0552f";
+    ctx.lineWidth = Math.max(2, size * 0.06);
+    ctx.beginPath();
+    ctx.moveTo(w / 2 - rw / 2, end + size * 0.12);
+    ctx.lineTo(w / 2 - rw / 2 + rw * sweep, end + size * 0.12);
+    ctx.stroke();
+    ctx.restore();
+    if (r.author) {
+      ctx.fillStyle = "#b0552f";
+      ctx.font = `600 ${Math.round(size * 0.3)}px ${kit.FONT}`;
+      ctx.textAlign = "center";
+      ctx.fillText(r.author.toUpperCase(), w / 2, end + size * 0.6);
+    }
+  },
+};
+
+// 11 — box-in reveal
+const gradBoxReveal: Engine = {
+  id: "grad-box-reveal",
+  name: "Gradient · Box Reveal",
+  desc: "Aurora gradient with a frame that contracts around the quote as it settles.",
+  draw: (ctx, r, kit) => {
+    const { w, h, palette: p } = r;
+    paintAuroraGradient(ctx, w, h, p, r.t + 10);
+    const { line, appear } = state(kit, r);
+    if (!line) return;
+    const { rows, size } = layout(ctx, kit, line.text.toUpperCase(), w * 0.72, h * 0.36, baseSize(r, 0.06, 0.075), `800 {s}px ${kit.COND}`, 1.15);
+    ctx.font = `800 ${size}px ${kit.COND}`;
+    const blockH = rows.length * size * 1.15 + size * 0.6;
+    const blockW = Math.max(...rows.map((row) => ctx.measureText(row).width)) + size * 0.8;
+    const grow = 1 + (1 - appear) * 0.5;
+    ctx.save();
+    ctx.globalAlpha = Math.min(1, appear * 1.6);
+    ctx.strokeStyle = p.primary;
+    ctx.lineWidth = Math.max(2, h * 0.003);
+    ctx.strokeRect(w / 2 - (blockW * grow) / 2, h * 0.5 - (blockH * grow) / 2, blockW * grow, blockH * grow);
+    ctx.restore();
+    ctx.save();
+    ctx.globalAlpha = appear;
+    softShadow(ctx, size * 0.3);
+    drawRows(ctx, rows, w / 2, h * 0.5, size, 1.15, p.text);
+    ctx.restore();
+    kit.drawAuthor(ctx, r, h * 0.5 + blockH / 2 + size * 0.3);
+  },
+};
+
+// 12 — stagger fade from centre
+const solidStaggerCentre: Engine = {
+  id: "solid-stagger-centre",
+  name: "Solid · Stagger Centre",
+  desc: "Breathing solid field with words fading and scaling in outward from the centre word.",
+  draw: (ctx, r, kit) => {
+    const { w, h, palette: p } = r;
+    paintSolidBreath(ctx, w, h, deepen(p.bg[1], 0.75), r.t);
+    const { line, appear } = state(kit, r);
+    if (!line) return;
+    const { rows, size } = layout(ctx, kit, line.text, w * 0.78, h * 0.4, baseSize(r, 0.058, 0.073), `700 {s}px ${kit.FONT}`, 1.24);
+    ctx.font = `700 ${size}px ${kit.FONT}`;
+    ctx.textBaseline = "middle";
+    let y = h * 0.5 - ((rows.length - 1) * size * 1.24) / 2;
+    const total = rows.reduce((a, row) => a + row.split(" ").length, 0);
+    const centre = (total - 1) / 2;
+    let counter = 0;
+    for (const row of rows) {
+      const words = row.split(" ");
+      const widths = words.map((wd) => ctx.measureText(wd + " ").width);
+      const totalW = widths.reduce((a, b) => a + b, 0);
+      let x = w / 2 - totalW / 2;
+      for (let i = 0; i < words.length; i++) {
+        const dist = Math.abs(counter - centre);
+        const localAppear = Math.max(0, Math.min(1, appear * 1.4 - dist * 0.14));
+        const e = kit.easeOutCubic(localAppear);
+        ctx.save();
+        ctx.globalAlpha = e;
+        ctx.translate(x + widths[i] / 2, y);
+        ctx.scale(0.6 + e * 0.4, 0.6 + e * 0.4);
+        ctx.fillStyle = p.text;
+        ctx.textAlign = "center";
+        ctx.fillText(words[i], 0, 0);
+        ctx.restore();
+        x += widths[i];
+        counter++;
+      }
+      y += size * 1.24;
+    }
+    kit.drawAuthor(ctx, r, y + size * 0.2);
+  },
+};
+
+// 13 — marquee ticker
+const paperMarqueeTicker: Engine = {
+  id: "paper-marquee-ticker",
+  name: "Paper · Marquee Ticker",
+  desc: "Paper texture with an inked headline beneath a scrolling ticker strip.",
+  draw: (ctx, r, kit) => {
+    const { w, h } = r;
+    paintPaperBreath(ctx, w, h, r.t, "#f4ecdd");
+    const ink = "#241b10";
+    const bandY = h * 0.1;
+    const bandH = h * 0.05;
+    ctx.fillStyle = ink;
+    ctx.fillRect(0, bandY, w, bandH);
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, bandY, w, bandH);
+    ctx.clip();
+    ctx.fillStyle = "#f4ecdd";
+    ctx.font = `700 ${Math.round(bandH * 0.5)}px ${kit.MONO}`;
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+    const phrase = `${(r.author || "KEEP MOVING").toUpperCase()}   ·   `;
+    const pw = Math.max(1, ctx.measureText(phrase).width);
+    const shift = (r.t * w * 0.06) % pw;
+    for (let x = -shift; x < w + pw; x += pw) ctx.fillText(phrase, x, bandY + bandH / 2);
+    ctx.restore();
+    ctx.textAlign = "center";
+    const { line, appear } = state(kit, r);
+    if (!line) return;
+    const { rows, size } = layout(ctx, kit, line.text, w * 0.76, h * 0.34, baseSize(r, 0.052, 0.066), `700 {s}px ${kit.FONT}`, 1.24);
+    ctx.save();
+    ctx.globalAlpha = appear;
+    drawRows(ctx, rows, w / 2, h * 0.54, size, 1.24, ink, (1 - appear) * size * 0.2);
+    ctx.restore();
+  },
+};
+
+// 14 — glitch-in
+const gradGlitchIn: Engine = {
+  id: "grad-glitch-in",
+  name: "Gradient · Glitch In",
+  desc: "Drifting dark gradient with the statement snapping into focus through an RGB-split glitch.",
+  draw: (ctx, r, kit) => {
+    const { w, h, palette: p } = r;
+    paintDiagGradient(ctx, w, h, deepen(p.bg[0], 0.68), deepen(p.bg[1], 0.6), deepen(p.primary, 0.75), r.t + 5);
+    const { line, appear } = state(kit, r);
+    if (!line) return;
+    const { rows, size } = layout(ctx, kit, line.text.toUpperCase(), w * 0.8, h * 0.4, baseSize(r, 0.07, 0.088), `900 {s}px ${kit.FONT}`, 1.1);
+    ctx.font = `900 ${size}px ${kit.FONT}`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    let y = h * 0.5 - ((rows.length - 1) * size * 1.1) / 2;
+    rows.forEach((row, i) => {
+      const localAppear = Math.max(0, Math.min(1, appear * 1.8 - i * 0.15));
+      const glitch = Math.max(0, 1 - localAppear * 2.2);
+      const jitter = glitch * size * 0.12;
+      const seed = Math.sin(r.t * 37 + i * 13) * jitter;
+      ctx.save();
+      ctx.globalAlpha = Math.min(1, localAppear * 1.6);
+      ctx.fillStyle = kit.hexA("#ff3b6b", 0.7 * glitch);
+      ctx.fillText(row, w / 2 - seed, y);
+      ctx.fillStyle = kit.hexA("#38f5ff", 0.7 * glitch);
+      ctx.fillText(row, w / 2 + seed, y);
+      ctx.fillStyle = p.text;
+      ctx.fillText(row, w / 2, y);
+      ctx.restore();
+      y += size * 1.1;
+    });
+    kit.drawAuthor(ctx, r, y + size * 0.2);
+  },
+};
+
+// 15 — stacked emphasis words
+const solidStackedEmphasis: Engine = {
+  id: "solid-stacked-emphasis",
+  name: "Solid · Stacked Emphasis",
+  desc: "Breathing solid field with each word stacked, alternating sides, longest word emphasised.",
+  draw: (ctx, r, kit) => {
+    const { w, h, palette: p } = r;
+    paintSolidBreath(ctx, w, h, deepen(p.bg[0], 0.88), r.t);
+    const { line, appear } = state(kit, r);
+    if (!line) return;
+    const words = line.text.toUpperCase().split(" ").filter(Boolean).slice(0, 5);
+    if (!words.length) return;
+    const n = words.length;
+    const totalH = h * 0.7;
+    const rowH = totalH / n;
+    const longest = Math.max(...words.map((x) => x.length));
+    ctx.textBaseline = "middle";
+    words.forEach((wd, i) => {
+      const localAppear = Math.max(0, Math.min(1, appear * 1.6 - i * 0.18));
+      const e = kit.easeOutCubic(localAppear);
+      const emphasis = wd.length === longest ? 1.25 : 1;
+      const size = kit.fitFont(ctx, wd, w * 0.9, Math.round(rowH * 0.72 * emphasis), `900 {s}px ${kit.FONT}`);
+      ctx.font = `900 ${size}px ${kit.FONT}`;
+      const align: CanvasTextAlign = i % 2 === 0 ? "left" : "right";
+      ctx.textAlign = align;
+      const x = align === "left" ? w * 0.06 : w * 0.94;
+      const y = h * 0.16 + rowH * i + rowH / 2;
+      ctx.save();
+      ctx.globalAlpha = e;
+      ctx.fillStyle = emphasis > 1 ? p.primary : p.text;
+      ctx.fillText(wd, x + (align === "left" ? (1 - e) * w * 0.1 : -(1 - e) * w * 0.1), y);
+      ctx.restore();
+    });
+    ctx.textAlign = "center";
+    kit.drawAuthor(ctx, r, h * 0.16 + rowH * n + rowH * 0.3);
+  },
+};
+
+export const KINETIC_BACKDROP_ENGINES: Engine[] = [
+  gradWordCascade,
+  solidKineticLetters,
+  gradWipeReveal,
+  paperSlideBlur,
+  gradTypewriterCaret,
+  solidSplitFlap,
+  paperVerticalRoll,
+  gradScalePunch,
+  solidWordSwap,
+  paperUnderlineSweep,
+  gradBoxReveal,
+  solidStaggerCentre,
+  paperMarqueeTicker,
+  gradGlitchIn,
+  solidStackedEmphasis,
+];
+
+for (const e of KINETIC_BACKDROP_ENGINES) {
+  EXTRA_MOTIVATIONAL_ENGINES.push(e);
+  EXTRA_MOTIVATIONAL_MAP.set(e.id, e);
+}
