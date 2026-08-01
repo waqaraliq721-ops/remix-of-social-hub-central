@@ -990,6 +990,32 @@ function MathPage() {
 
           <Card>
             <CardHeader>
+              <CardTitle className="text-base">Background & timers</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <BackgroundPicker
+                value={backgroundId}
+                onChange={setBackgroundId}
+                intensity={backgroundIntensity}
+                onIntensityChange={setBackgroundIntensity}
+              />
+              <TimerStylePicker value={timerStyle} onChange={setTimerStyle} />
+              <TimeBarStylePicker value={timeBarStyle} onChange={setTimeBarStyle} />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Element layout</CardTitle>
+              <CardDescription>Position, scale, rotation and visibility per element.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ElementStyleGroup items={ELEMENT_LIST} values={styles} onChange={setStyleFor} />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
               <CardTitle className="text-base">Animations</CardTitle>
               <CardDescription>Entrance and looping motion per element.</CardDescription>
             </CardHeader>

@@ -48,6 +48,21 @@ import {
   applyAnim,
   type ElementAnimSpec,
 } from "@/lib/kid-anim";
+import {
+  ElementStyleGroup,
+  defaultStyle,
+  applyStyle,
+  drawBackground as drawSharedBackground,
+  BackgroundPicker,
+  type BackgroundId,
+  drawTimer,
+  TimerStylePicker,
+  type TimerStyleId,
+  drawTimeBar,
+  TimeBarStylePicker,
+  type TimeBarStyleId,
+  type ElementStyleSpec,
+} from "@/lib/kid-elements";
 
 export const Route = createFileRoute("/_authenticated/kid-videos/logo")({
   head: () => ({
@@ -109,14 +124,20 @@ const PALETTES: Pal[] = [
   },
 ];
 
+const ELEMENT_LIST: { key: string; label: string }[] = [
+  { key: "title", label: "Title" },
+  { key: "logo", label: "Logo image" },
+  { key: "card", label: "Reveal card" },
+  { key: "answer", label: "Answer" },
+  { key: "hint", label: "Hint label" },
+  { key: "timer", label: "Countdown timer" },
+  { key: "timebar", label: "Time bar" },
+  { key: "roundNumber", label: "Round number" },
+];
+
 const ANIM_ELEMENTS: { key: string; label: string }[] = [
   { key: "background", label: "Background" },
-  { key: "title", label: "Title" },
-  { key: "logo", label: "Logo card" },
-  { key: "answer", label: "Answer reveal" },
-  { key: "timebar", label: "Timer bar" },
-  { key: "badge", label: "Round badges" },
-  { key: "side", label: "Side text" },
+  ...ELEMENT_LIST,
 ];
 
 function defaultAnimMap(): Record<string, ElementAnimSpec> {
@@ -124,11 +145,18 @@ function defaultAnimMap(): Record<string, ElementAnimSpec> {
     background: defaultAnim({ preset: "none", loop: "none" }),
     title: defaultAnim({ preset: "slide-down", duration: 0.45 }),
     logo: defaultAnim({ preset: "zoom-in", duration: 0.55, loop: "breathe", intensity: 0.4 }),
+    card: defaultAnim({ preset: "fade", duration: 0.4 }),
     answer: defaultAnim({ preset: "bounce-in", duration: 0.5 }),
+    hint: defaultAnim({ preset: "fade", duration: 0.3 }),
+    timer: defaultAnim({ preset: "fade", duration: 0.3, loop: "pulse", intensity: 0.5 }),
     timebar: defaultAnim({ preset: "fade", duration: 0.3 }),
-    badge: defaultAnim({ preset: "pop", duration: 0.4, loop: "float", intensity: 0.5 }),
+    roundNumber: defaultAnim({ preset: "pop", duration: 0.4, loop: "float", intensity: 0.5 }),
     side: defaultAnim({ preset: "fade", duration: 0.5, loop: "none" }),
   };
+}
+
+function defaultStyleMap(): Record<string, ElementStyleSpec> {
+  return Object.fromEntries(ELEMENT_LIST.map((e) => [e.key, defaultStyle()]));
 }
 
 const uid = () => Math.random().toString(36).slice(2, 9);
@@ -156,6 +184,13 @@ function LogoPage() {
   const [anims, setAnims] = useState<Record<string, ElementAnimSpec>>(defaultAnimMap());
   const setAnim = (key: string, spec: ElementAnimSpec) =>
     setAnims((a) => ({ ...a, [key]: spec }));
+  const [styles, setStyles] = useState<Record<string, ElementStyleSpec>>(defaultStyleMap());
+  const setStyleFor = (key: string, spec: ElementStyleSpec) =>
+    setStyles((s) => ({ ...s, [key]: spec }));
+  const [backgroundId, setBackgroundId] = useState<BackgroundId>("rays");
+  const [backgroundIntensity, setBackgroundIntensity] = useState(1);
+  const [timerStyle, setTimerStyle] = useState<TimerStyleId>("ring");
+  const [timeBarStyle, setTimeBarStyle] = useState<TimeBarStyleId>("bar");
 
   const [intro, setIntro] = useState<CardConfig>({ ...defaultIntro, title: "Guess The Logo" });
   const [outro, setOutro] = useState<CardConfig>({ ...defaultOutro, title: "How many did you get?" });
@@ -200,48 +235,6 @@ function LogoPage() {
   };
 
   // ---------------- rendering ----------------
-
-  const drawBackground = useCallback(
-    (ctx: CanvasRenderingContext2D, w: number, h: number, t: number) => {
-      const g = ctx.createLinearGradient(0, 0, w, h);
-      g.addColorStop(0, pal.bg[0]);
-      g.addColorStop(1, pal.bg[1]);
-      ctx.fillStyle = g;
-      ctx.fillRect(0, 0, w, h);
-
-      // swirling rays
-      const cx = w / 2;
-      const cy = h / 2;
-      ctx.save();
-      ctx.translate(cx, cy);
-      const swirls = 3;
-      for (let s = 0; s < swirls; s++) {
-        ctx.save();
-        ctx.rotate(t * (0.08 + s * 0.03) * (s % 2 === 0 ? 1 : -1));
-        const rays = 16;
-        for (let i = 0; i < rays; i++) {
-          const a0 = (i / rays) * Math.PI * 2;
-          const a1 = a0 + Math.PI / rays / 2;
-          ctx.beginPath();
-          ctx.moveTo(0, 0);
-          const rad = Math.max(w, h) * (0.5 + s * 0.25);
-          ctx.arc(0, 0, rad, a0, a1);
-          ctx.closePath();
-          ctx.fillStyle = hexA(pal.primary, 0.035);
-          ctx.fill();
-        }
-        ctx.restore();
-      }
-      ctx.restore();
-
-      const v = ctx.createRadialGradient(cx, cy, Math.min(w, h) * 0.15, cx, cy, Math.max(w, h) * 0.75);
-      v.addColorStop(0, "rgba(0,0,0,0)");
-      v.addColorStop(1, "rgba(0,0,0,0.4)");
-      ctx.fillStyle = v;
-      ctx.fillRect(0, 0, w, h);
-    },
-    [pal],
-  );
 
   const drawRound = useCallback(
     (
