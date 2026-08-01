@@ -28,7 +28,15 @@ export type EntrancePreset =
   | "bounce-in"
   | "rotate-in"
   | "blur-in"
-  | "spring-drop";
+  | "spring-drop"
+  | "swing-in"
+  | "drop-bounce"
+  | "slide-blur"
+  | "unfold"
+  | "pop-rotate"
+  | "streak-in"
+  | "typewriter-scale"
+  | "elastic-side";
 
 export type LoopPreset =
   | "none"
@@ -38,7 +46,12 @@ export type LoopPreset =
   | "sway"
   | "spin"
   | "shimmer"
-  | "breathe";
+  | "breathe"
+  | "bob"
+  | "tilt"
+  | "heartbeat"
+  | "drift"
+  | "jitter";
 
 export type EasingId =
   | "linear"
@@ -64,6 +77,14 @@ export const ENTRANCE_PRESETS: { id: EntrancePreset; name: string }[] = [
   { id: "rotate-in", name: "Rotate in" },
   { id: "blur-in", name: "Blur in (fade)" },
   { id: "spring-drop", name: "Spring drop" },
+  { id: "swing-in", name: "Swing in" },
+  { id: "drop-bounce", name: "Drop bounce" },
+  { id: "slide-blur", name: "Slide blur" },
+  { id: "unfold", name: "Unfold" },
+  { id: "pop-rotate", name: "Pop rotate" },
+  { id: "streak-in", name: "Streak in" },
+  { id: "typewriter-scale", name: "Typewriter scale" },
+  { id: "elastic-side", name: "Elastic side" },
 ];
 
 export const LOOP_PRESETS: { id: LoopPreset; name: string }[] = [
@@ -75,6 +96,11 @@ export const LOOP_PRESETS: { id: LoopPreset; name: string }[] = [
   { id: "spin", name: "Spin" },
   { id: "shimmer", name: "Shimmer" },
   { id: "breathe", name: "Breathe" },
+  { id: "bob", name: "Bob" },
+  { id: "tilt", name: "Tilt" },
+  { id: "heartbeat", name: "Heartbeat" },
+  { id: "drift", name: "Drift" },
+  { id: "jitter", name: "Jitter" },
 ];
 
 export const EASINGS: { id: EasingId; name: string }[] = [
@@ -227,6 +253,43 @@ export function computeAnim(
         res.dy = (1 - e) * -50 * I;
         break;
       }
+      case "swing-in":
+        res.opacity = k;
+        res.rotate = Math.sin((1 - k) * Math.PI * 2) * 0.5 * I * (1 - k);
+        break;
+      case "drop-bounce": {
+        const b = EASING_FNS.bounce(p);
+        res.opacity = clamp01(p * 2);
+        res.dy = (1 - b) * -120 * I;
+        break;
+      }
+      case "slide-blur":
+        res.opacity = k;
+        res.dy = (1 - k) * 40 * I;
+        break;
+      case "unfold":
+        res.opacity = k;
+        res.scale = 0.05 + 0.95 * k;
+        break;
+      case "pop-rotate":
+        res.opacity = k;
+        res.scale = 0.4 + 0.6 * k;
+        res.rotate = (1 - k) * Math.PI * 0.5 * I;
+        break;
+      case "streak-in":
+        res.opacity = k;
+        res.dx = -(1 - k) * 160 * I;
+        break;
+      case "typewriter-scale":
+        res.opacity = p > 0.05 ? 1 : 0;
+        res.scale = 0.85 + 0.15 * k;
+        break;
+      case "elastic-side": {
+        const e = EASING_FNS.elastic(p);
+        res.opacity = clamp01(p * 3);
+        res.dx = (1 - e) * 80 * I;
+        break;
+      }
       default:
         break;
     }
@@ -258,6 +321,23 @@ export function computeAnim(
         break;
       case "breathe":
         res.scale *= 1 + Math.sin(lt * 1.1) * 0.03 * amp;
+        break;
+      case "bob":
+        res.dy += Math.sin(lt * 2.4) * 6 * amp;
+        break;
+      case "tilt":
+        res.rotate += Math.sin(lt * 2) * 0.08 * amp;
+        break;
+      case "heartbeat":
+        res.scale *= 1 + Math.max(0, Math.sin(lt * 4)) * Math.max(0, Math.sin(lt * 4 + 0.3)) * 0.08 * amp;
+        break;
+      case "drift":
+        res.dx += Math.sin(lt * 0.7) * 12 * amp;
+        res.dy += Math.cos(lt * 0.5) * 8 * amp;
+        break;
+      case "jitter":
+        res.dx += Math.sin(lt * 23) * 2 * amp;
+        res.dy += Math.cos(lt * 29) * 2 * amp;
         break;
       default:
         break;

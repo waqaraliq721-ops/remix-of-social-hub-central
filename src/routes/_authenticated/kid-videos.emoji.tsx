@@ -57,6 +57,21 @@ import {
   applyAnim,
   type ElementAnimSpec,
 } from "@/lib/kid-anim";
+import {
+  ElementStyleGroup,
+  defaultStyle,
+  applyStyle,
+  type ElementStyleSpec,
+  drawBackground as drawSharedBackground,
+  BackgroundPicker,
+  type BackgroundId,
+  drawTimer,
+  TimerStylePicker,
+  type TimerStyleId,
+  drawTimeBar,
+  TimeBarStylePicker,
+  type TimeBarStyleId,
+} from "@/lib/kid-elements";
 
 export const Route = createFileRoute("/_authenticated/kid-videos/emoji")({
   head: () => ({
@@ -108,6 +123,28 @@ function defaultAnimMap(): Record<string, ElementAnimSpec> {
     timer: defaultAnim({ preset: "zoom-in", loop: "pulse", intensity: 0.6 }),
     timebar: defaultAnim({ preset: "fade", duration: 0.3 }),
     roundNo: defaultAnim({ preset: "fade" }),
+  };
+}
+
+const STYLE_ELEMENTS: { key: string; label: string }[] = [
+  { key: "title", label: "Heading" },
+  { key: "emoji", label: "Emoji row" },
+  { key: "answer", label: "Answer text" },
+  { key: "hint", label: "Hint" },
+  { key: "timer", label: "Timer" },
+  { key: "timebar", label: "Progress bar" },
+  { key: "roundNo", label: "Round number" },
+];
+
+function defaultStyleMap(): Record<string, ElementStyleSpec> {
+  return {
+    title: defaultStyle(),
+    emoji: defaultStyle(),
+    answer: defaultStyle(),
+    hint: defaultStyle(),
+    timer: defaultStyle(),
+    timebar: defaultStyle(),
+    roundNo: defaultStyle(),
   };
 }
 
@@ -240,6 +277,13 @@ function EmojiPage() {
   const [anims, setAnims] = useState<Record<string, ElementAnimSpec>>(defaultAnimMap());
   const setAnim = (key: string, spec: ElementAnimSpec) =>
     setAnims((a) => ({ ...a, [key]: spec }));
+  const [styles, setStyles] = useState<Record<string, ElementStyleSpec>>(defaultStyleMap());
+  const setElStyle = (key: string, spec: ElementStyleSpec) =>
+    setStyles((s) => ({ ...s, [key]: spec }));
+  const [background, setBackground] = useState<BackgroundId>("gradient");
+  const [bgIntensity, setBgIntensity] = useState(1);
+  const [timerStyle, setTimerStyle] = useState<TimerStyleId>("ring");
+  const [timebarStyle, setTimebarStyle] = useState<TimeBarStyleId>("thin");
 
   const [provider, setProvider] = useState<TtsProvider>("elevenlabs");
   const [voice, setVoice] = useState(TTS_VOICES.elevenlabs[0].id);
@@ -290,34 +334,15 @@ function EmojiPage() {
 
   const drawBackground = useCallback(
     (ctx: CanvasRenderingContext2D, w: number, h: number, t: number) => {
-      const g = ctx.createLinearGradient(0, 0, w * 0.35, h);
-      g.addColorStop(0, pal.bg[0]);
-      g.addColorStop(1, pal.bg[1]);
-      ctx.fillStyle = g;
-      ctx.fillRect(0, 0, w, h);
-
-      // slow drifting glow blobs — same surface top to bottom
-      const blobs = [
-        { x: 0.2, y: 0.25, c: pal.primary, r: 0.55 },
-        { x: 0.85, y: 0.7, c: pal.accent, r: 0.5 },
-      ];
-      blobs.forEach((b, i) => {
-        const dx = Math.sin(t * 0.22 + i * 2.1) * w * 0.035;
-        const dy = Math.cos(t * 0.18 + i * 1.4) * h * 0.025;
-        const rad = Math.min(w, h) * b.r;
-        const rg = ctx.createRadialGradient(
-          w * b.x + dx,
-          h * b.y + dy,
-          0,
-          w * b.x + dx,
-          h * b.y + dy,
-          rad,
-        );
-        rg.addColorStop(0, hexA(b.c, style === "clean" ? 0.1 : 0.18));
-        rg.addColorStop(1, hexA(b.c, 0));
-        ctx.fillStyle = rg;
-        ctx.fillRect(0, 0, w, h);
-      });
+      drawSharedBackground(
+        ctx,
+        background,
+        { bg: [pal.bg[0], pal.bg[1]], primary: pal.primary, accent: pal.accent },
+        w,
+        h,
+        t,
+        bgIntensity,
+      );
 
       if (style === "chalk") {
         ctx.strokeStyle = hexA(pal.text, 0.06);
@@ -363,7 +388,7 @@ function EmojiPage() {
       ctx.fillStyle = v;
       ctx.fillRect(0, 0, w, h);
     },
-    [pal, style],
+    [pal, style, background, bgIntensity],
   );
 
   const drawConfetti = useCallback(

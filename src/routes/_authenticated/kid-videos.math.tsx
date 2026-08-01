@@ -48,6 +48,21 @@ import {
   applyAnim,
   type ElementAnimSpec,
 } from "@/lib/kid-anim";
+import {
+  ElementStyleGroup,
+  defaultStyle,
+  applyStyle,
+  drawBackground as drawSharedBackground,
+  BackgroundPicker,
+  type BackgroundId,
+  drawTimer,
+  TimerStylePicker,
+  type TimerStyleId,
+  drawTimeBar,
+  TimeBarStylePicker,
+  type TimeBarStyleId,
+  type ElementStyleSpec,
+} from "@/lib/kid-elements";
 
 export const Route = createFileRoute("/_authenticated/kid-videos/math")({
   head: () => ({
@@ -128,14 +143,20 @@ const PALETTES: Pal[] = [
   },
 ];
 
-const ANIM_ELEMENTS: { key: string; label: string }[] = [
-  { key: "background", label: "Background" },
+const ELEMENT_LIST: { key: string; label: string }[] = [
   { key: "title", label: "Title" },
   { key: "question", label: "Expression" },
+  { key: "answer", label: "Answer highlight" },
   { key: "options", label: "Answer options" },
-  { key: "timebar", label: "Timer bar" },
-  { key: "badge", label: "Round / level badges" },
-  { key: "side", label: "Side text" },
+  { key: "timer", label: "Countdown timer" },
+  { key: "timebar", label: "Time bar" },
+  { key: "roundNumber", label: "Round number" },
+  { key: "footer", label: "Footer text" },
+];
+
+const ANIM_ELEMENTS: { key: string; label: string }[] = [
+  { key: "background", label: "Background" },
+  ...ELEMENT_LIST,
 ];
 
 function defaultAnimMap(): Record<string, ElementAnimSpec> {
@@ -143,11 +164,17 @@ function defaultAnimMap(): Record<string, ElementAnimSpec> {
     background: defaultAnim({ preset: "none", loop: "none" }),
     title: defaultAnim({ preset: "slide-down", duration: 0.45 }),
     question: defaultAnim({ preset: "bounce-in", duration: 0.6 }),
+    answer: defaultAnim({ preset: "pop", duration: 0.4 }),
     options: defaultAnim({ preset: "slide-up", duration: 0.5, delay: 0.15 }),
+    timer: defaultAnim({ preset: "fade", duration: 0.3 }),
     timebar: defaultAnim({ preset: "fade", duration: 0.3 }),
-    badge: defaultAnim({ preset: "pop", duration: 0.4, loop: "float", intensity: 0.5 }),
-    side: defaultAnim({ preset: "fade", duration: 0.5, loop: "none" }),
+    roundNumber: defaultAnim({ preset: "pop", duration: 0.4, loop: "float", intensity: 0.5 }),
+    footer: defaultAnim({ preset: "fade", duration: 0.5, loop: "none" }),
   };
+}
+
+function defaultStyleMap(): Record<string, ElementStyleSpec> {
+  return Object.fromEntries(ELEMENT_LIST.map((e) => [e.key, defaultStyle()]));
 }
 
 const uid = () => Math.random().toString(36).slice(2, 9);
@@ -255,6 +282,13 @@ function MathPage() {
   const [anims, setAnims] = useState<Record<string, ElementAnimSpec>>(defaultAnimMap());
   const setAnim = (key: string, spec: ElementAnimSpec) =>
     setAnims((a) => ({ ...a, [key]: spec }));
+  const [styles, setStyles] = useState<Record<string, ElementStyleSpec>>(defaultStyleMap());
+  const setStyleFor = (key: string, spec: ElementStyleSpec) =>
+    setStyles((s) => ({ ...s, [key]: spec }));
+  const [backgroundId, setBackgroundId] = useState<BackgroundId>("rays");
+  const [backgroundIntensity, setBackgroundIntensity] = useState(1);
+  const [timerStyle, setTimerStyle] = useState<TimerStyleId>("ring");
+  const [timeBarStyle, setTimeBarStyle] = useState<TimeBarStyleId>("bar");
 
   const [intro, setIntro] = useState<CardConfig>({ ...defaultIntro, title: "Mental Math" });
   const [outro, setOutro] = useState<CardConfig>({ ...defaultOutro, title: "How many did you get?" });
@@ -293,42 +327,6 @@ function MathPage() {
 
   // ---------------- rendering ----------------
 
-  const drawBackground = useCallback(
-    (ctx: CanvasRenderingContext2D, w: number, h: number, t: number) => {
-      const g = ctx.createLinearGradient(0, 0, w, h);
-      g.addColorStop(0, pal.bg[0]);
-      g.addColorStop(1, pal.bg[1]);
-      ctx.fillStyle = g;
-      ctx.fillRect(0, 0, w, h);
-
-      // rotating ray-burst
-      const cx = w / 2;
-      const cy = h * 0.42;
-      const rays = 24;
-      ctx.save();
-      ctx.translate(cx, cy);
-      ctx.rotate(t * 0.12);
-      for (let i = 0; i < rays; i++) {
-        const a0 = (i / rays) * Math.PI * 2;
-        const a1 = a0 + Math.PI / rays;
-        ctx.beginPath();
-        ctx.moveTo(0, 0);
-        const rad = Math.max(w, h) * 1.2;
-        ctx.arc(0, 0, rad, a0, a1);
-        ctx.closePath();
-        ctx.fillStyle = hexA(i % 2 ? pal.primary : pal.accent, 0.05);
-        ctx.fill();
-      }
-      ctx.restore();
-
-      const v = ctx.createRadialGradient(cx, cy, Math.min(w, h) * 0.1, cx, cy, Math.max(w, h) * 0.75);
-      v.addColorStop(0, "rgba(0,0,0,0)");
-      v.addColorStop(1, "rgba(0,0,0,0.4)");
-      ctx.fillStyle = v;
-      ctx.fillRect(0, 0, w, h);
-    },
-    [pal],
-  );
 
   const drawRound = useCallback(
     (
@@ -344,7 +342,15 @@ function MathPage() {
       const bgAnim = computeAnim(anims.background ?? defaultAnim(), local);
       ctx.save();
       applyAnim(ctx, bgAnim, w / 2, h / 2);
-      drawBackground(ctx, w, h, absT);
+      drawSharedBackground(
+        ctx,
+        backgroundId,
+        { bg: pal.bg, primary: pal.primary, accent: pal.accent },
+        w,
+        h,
+        absT,
+        backgroundIntensity,
+      );
       ctx.restore();
 
       const guessDur = Math.max(0.5, dur - revealSecs);
@@ -353,12 +359,13 @@ function MathPage() {
       const M = Math.min(w, h) * 0.06;
 
       // ---- star round badge, top-left ----
-      {
-        const badgeAnim = computeAnim(anims.badge ?? defaultAnim(), local);
+      if (styles.roundNumber?.visible ?? true) {
+        const badgeAnim = computeAnim(anims.roundNumber ?? defaultAnim(), local);
         const r0 = Math.min(w, h) * 0.055;
         const bx = M + r0;
         const by = M + r0;
         ctx.save();
+        applyStyle(ctx, styles.roundNumber, bx, by, w, h);
         applyAnim(ctx, badgeAnim, bx, by);
         ctx.beginPath();
         ctx.arc(bx, by, r0, 0, Math.PI * 2);
@@ -379,13 +386,14 @@ function MathPage() {
       }
 
       // ---- lightning difficulty badge, top-right ----
-      {
-        const badgeAnim = computeAnim(anims.badge ?? defaultAnim(), local);
+      if (styles.roundNumber?.visible ?? true) {
+        const badgeAnim = computeAnim(anims.roundNumber ?? defaultAnim(), local);
         const r0 = Math.min(w, h) * 0.055;
         const bx = w - M - r0;
         const by = M + r0;
         const diffColor = DIFFICULTIES.find((d) => d.id === r.difficulty)?.color ?? pal.accent;
         ctx.save();
+        applyStyle(ctx, styles.roundNumber, bx, by, w, h);
         applyAnim(ctx, badgeAnim, bx, by);
         ctx.beginPath();
         ctx.arc(bx, by, r0, 0, Math.PI * 2);
@@ -403,11 +411,12 @@ function MathPage() {
       }
 
       // ---- vertical side text ----
-      {
-        const sideAnim = computeAnim(anims.side ?? defaultAnim(), local);
+      if (styles.footer?.visible ?? true) {
+        const sideAnim = computeAnim(anims.footer ?? defaultAnim(), local);
         const label = "MENTAL MATH • ";
         [M * 0.4, w - M * 0.4].forEach((x, i) => {
           ctx.save();
+          applyStyle(ctx, styles.footer, x, h / 2, w, h);
           applyAnim(ctx, sideAnim, x, h / 2);
           ctx.translate(x, h / 2);
           ctx.rotate(i === 0 ? -Math.PI / 2 : Math.PI / 2);
@@ -421,10 +430,11 @@ function MathPage() {
       }
 
       // ---- title + level pill ----
-      {
+      if (styles.title?.visible ?? true) {
         const titleAnim = computeAnim(anims.title ?? defaultAnim(), local);
         const ts = Math.round(Math.min(w, h) * 0.055);
         ctx.save();
+        applyStyle(ctx, styles.title, w / 2, M + ts * 0.5, w, h);
         applyAnim(ctx, titleAnim, w / 2, M + ts * 0.5);
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";

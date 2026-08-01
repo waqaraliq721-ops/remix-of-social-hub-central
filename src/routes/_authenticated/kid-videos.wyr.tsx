@@ -61,6 +61,21 @@ import {
   applyAnim,
   type ElementAnimSpec,
 } from "@/lib/kid-anim";
+import {
+  ElementStyleGroup,
+  defaultStyle,
+  applyStyle,
+  type ElementStyleSpec,
+  drawBackground,
+  BackgroundPicker,
+  type BackgroundId,
+  drawTimer,
+  TimerStylePicker,
+  type TimerStyleId,
+  drawTimeBar,
+  TimeBarStylePicker,
+  type TimeBarStyleId,
+} from "@/lib/kid-elements";
 
 export const Route = createFileRoute("/_authenticated/kid-videos/wyr")({
   head: () => ({
@@ -104,6 +119,32 @@ const ANIM_ELEMENTS: { key: string; label: string }[] = [
   { key: "roundNo", label: "Round numbering" },
   { key: "badge", label: "VS / badges" },
 ];
+
+const STYLE_ELEMENTS: { key: string; label: string }[] = [
+  { key: "title", label: "Heading" },
+  { key: "imageA", label: "Option A card" },
+  { key: "imageB", label: "Option B card" },
+  { key: "labelA", label: "Option A text" },
+  { key: "labelB", label: "Option B text" },
+  { key: "timer", label: "Timer" },
+  { key: "timebar", label: "Time bar" },
+  { key: "roundNo", label: "Round numbering" },
+  { key: "badge", label: "VS / badges" },
+];
+
+function defaultStyleMap(): Record<string, ElementStyleSpec> {
+  return {
+    title: defaultStyle(),
+    imageA: defaultStyle(),
+    imageB: defaultStyle(),
+    labelA: defaultStyle(),
+    labelB: defaultStyle(),
+    timer: defaultStyle(),
+    timebar: defaultStyle(),
+    roundNo: defaultStyle(),
+    badge: defaultStyle(),
+  };
+}
 
 function defaultAnimMap(): Record<string, ElementAnimSpec> {
   return {
@@ -203,6 +244,13 @@ function WyrPage() {
   const [anims, setAnims] = useState<Record<string, ElementAnimSpec>>(defaultAnimMap());
   const setAnim = (key: string, spec: ElementAnimSpec) =>
     setAnims((a) => ({ ...a, [key]: spec }));
+  const [styles, setStyles] = useState<Record<string, ElementStyleSpec>>(defaultStyleMap());
+  const setElStyle = (key: string, spec: ElementStyleSpec) =>
+    setStyles((s) => ({ ...s, [key]: spec }));
+  const [background, setBackground] = useState<BackgroundId>("gradient");
+  const [bgIntensity, setBgIntensity] = useState(1);
+  const [timerStyle, setTimerStyle] = useState<TimerStyleId>("ring");
+  const [timebarStyle, setTimebarStyle] = useState<TimeBarStyleId>("thin");
 
   const [provider, setProvider] = useState<TtsProvider>("elevenlabs");
   const [voice, setVoice] = useState(TTS_VOICES.elevenlabs[0].id);
@@ -234,11 +282,11 @@ function WyrPage() {
 
   const timeline = useMemo(() => {
     let t = intro.id !== "none" ? intro.seconds : 0;
-    const segs = rounds.map((r) => {
+    const segs = rounds.map((r, index) => {
       const start = t;
       const dur = roundDur(r);
       t += dur;
-      return { round: r, start, dur };
+      return { round: r, start, dur, index };
     });
     const outroStart = t;
     const total = t + (outro.id !== "none" ? outro.seconds : 0);
@@ -266,6 +314,7 @@ function WyrPage() {
       r: Round,
       local: number,
       dur: number,
+      roundIndex = 0,
     ) => {
       const vertical = aspect !== "16:9" && aspect !== "16:9-hq";
       const halfW = vertical ? w : w / 2;
@@ -286,11 +335,15 @@ function WyrPage() {
       ];
 
       sides.forEach((s, i) => {
+        const imgKey = i === 0 ? "imageA" : "imageB";
+        const imgStyle = styles[imgKey] ?? defaultStyle();
+        if (!imgStyle.visible) return;
         ctx.save();
-        const imgAnim = computeAnim(anims[i === 0 ? "imageA" : "imageB"] ?? defaultAnim(), local);
+        const imgAnim = computeAnim(anims[imgKey] ?? defaultAnim(), local);
         ctx.beginPath();
         ctx.rect(s.x, s.y, halfW, halfH);
         ctx.clip();
+        applyStyle(ctx, imgStyle, s.x + halfW / 2, s.y + halfH / 2, w, h);
         applyAnim(ctx, imgAnim, s.x + halfW / 2, s.y + halfH / 2);
         const slide = (1 - intro01) * (vertical ? halfH : halfW) * 0.25 * s.dir;
         ctx.translate(vertical ? 0 : slide, vertical ? slide : 0);
@@ -317,8 +370,12 @@ function WyrPage() {
         const cy = s.y + halfH * (vertical ? (i === 0 ? 0.58 : 0.42) : 0.5);
         const label = uppercase ? s.text.toUpperCase() : s.text;
         if (!label) return;
-        const labelAnim = computeAnim(anims[i === 0 ? "labelA" : "labelB"] ?? defaultAnim(), local);
+        const labelKey = i === 0 ? "labelA" : "labelB";
+        const labelStyle = styles[labelKey] ?? defaultStyle();
+        if (!labelStyle.visible) return;
+        const labelAnim = computeAnim(anims[labelKey] ?? defaultAnim(), local);
         ctx.save();
+        applyStyle(ctx, labelStyle, cx, cy, w, h);
         applyAnim(ctx, labelAnim, cx, cy);
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
@@ -376,9 +433,11 @@ function WyrPage() {
       else ctx.fillRect(w / 2 - seam / 2, 0, seam, h);
 
       // heading
-      if (heading) {
+      const titleStyle = styles.title ?? defaultStyle();
+      if (heading && titleStyle.visible) {
         const titleAnim = computeAnim(anims.title ?? defaultAnim(), local);
         ctx.save();
+        applyStyle(ctx, titleStyle, w / 2, h * 0.045, w, h);
         applyAnim(ctx, titleAnim, w / 2, h * 0.045);
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
@@ -396,13 +455,15 @@ function WyrPage() {
       }
 
       // VS badge
-      if (showVs) {
+      const badgeStyle = styles.badge ?? defaultStyle();
+      if (showVs && badgeStyle.visible) {
         const cx = vertical ? w / 2 : w / 2;
         const cy = vertical ? h / 2 : h / 2;
         const rr = Math.min(w, h) * 0.085;
         const pop = ease.back(Math.min(1, local / 0.5));
         const badgeAnim = computeAnim(anims.badge ?? defaultAnim(), local);
         ctx.save();
+        applyStyle(ctx, badgeStyle, cx, cy, w, h);
         applyAnim(ctx, badgeAnim, cx, cy);
         ctx.translate(cx, cy);
         ctx.scale(pop, pop);
@@ -422,33 +483,50 @@ function WyrPage() {
       }
 
       // timer
-      if (showTimer) {
-        const tStart = Math.max(0, dur - timerSecs);
+      const timerStyleSpec = styles.timer ?? defaultStyle();
+      if (showTimer && timerStyleSpec.visible) {
         const left = Math.max(0, Math.min(timerSecs, dur - local));
-        const frac = local >= tStart ? 1 - (local - tStart) / timerSecs : 1;
         const rr = Math.min(w, h) * 0.06;
         const cx = w - rr * 1.8;
         const cy = h - rr * 1.8;
         const timerAnim = computeAnim(anims.timer ?? defaultAnim(), local);
         ctx.save();
+        applyStyle(ctx, timerStyleSpec, cx, cy, w, h);
         applyAnim(ctx, timerAnim, cx, cy);
-        ctx.beginPath();
-        ctx.arc(cx, cy, rr, 0, Math.PI * 2);
-        ctx.fillStyle = "rgba(0,0,0,0.55)";
-        ctx.fill();
-        ctx.lineCap = "round";
-        ctx.strokeStyle = "rgba(255,255,255,0.2)";
-        ctx.lineWidth = Math.max(3, rr * 0.12);
-        ctx.stroke();
-        ctx.strokeStyle = frac < 0.3 ? "#ef4444" : "#ffffff";
-        ctx.beginPath();
-        ctx.arc(cx, cy, rr, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * frac);
-        ctx.stroke();
-        ctx.fillStyle = "#fff";
+        drawTimer(ctx, timerStyle, cx, cy, rr, left, timerSecs, { primary: colors.a, accent: "#ef4444", text: "#ffffff" }, local);
+        ctx.restore();
+      }
+
+      // time bar
+      const timebarStyleSpec = styles.timebar ?? defaultStyle();
+      if (timebarStyleSpec.visible) {
+        const barW = w * 0.86;
+        const barH = Math.max(6, h * 0.012);
+        const barX = (w - barW) / 2;
+        const barY = h - barH * 2.4;
+        const frac2 = Math.max(0, Math.min(1, 1 - local / Math.max(0.01, dur)));
+        const timebarAnim = computeAnim(anims.timebar ?? defaultAnim(), local);
+        ctx.save();
+        applyStyle(ctx, timebarStyleSpec, barX + barW / 2, barY + barH / 2, w, h);
+        applyAnim(ctx, timebarAnim, barX + barW / 2, barY + barH / 2);
+        drawTimeBar(ctx, timebarStyle, barX, barY, barW, barH, frac2, { primary: colors.a, accent: colors.b, text: "#ffffff" }, local);
+        ctx.restore();
+      }
+
+      // round numbering
+      const roundNoStyle = styles.roundNo ?? defaultStyle();
+      if (roundNoStyle.visible) {
+        const roundAnim = computeAnim(anims.roundNo ?? defaultAnim(), local);
+        const rcx = Math.min(w, h) * 0.09;
+        const rcy = Math.min(w, h) * 0.09;
+        ctx.save();
+        applyStyle(ctx, roundNoStyle, rcx, rcy, w, h);
+        applyAnim(ctx, roundAnim, rcx, rcy);
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
-        ctx.font = `900 ${Math.round(rr * 0.8)}px ${FX_FONT}`;
-        ctx.fillText(String(Math.ceil(left)), cx, cy + rr * 0.04);
+        ctx.font = `800 ${Math.round(Math.min(w, h) * 0.03)}px ${FX_FONT}`;
+        ctx.fillStyle = "rgba(255,255,255,0.85)";
+        ctx.fillText(`#${roundIndex + 1}`, rcx, rcy);
         ctx.restore();
       }
 
@@ -480,35 +558,45 @@ function WyrPage() {
         for (let y = 0; y < h; y += 5) ctx.fillRect(0, y, w, 2);
       }
     },
-    [aspect, colors, heading, showPct, showTimer, showVs, style, timerSecs, tint, uppercase, zoom, anims],
+    [
+      aspect,
+      colors,
+      heading,
+      showPct,
+      showTimer,
+      showVs,
+      style,
+      timerSecs,
+      tint,
+      uppercase,
+      zoom,
+      anims,
+      styles,
+      timerStyle,
+      timebarStyle,
+    ],
   );
 
   const drawRoundHQ = useCallback(
-    (ctx: CanvasRenderingContext2D, w: number, h: number, r: Round, local: number, dur: number, absT: number) => {
-      const bgAnim = computeAnim(anims.background ?? defaultAnim(), local);
-      // animated ray-burst / gradient background
-      ctx.save();
-      const g = ctx.createLinearGradient(0, 0, w, h);
-      g.addColorStop(0, "#1e0b4e");
-      g.addColorStop(0.5, "#4c1d95");
-      g.addColorStop(1, "#0b0a2e");
-      ctx.fillStyle = g;
-      ctx.fillRect(0, 0, w, h);
-      ctx.translate(w / 2, h / 2);
-      ctx.rotate(absT * 0.15 * Math.max(0.2, bgAnim.opacity));
-      const rays = 16;
-      for (let i = 0; i < rays; i++) {
-        ctx.beginPath();
-        ctx.moveTo(0, 0);
-        const a0 = (i / rays) * Math.PI * 2;
-        const a1 = a0 + Math.PI / rays;
-        const rad = Math.max(w, h);
-        ctx.arc(0, 0, rad, a0, a1);
-        ctx.closePath();
-        ctx.fillStyle = i % 2 === 0 ? "rgba(255,255,255,0.035)" : "rgba(255,255,255,0.0)";
-        ctx.fill();
-      }
-      ctx.restore();
+    (
+      ctx: CanvasRenderingContext2D,
+      w: number,
+      h: number,
+      r: Round,
+      local: number,
+      dur: number,
+      absT: number,
+      roundIndex = 0,
+    ) => {
+      drawBackground(
+        ctx,
+        background,
+        { bg: ["#1e0b4e", "#0b0a2e"], primary: colors.a, accent: colors.b },
+        w,
+        h,
+        absT,
+        bgIntensity,
+      );
       const v = ctx.createRadialGradient(w / 2, h / 2, h * 0.2, w / 2, h / 2, h * 0.85);
       v.addColorStop(0, "rgba(0,0,0,0)");
       v.addColorStop(1, "rgba(0,0,0,0.5)");
@@ -564,9 +652,11 @@ function WyrPage() {
       ctx.restore();
 
       // title
-      if (heading) {
+      const titleStyleHQ = styles.title ?? defaultStyle();
+      if (heading && titleStyleHQ.visible) {
         const titleAnim = computeAnim(anims.title ?? defaultAnim(), local);
         ctx.save();
+        applyStyle(ctx, titleStyleHQ, w / 2, M + h * 0.02, w, h);
         applyAnim(ctx, titleAnim, w / 2, M + h * 0.02);
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
@@ -593,8 +683,11 @@ function WyrPage() {
         { img: r.imgB, text: r.textB, color: colors.b, x: M * 1.3 + panelW + gap, key: "imageB" as const },
       ];
       panels.forEach((p, i) => {
+        const panelStyle = styles[p.key] ?? defaultStyle();
+        if (!panelStyle.visible) return;
         const anim = computeAnim(anims[p.key] ?? defaultAnim(), local);
         ctx.save();
+        applyStyle(ctx, panelStyle, p.x + panelW / 2, panelTop + panelH / 2, w, h);
         applyAnim(ctx, anim, p.x + panelW / 2, panelTop + panelH / 2);
         roundRect(ctx, p.x, panelTop, panelW, panelH, h * 0.03);
         ctx.save();
@@ -614,10 +707,13 @@ function WyrPage() {
         ctx.restore();
 
         // label pill
-        const labelAnim = computeAnim(anims[i === 0 ? "labelA" : "labelB"] ?? defaultAnim(), local);
+        const labelKeyHQ = i === 0 ? "labelA" : "labelB";
+        const labelStyleHQ = styles[labelKeyHQ] ?? defaultStyle();
+        const labelAnim = computeAnim(anims[labelKeyHQ] ?? defaultAnim(), local);
         const label = uppercase ? p.text.toUpperCase() : p.text;
-        if (label) {
+        if (label && labelStyleHQ.visible) {
           ctx.save();
+          applyStyle(ctx, labelStyleHQ, p.x + panelW / 2, panelTop + panelH + h * 0.05, w, h);
           applyAnim(ctx, labelAnim, p.x + panelW / 2, panelTop + panelH + h * 0.05);
           ctx.textAlign = "center";
           ctx.textBaseline = "middle";
@@ -642,10 +738,12 @@ function WyrPage() {
       });
 
       // VS badge
-      if (showVs) {
+      const badgeStyleHQ = styles.badge ?? defaultStyle();
+      if (showVs && badgeStyleHQ.visible) {
         const pop = ease.back(Math.min(1, local / 0.5));
         const badgeAnim2 = computeAnim(anims.badge ?? defaultAnim(), local);
         ctx.save();
+        applyStyle(ctx, badgeStyleHQ, w / 2, panelTop + panelH / 2, w, h);
         applyAnim(ctx, badgeAnim2, w / 2, panelTop + panelH / 2);
         ctx.translate(w / 2, panelTop + panelH / 2);
         ctx.scale(pop, pop);
@@ -665,47 +763,36 @@ function WyrPage() {
       }
 
       // timer
-      if (showTimer) {
+      const timerStyleHQ = styles.timer ?? defaultStyle();
+      if (showTimer && timerStyleHQ.visible) {
         const left = Math.max(0, Math.min(timerSecs, dur - local));
         const timerAnim = computeAnim(anims.timer ?? defaultAnim(), local);
         const rr = h * 0.055;
         const tcx = w / 2;
         const tcy = h - M * 0.7;
         ctx.save();
+        applyStyle(ctx, timerStyleHQ, tcx, tcy, w, h);
         applyAnim(ctx, timerAnim, tcx, tcy);
-        ctx.beginPath();
-        ctx.arc(tcx, tcy, rr, 0, Math.PI * 2);
-        ctx.fillStyle = "rgba(0,0,0,0.5)";
-        ctx.fill();
-        ctx.fillStyle = "#fff";
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.font = `900 ${Math.round(rr * 0.8)}px ${FX_FONT}`;
-        ctx.fillText(String(Math.ceil(left)), tcx, tcy);
+        drawTimer(ctx, timerStyle, tcx, tcy, rr, left, timerSecs, { primary: colors.a, accent: "#ef4444", text: "#ffffff" }, local);
         ctx.restore();
       }
 
       // bottom progress bar
-      const timebarAnim = computeAnim(anims.timebar ?? defaultAnim(), local);
+      const timebarStyleHQ = styles.timebar ?? defaultStyle();
       const barW = w - M * 2.6;
       const barH = h * 0.02;
       const barY = h - M * 0.32;
-      const frac = Math.max(0, Math.min(1, local / Math.max(0.01, dur)));
-      ctx.save();
-      ctx.globalAlpha *= timebarAnim.opacity;
-      roundRect(ctx, M * 1.3, barY, barW, barH, barH / 2);
-      ctx.fillStyle = "rgba(255,255,255,0.15)";
-      ctx.fill();
-      roundRect(ctx, M * 1.3, barY, barW * frac, barH, barH / 2);
-      ctx.fillStyle = "#34d399";
-      ctx.fill();
-      ctx.beginPath();
-      ctx.arc(M * 1.3 + barW * frac, barY + barH / 2, barH * 0.9, 0, Math.PI * 2);
-      ctx.fillStyle = "#fff";
-      ctx.fill();
-      ctx.restore();
+      const frac = Math.max(0, Math.min(1, 1 - local / Math.max(0.01, dur)));
+      if (timebarStyleHQ.visible) {
+        const timebarAnim = computeAnim(anims.timebar ?? defaultAnim(), local);
+        ctx.save();
+        applyStyle(ctx, timebarStyleHQ, M * 1.3 + barW / 2, barY + barH / 2, w, h);
+        applyAnim(ctx, timebarAnim, M * 1.3 + barW / 2, barY + barH / 2);
+        drawTimeBar(ctx, timebarStyle, M * 1.3, barY, barW, barH, frac, { primary: "#34d399", accent: colors.b, text: "#ffffff" }, local);
+        ctx.restore();
+      }
     },
-    [anims, colors, heading, showTimer, showVs, timerSecs, uppercase, zoom],
+    [anims, colors, heading, showTimer, showVs, timerSecs, uppercase, zoom, styles, background, bgIntensity, timerStyle, timebarStyle],
   );
 
   const drawFrame = useCallback(
@@ -745,9 +832,9 @@ function WyrPage() {
         timeline.segs[timeline.segs.length - 1];
       if (!seg) return;
       if (aspect === "16:9-hq") {
-        drawRoundHQ(ctx, w, h, seg.round, Math.max(0, t - seg.start), seg.dur, t);
+        drawRoundHQ(ctx, w, h, seg.round, Math.max(0, t - seg.start), seg.dur, t, seg.index);
       } else {
-        drawRound(ctx, w, h, seg.round, Math.max(0, t - seg.start), seg.dur);
+        drawRound(ctx, w, h, seg.round, Math.max(0, t - seg.start), seg.dur, seg.index);
       }
     },
     [aspect, dims, drawRound, drawRoundHQ, intro, outro, timeline],
@@ -1190,6 +1277,32 @@ function WyrPage() {
                 )}
                 Generate voiceover for all rounds
               </Button>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Background & timers</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <BackgroundPicker
+                value={background}
+                onChange={setBackground}
+                intensity={bgIntensity}
+                onIntensityChange={setBgIntensity}
+              />
+              <TimerStylePicker value={timerStyle} onChange={setTimerStyle} />
+              <TimeBarStylePicker value={timebarStyle} onChange={setTimebarStyle} />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Element layout</CardTitle>
+              <CardDescription>Position, scale, rotation and visibility per element.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ElementStyleGroup items={STYLE_ELEMENTS} values={styles} onChange={setElStyle} />
             </CardContent>
           </Card>
 
