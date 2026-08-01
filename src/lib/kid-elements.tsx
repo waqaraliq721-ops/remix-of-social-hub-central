@@ -1108,6 +1108,111 @@ export function drawTimeBar(
       ctx.fill();
       break;
     }
+    case "candy": {
+      track();
+      ctx.save();
+      ctx.beginPath();
+      ctx.roundRect(x, y, Math.max(h, w * k), h, h / 2);
+      ctx.clip();
+      ctx.fillStyle = col;
+      ctx.fillRect(x, y, w, h);
+      const off = (t * 40) % (h * 2);
+      ctx.strokeStyle = "rgba(255,255,255,0.28)";
+      ctx.lineWidth = h * 0.45;
+      for (let sx = x - h * 2 + off; sx < x + w + h * 2; sx += h * 2) {
+        ctx.beginPath();
+        ctx.moveTo(sx, y + h);
+        ctx.lineTo(sx + h, y);
+        ctx.stroke();
+      }
+      ctx.restore();
+      break;
+    }
+    case "chevrons": {
+      track();
+      ctx.save();
+      ctx.beginPath();
+      ctx.roundRect(x, y, Math.max(h, w * k), h, h / 2);
+      ctx.clip();
+      ctx.fillStyle = hexToRgba(col, 0.35);
+      ctx.fillRect(x, y, w, h);
+      const step = h * 1.4;
+      const off = (t * 60) % step;
+      ctx.fillStyle = col;
+      for (let sx = x - step + off; sx < x + w + step; sx += step) {
+        ctx.beginPath();
+        ctx.moveTo(sx, y);
+        ctx.lineTo(sx + h * 0.6, y + h / 2);
+        ctx.lineTo(sx, y + h);
+        ctx.lineTo(sx + h * 0.3, y + h);
+        ctx.lineTo(sx + h * 0.9, y + h / 2);
+        ctx.lineTo(sx + h * 0.3, y);
+        ctx.closePath();
+        ctx.fill();
+      }
+      ctx.restore();
+      break;
+    }
+    case "beads": {
+      const n = 14;
+      const gap = (w - h * n) / Math.max(1, n - 1);
+      for (let i = 0; i < n; i++) {
+        const cx = x + i * (h + gap) + h / 2;
+        const on = i / n < k;
+        ctx.beginPath();
+        ctx.arc(cx, y + h / 2, (h / 2) * (on ? 1 : 0.7), 0, Math.PI * 2);
+        ctx.fillStyle = on ? col : hexToRgba(colors.text, 0.18);
+        ctx.fill();
+      }
+      break;
+    }
+    case "wave-bar": {
+      track();
+      ctx.save();
+      ctx.beginPath();
+      ctx.roundRect(x, y, Math.max(h, w * k), h, h / 2);
+      ctx.clip();
+      ctx.beginPath();
+      ctx.moveTo(x, y + h);
+      for (let sx = x; sx <= x + w; sx += 8) {
+        ctx.lineTo(sx, y + h * 0.5 + Math.sin(sx / 28 + t * 5) * h * 0.35);
+      }
+      ctx.lineTo(x + w, y + h);
+      ctx.closePath();
+      ctx.fillStyle = col;
+      ctx.fill();
+      ctx.restore();
+      break;
+    }
+    case "neon-outline": {
+      ctx.beginPath();
+      ctx.roundRect(x, y, w, h, h / 2);
+      ctx.strokeStyle = hexToRgba(colors.text, 0.25);
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.shadowColor = col;
+      ctx.shadowBlur = h * 1.4;
+      ctx.beginPath();
+      ctx.roundRect(x + h * 0.18, y + h * 0.22, Math.max(h * 0.4, (w - h * 0.36) * k), h * 0.56, h * 0.28);
+      ctx.fillStyle = col;
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      break;
+    }
+    case "step-blocks": {
+      const n = 10;
+      const gap = h * 0.4;
+      const bw = (w - gap * (n - 1)) / n;
+      for (let i = 0; i < n; i++) {
+        const on = i / n < k;
+        const bh = h * (0.5 + (i / (n - 1)) * 0.5);
+        ctx.beginPath();
+        ctx.roundRect(x + i * (bw + gap), y + h - bh, bw, bh, bw * 0.2);
+        ctx.fillStyle = on ? col : hexToRgba(colors.text, 0.16);
+        ctx.fill();
+      }
+      break;
+    }
     default:
       break;
   }
