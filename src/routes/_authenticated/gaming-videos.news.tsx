@@ -682,7 +682,7 @@ function NewsPage() {
                 ref={canvasRef}
                 width={dims.w}
                 height={dims.h}
-                className="max-h-[58vh] w-auto rounded-xl border bg-black"
+                className="max-h-[58vh] w-auto max-w-full object-contain rounded-xl border bg-black"
                 style={{ aspectRatio: `${dims.w}/${dims.h}` }}
               />
             </CardContent>
