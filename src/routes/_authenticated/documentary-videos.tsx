@@ -1482,7 +1482,7 @@ function DocumentaryVideosPage() {
         </div>
 
         {/* Center: preview */}
-        <div className="space-y-4 lg:sticky lg:top-4 lg:self-start lg:max-h-[calc(100vh-5rem)] lg:overflow-y-auto lg:pr-1">
+        <div className="space-y-4 lg:sticky lg:top-4 lg:z-10 lg:self-start">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0">
               <div>

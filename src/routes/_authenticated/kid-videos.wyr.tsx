@@ -1018,7 +1018,7 @@ function WyrPage() {
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
         {/* preview */}
-        <div className="space-y-4 lg:sticky lg:top-4 lg:self-start lg:max-h-[calc(100vh-5rem)] lg:overflow-y-auto lg:pr-1">
+        <div className="space-y-4 lg:sticky lg:top-4 lg:z-10 lg:self-start">
           <Card>
             <CardContent className="flex justify-center p-4">
               <canvas
