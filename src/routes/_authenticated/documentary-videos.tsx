@@ -28,7 +28,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import {
   transcribeFile,
@@ -49,6 +49,7 @@ import {
 } from "@/components/intro-outro-card";
 import { INTRO_ANIMATIONS, OUTRO_ANIMATIONS } from "@/lib/video-fx";
 import { ColorCustomiser, applyOverrides, type ColorOverrides } from "@/components/color-customiser";
+import { DocumentaryHQ } from "@/components/documentary-hq";
 
 export const Route = createFileRoute("/_authenticated/documentary-videos")({
   head: () => ({
@@ -1263,6 +1264,12 @@ function DocumentaryVideosPage() {
         </div>
       </div>
 
+      <Tabs defaultValue="templates" className="w-full">
+        <TabsList className="mb-4">
+          <TabsTrigger value="templates">Templates</TabsTrigger>
+          <TabsTrigger value="hq">HQ YT Vids</TabsTrigger>
+        </TabsList>
+        <TabsContent value="templates">
       <div className="grid gap-6 lg:grid-cols-[380px_1fr_360px]">
         {/* Left: media + narration + transcript */}
         <div className="space-y-4">
@@ -1681,6 +1688,11 @@ function DocumentaryVideosPage() {
           </Card>
         </div>
       </div>
+        </TabsContent>
+        <TabsContent value="hq">
+          <DocumentaryHQ />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
