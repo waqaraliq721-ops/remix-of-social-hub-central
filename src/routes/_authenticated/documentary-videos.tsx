@@ -1689,7 +1689,7 @@ function DocumentaryVideosPage() {
         </div>
       </div>
         </TabsContent>
-        <TabsContent value="hq">
+        <TabsContent value="hq" className="lg:min-h-0 lg:flex-1 lg:overflow-hidden">
           <DocumentaryHQ />
         </TabsContent>
       </Tabs>
