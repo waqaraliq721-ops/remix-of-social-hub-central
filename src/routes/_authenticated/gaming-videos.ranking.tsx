@@ -12,6 +12,8 @@ import {
   ImagePlus,
   Music,
   Upload,
+  Wand2,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,6 +21,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Progress } from "@/components/ui/progress";
+import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -43,6 +47,7 @@ import {
   type PaletteLike,
 } from "@/components/color-customiser";
 import { INTRO_ANIMATIONS, OUTRO_ANIMATIONS } from "@/lib/video-fx";
+import { TTS_PROVIDERS, TTS_VOICES, generateSpeech, blobDuration, type TtsProvider } from "@/lib/tts";
 
 export const Route = createFileRoute("/_authenticated/gaming-videos/ranking")({
   head: () => ({
@@ -132,6 +137,18 @@ function RankingPage() {
   const [musicVolume, setMusicVolume] = useState(0.5);
   const musicElRef = useRef<HTMLAudioElement | null>(null);
 
+  const [voProvider, setVoProvider] = useState<TtsProvider>("elevenlabs");
+  const [voVoice, setVoVoice] = useState(TTS_VOICES.elevenlabs[0].id);
+  const [voScript, setVoScript] = useState("");
+  const [voUrl, setVoUrl] = useState<string | null>(null);
+  const [voBlob, setVoBlob] = useState<Blob | null>(null);
+  const [voDuration, setVoDuration] = useState(0);
+  const [voLoading, setVoLoading] = useState(false);
+  const [voError, setVoError] = useState<string | null>(null);
+  const [voVolume, setVoVolume] = useState(0.9);
+  const [matchVoDuration, setMatchVoDuration] = useState(false);
+  const voAudioRef = useRef<HTMLAudioElement | null>(null);
+
   const [intro, setIntro] = useState<CardConfig>({ ...defaultIntro, title: "Top Loadouts" });
   const [outro, setOutro] = useState<CardConfig>({ ...defaultOutro, title: "Which was #1 for you?" });
 
@@ -156,16 +173,20 @@ function RankingPage() {
   }, [entries, mode]);
 
   const timeline = useMemo(() => {
-    let t = intro.id !== "none" ? intro.seconds : 0;
+    const introEnd = intro.id !== "none" ? intro.seconds : 0;
+    let t = introEnd;
     const segs = orderedEntries.map((e, i) => {
       const start = t;
       t += perEntry;
       return { entry: e, index: i, start, dur: perEntry };
     });
-    const outroStart = t;
-    const total = t + (outro.id !== "none" ? outro.seconds : 0);
-    return { segs, outroStart, total, introEnd: intro.id !== "none" ? intro.seconds : 0 };
-  }, [orderedEntries, perEntry, intro, outro]);
+    let outroStart = t;
+    if (matchVoDuration && voDuration > 0) {
+      outroStart = Math.max(outroStart, introEnd + voDuration);
+    }
+    const total = outroStart + (outro.id !== "none" ? outro.seconds : 0);
+    return { segs, outroStart, total, introEnd };
+  }, [orderedEntries, perEntry, intro, outro, matchVoDuration, voDuration]);
 
   const setEntry = (id: string, patch: Partial<Entry>) =>
     setEntries((es) => es.map((e) => (e.id === id ? { ...e, ...patch } : e)));
@@ -191,6 +212,62 @@ function RankingPage() {
   useEffect(() => {
     if (musicElRef.current) musicElRef.current.volume = musicVolume;
   }, [musicVolume]);
+
+  useEffect(() => {
+    if (voAudioRef.current) voAudioRef.current.volume = voVolume;
+  }, [voVolume]);
+
+  const composeVoScript = useCallback(() => {
+    const lines = orderedEntries
+      .filter((e) => e.label.trim())
+      .map((e, i) => {
+        const rank = mode === "countdown" ? orderedEntries.length - i : i + 1;
+        const bits = [`Number ${rank}, ${e.label}.`];
+        if (e.score) bits.push(`Score: ${e.score}.`);
+        return bits.join(" ");
+      });
+    return [heading, ...lines].filter(Boolean).join(" ");
+  }, [orderedEntries, mode, heading]);
+
+  const useMyContent = () => setVoScript(composeVoScript());
+
+  const generateVoiceover = async () => {
+    const script = voScript.trim() || composeVoScript();
+    if (!script) {
+      setVoError("Add some entries or a script first.");
+      return;
+    }
+    setVoScript(script);
+    setVoLoading(true);
+    setVoError(null);
+    try {
+      const { url, blob } = await generateSpeech(script, { provider: voProvider, voice: voVoice });
+      const dur = await blobDuration(blob);
+      if (voUrl) URL.revokeObjectURL(voUrl);
+      voAudioRef.current?.pause();
+      const el = new Audio(url);
+      el.volume = voVolume;
+      voAudioRef.current = el;
+      setVoUrl(url);
+      setVoBlob(blob);
+      setVoDuration(dur);
+      toast.success("Voiceover generated");
+    } catch (e) {
+      setVoError(e instanceof Error ? e.message : "Voiceover failed");
+    } finally {
+      setVoLoading(false);
+    }
+  };
+
+  const clearVoiceover = () => {
+    if (voUrl) URL.revokeObjectURL(voUrl);
+    voAudioRef.current?.pause();
+    voAudioRef.current = null;
+    setVoUrl(null);
+    setVoBlob(null);
+    setVoDuration(0);
+    setVoError(null);
+  };
 
   // ---------------- rendering ----------------
 
@@ -513,10 +590,20 @@ function RankingPage() {
           setPlaying(false);
           timeRef.current = 0;
           musicElRef.current?.pause();
+          voAudioRef.current?.pause();
         }
         setTime(timeRef.current);
       }
       lastRef.current = now;
+      if (voAudioRef.current) {
+        const target = timeRef.current - timeline.introEnd;
+        if (!playing || target < 0 || target > voDuration + 0.2) {
+          if (!voAudioRef.current.paused) voAudioRef.current.pause();
+        } else if (voAudioRef.current.paused || Math.abs(voAudioRef.current.currentTime - target) > 0.4) {
+          voAudioRef.current.currentTime = target;
+          void voAudioRef.current.play().catch(() => {});
+        }
+      }
       drawFrame(ctx, timeRef.current);
       rafRef.current = requestAnimationFrame(loop);
     };
@@ -528,6 +615,7 @@ function RankingPage() {
     if (playing) {
       setPlaying(false);
       musicElRef.current?.pause();
+      voAudioRef.current?.pause();
     } else {
       if (timeRef.current >= timeline.total - 0.05) timeRef.current = 0;
       lastRef.current = 0;
@@ -552,6 +640,15 @@ function RankingPage() {
       const stream = canvas.captureStream(fps);
       const audioCtx = new AudioContext();
       const dest = audioCtx.createMediaStreamDestination();
+      if (voBlob) {
+        const buf = await audioCtx.decodeAudioData(await voBlob.arrayBuffer());
+        const src = audioCtx.createBufferSource();
+        src.buffer = buf;
+        const gain = audioCtx.createGain();
+        gain.gain.value = voVolume;
+        src.connect(gain).connect(dest);
+        src.start(audioCtx.currentTime + timeline.introEnd);
+      }
       if (musicFile) {
         const buf = await audioCtx.decodeAudioData(await musicFile.arrayBuffer());
         const src = audioCtx.createBufferSource();
@@ -794,6 +891,83 @@ function RankingPage() {
           </Card>
 
           <ColorCustomiser base={basePalette} value={colors} onChange={setColors} />
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Voiceover</CardTitle>
+              <CardDescription>Generate an AI narration for the whole ranking and mix it into the export.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="grid grid-cols-2 gap-2">
+                <Select
+                  value={voProvider}
+                  onValueChange={(v) => {
+                    const p = v as TtsProvider;
+                    setVoProvider(p);
+                    setVoVoice(TTS_VOICES[p][0].id);
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {TTS_PROVIDERS.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={voVoice} onValueChange={setVoVoice}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {TTS_VOICES[voProvider].map((v) => (
+                      <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs text-muted-foreground">Script</Label>
+                  <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={useMyContent}>
+                    Use my content
+                  </Button>
+                </div>
+                <Textarea
+                  value={voScript}
+                  onChange={(e) => setVoScript(e.target.value)}
+                  placeholder="Click “Use my content” to auto-write a script from your ranking, or write your own."
+                  className="min-h-24 text-sm"
+                />
+              </div>
+              <Button onClick={generateVoiceover} disabled={voLoading} className="w-full">
+                {voLoading ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Wand2 className="mr-1 h-4 w-4" />}
+                {voUrl ? "Regenerate voiceover" : "Generate voiceover"}
+              </Button>
+              {voError && <p className="text-xs text-destructive">{voError}</p>}
+              {voUrl && (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <audio controls src={voUrl} className="h-9 flex-1">
+                      <track kind="captions" />
+                    </audio>
+                    <Button size="icon" variant="ghost" onClick={clearVoiceover}>
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Voiceover volume · {Math.round(voVolume * 100)}%</Label>
+                    <Slider value={[voVolume]} min={0} max={1} step={0.05} onValueChange={([v]) => setVoVolume(v)} />
+                  </div>
+                  <label className="flex items-center justify-between gap-2 text-sm">
+                    Match duration to voiceover
+                    <Switch checked={matchVoDuration} onCheckedChange={setMatchVoDuration} />
+                  </label>
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
           <Card>
             <CardHeader>

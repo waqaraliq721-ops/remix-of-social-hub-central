@@ -1366,3 +1366,403 @@ for (const e of [gritPoster, neonStack, paperPress, boldBlock, railStack]) {
   EXTRA_MOTIVATIONAL_ENGINES.push(e);
   EXTRA_MOTIVATIONAL_MAP.set(e.id, e);
 }
+
+// -------------------- typography · solid & gradient backgrounds --------------------
+// These templates ignore the uploaded footage entirely: they paint a flat
+// solid colour or a slowly animated dark gradient and set pure type on top.
+// They still honour the per-template size/position/tilt controls (applied by
+// the caller's transform) and the active palette / ColorCustomiser overrides.
+
+function hexToRgb(hex: string): [number, number, number] {
+  const c = hex.replace("#", "");
+  const n = c.length === 3 ? c.split("").map((x) => x + x).join("") : c;
+  return [parseInt(n.slice(0, 2), 16) || 0, parseInt(n.slice(2, 4), 16) || 0, parseInt(n.slice(4, 6), 16) || 0];
+}
+function mix(a: string, b: string, t: number) {
+  const [ar, ag, ab] = hexToRgb(a);
+  const [br, bg, bb] = hexToRgb(b);
+  const r = Math.round(ar + (br - ar) * t);
+  const g = Math.round(ag + (bg - ag) * t);
+  const bl = Math.round(ab + (bb - ab) * t);
+  return `rgb(${r}, ${g}, ${bl})`;
+}
+/** Push a colour towards near-black so the background reads as a solid/dark surface. */
+function deepen(hex: string, amt = 0.72) {
+  return mix(hex, "#000000", amt);
+}
+
+function paintFlatSolid(ctx: C, w: number, h: number, hex: string) {
+  ctx.fillStyle = hex;
+  ctx.fillRect(0, 0, w, h);
+}
+
+function paintVerticalGradient(ctx: C, w: number, h: number, top: string, bottom: string, t: number) {
+  const drift = Math.sin(t * 0.15) * h * 0.06;
+  const g = ctx.createLinearGradient(0, -drift, 0, h + drift);
+  g.addColorStop(0, top);
+  g.addColorStop(1, bottom);
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, w, h);
+}
+
+function paintRadialGradient(ctx: C, w: number, h: number, inner: string, outer: string, t: number) {
+  const pulse = 0.9 + Math.sin(t * 0.6) * 0.1;
+  const g = ctx.createRadialGradient(
+    w / 2,
+    h / 2,
+    Math.min(w, h) * 0.05,
+    w / 2,
+    h / 2,
+    Math.max(w, h) * 0.72 * pulse,
+  );
+  g.addColorStop(0, inner);
+  g.addColorStop(1, outer);
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, w, h);
+}
+
+/** Slowly rotating multi-stop dark gradient — an "aurora" without any footage. */
+function paintAuroraGradient(ctx: C, w: number, h: number, p: Palette, t: number) {
+  const cx = w / 2 + Math.sin(t * 0.11) * w * 0.12;
+  const cy = h / 2 + Math.cos(t * 0.09) * h * 0.12;
+  const angle = t * 0.08;
+  const x0 = cx + Math.cos(angle) * w * 0.6;
+  const y0 = cy + Math.sin(angle) * h * 0.6;
+  const x1 = cx - Math.cos(angle) * w * 0.6;
+  const y1 = cy - Math.sin(angle) * h * 0.6;
+  const g = ctx.createLinearGradient(x0, y0, x1, y1);
+  g.addColorStop(0, deepen(p.bg[1], 0.55));
+  g.addColorStop(0.45, deepen(p.primary, 0.82));
+  g.addColorStop(0.72, deepen(p.accent, 0.88));
+  g.addColorStop(1, deepen(p.bg[0], 0.85));
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, w, h);
+}
+
+const solidMidnight: Engine = {
+  id: "solid-midnight",
+  name: "Solid · Midnight Solid",
+  desc: "Flat near-black background with a huge centred condensed statement and a thin accent rule.",
+  draw: (ctx, r, kit) => {
+    const { w, h, palette: p } = r;
+    paintFlatSolid(ctx, w, h, deepen(p.bg[0], 0.85));
+    const { line, appear } = state(kit, r);
+    if (!line) return;
+    const { rows, size } = layout(
+      ctx,
+      kit,
+      line.text.toUpperCase(),
+      w * 0.8,
+      h * 0.42,
+      baseSize(r, 0.08, 0.1),
+      `900 {s}px ${kit.COND}`,
+      1.04,
+    );
+    ctx.save();
+    ctx.globalAlpha = appear;
+    softShadow(ctx, size * 0.25);
+    const end = drawRows(ctx, rows, w / 2, h * 0.5, size, 1.04, p.text, (1 - appear) * size * 0.2);
+    ctx.restore();
+    ctx.fillStyle = p.accent;
+    ctx.fillRect(w / 2 - w * 0.06, end + size * 0.5, w * 0.12, Math.max(3, h * 0.0042));
+    kit.drawAuthor(ctx, r, end + size * 0.95);
+  },
+};
+
+const solidInkGradient: Engine = {
+  id: "solid-ink-gradient",
+  name: "Solid · Ink Gradient",
+  desc: "Vertical navy-to-black gradient, left-aligned serif quote and a small-caps author line.",
+  draw: (ctx, r, kit) => {
+    const { w, h, palette: p } = r;
+    paintVerticalGradient(ctx, w, h, deepen(p.bg[1], 0.35), "#000000", r.t);
+    const { line, appear } = state(kit, r);
+    if (!line) return;
+    const x = w * 0.1;
+    const maxW = w * 0.78;
+    const { rows, size } = layout(
+      ctx,
+      kit,
+      `“${line.text}”`,
+      maxW,
+      h * 0.4,
+      baseSize(r, 0.052, 0.066),
+      `400 italic {s}px ${kit.SERIF}`,
+      1.28,
+    );
+    ctx.save();
+    ctx.globalAlpha = appear;
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = p.text;
+    softShadow(ctx, size * 0.3);
+    let y = h * 0.5 - ((rows.length - 1) * size * 1.28) / 2;
+    for (const row of rows) {
+      ctx.fillText(row, x + (1 - appear) * w * 0.03, y);
+      y += size * 1.28;
+    }
+    ctx.restore();
+    ctx.textAlign = "center";
+    if (r.author) {
+      ctx.save();
+      ctx.globalAlpha = appear * 0.85;
+      ctx.textAlign = "left";
+      ctx.font = `700 ${Math.round(size * 0.32)}px ${kit.FONT}`;
+      ctx.fillStyle = p.accent;
+      ctx.fillText(r.author.toUpperCase().split("").join(" "), x, y + size * 0.3);
+      ctx.restore();
+      ctx.textAlign = "center";
+    }
+  },
+};
+
+const solidEmberFade: Engine = {
+  id: "solid-ember-fade",
+  name: "Solid · Ember Fade",
+  desc: "Charcoal-to-ember radial gradient with big bold centred type revealed word by word.",
+  draw: (ctx, r, kit) => {
+    const { w, h, palette: p } = r;
+    paintRadialGradient(ctx, w, h, deepen(p.primary, 0.55), deepen(p.bg[0], 0.9), r.t);
+    const { line } = state(kit, r);
+    if (!line) return;
+    const words = line.text.toUpperCase().split(" ").filter(Boolean);
+    const span = Math.max(0.4, line.end - line.time);
+    const shownCount = Math.max(
+      1,
+      Math.ceil(words.length * Math.min(1, ((r.t - line.time) / span) * 1.2)),
+    );
+    const text = words.slice(0, shownCount).join(" ");
+    const { rows, size } = layout(
+      ctx,
+      kit,
+      text,
+      w * 0.82,
+      h * 0.4,
+      baseSize(r, 0.078, 0.098),
+      `800 {s}px ${kit.FONT}`,
+      1.08,
+    );
+    ctx.save();
+    softShadow(ctx, size * 0.4);
+    drawRows(ctx, rows, w / 2, h * 0.5, size, 1.08, p.text);
+    ctx.restore();
+    kit.drawAuthor(ctx, r, h * 0.5 + rows.length * size * 0.6);
+  },
+};
+
+const solidSlateSplit: Engine = {
+  id: "solid-slate-split",
+  name: "Solid · Slate Split",
+  desc: "Solid slate field with a diagonal darker band behind the quote.",
+  draw: (ctx, r, kit) => {
+    const { w, h, palette: p } = r;
+    paintFlatSolid(ctx, w, h, deepen(p.bg[0], 0.6));
+    ctx.save();
+    ctx.translate(w / 2, h / 2);
+    ctx.rotate(-0.06 + Math.sin(r.t * 0.2) * 0.006);
+    ctx.fillStyle = deepen(p.bg[1], 0.85);
+    ctx.fillRect(-w * 0.75, -h * 0.24, w * 1.5, h * 0.48);
+    ctx.restore();
+    const { line, appear } = state(kit, r);
+    if (!line) return;
+    const { rows, size } = layout(
+      ctx,
+      kit,
+      line.text,
+      w * 0.72,
+      h * 0.34,
+      baseSize(r, 0.06, 0.075),
+      `700 {s}px ${kit.FONT}`,
+      1.2,
+    );
+    ctx.save();
+    ctx.globalAlpha = appear;
+    softShadow(ctx, size * 0.3);
+    const end = drawRows(ctx, rows, w / 2, h * 0.5, size, 1.2, p.text, (1 - appear) * size * 0.2);
+    ctx.restore();
+    kit.drawAuthor(ctx, r, end + size * 0.95);
+  },
+};
+
+const solidMonoTerminal: Engine = {
+  id: "solid-mono-terminal",
+  name: "Solid · Mono Terminal",
+  desc: "Pure black backdrop with a monospace caption stack and a blinking caret.",
+  draw: (ctx, r, kit) => {
+    const { w, h, palette: p } = r;
+    paintFlatSolid(ctx, w, h, "#000000");
+    ctx.save();
+    ctx.globalAlpha = 0.5;
+    ctx.strokeStyle = kit.hexA(p.primary, 0.35);
+    ctx.lineWidth = 1;
+    for (let y = h * 0.08; y < h * 0.95; y += h * 0.05) {
+      ctx.beginPath();
+      ctx.moveTo(w * 0.06, y);
+      ctx.lineTo(w * 0.06, y + h * 0.01);
+      ctx.stroke();
+    }
+    ctx.restore();
+    const { line, appear } = state(kit, r);
+    if (!line) return;
+    const { rows, size } = layout(
+      ctx,
+      kit,
+      line.text,
+      w * 0.76,
+      h * 0.36,
+      baseSize(r, 0.04, 0.05),
+      `500 {s}px ${kit.MONO}`,
+      1.42,
+    );
+    ctx.save();
+    ctx.globalAlpha = appear;
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+    const x = w * 0.12;
+    let y = h * 0.5 - ((rows.length - 1) * size * 1.42) / 2;
+    rows.forEach((row, i) => {
+      ctx.fillStyle = p.primary;
+      ctx.fillText("> ", x - size * 1.1, y);
+      ctx.fillStyle = p.text;
+      ctx.fillText(row, x, y);
+      if (i === rows.length - 1 && Math.floor(r.t * 2) % 2 === 0) {
+        ctx.fillStyle = p.accent;
+        ctx.fillRect(x + ctx.measureText(row).width + size * 0.12, y - size * 0.42, size * 0.5, size * 0.84);
+      }
+      y += size * 1.42;
+    });
+    ctx.restore();
+    ctx.textAlign = "center";
+    kit.drawAuthor(ctx, r, y + size * 0.2);
+  },
+};
+
+const solidAuroraDeep: Engine = {
+  id: "solid-aurora-deep",
+  name: "Solid · Aurora Deep",
+  desc: "Slowly shifting dark aurora gradient behind large centred type.",
+  draw: (ctx, r, kit) => {
+    const { w, h, palette: p } = r;
+    paintAuroraGradient(ctx, w, h, p, r.t);
+    const { line, appear } = state(kit, r);
+    if (!line) return;
+    const { rows, size } = layout(
+      ctx,
+      kit,
+      line.text,
+      w * 0.78,
+      h * 0.38,
+      baseSize(r, 0.062, 0.078),
+      `700 {s}px ${kit.FONT}`,
+      1.22,
+    );
+    ctx.save();
+    ctx.globalAlpha = appear;
+    softShadow(ctx, size * 0.45);
+    const end = drawRows(ctx, rows, w / 2, h * 0.5, size, 1.22, p.text, (1 - appear) * size * 0.2);
+    ctx.restore();
+    kit.drawAuthor(ctx, r, end + size * 0.95);
+  },
+};
+
+const solidPaperNoir: Engine = {
+  id: "solid-paper-noir",
+  name: "Solid · Paper Noir",
+  desc: "Off-black background with a thin bordered frame around a centred serif quote.",
+  draw: (ctx, r, kit) => {
+    const { w, h, palette: p } = r;
+    paintFlatSolid(ctx, w, h, deepen(p.bg[0], 0.78));
+    const inset = Math.min(w, h) * 0.06;
+    ctx.strokeStyle = kit.hexA(p.text, 0.28);
+    ctx.lineWidth = Math.max(1, h * 0.0012);
+    ctx.strokeRect(inset, inset, w - inset * 2, h - inset * 2);
+    const { line, appear } = state(kit, r);
+    if (!line) return;
+    const { rows, size } = layout(
+      ctx,
+      kit,
+      `“${line.text}”`,
+      w * 0.7,
+      h * 0.36,
+      baseSize(r, 0.05, 0.062),
+      `400 italic {s}px ${kit.SERIF}`,
+      1.3,
+    );
+    ctx.save();
+    ctx.globalAlpha = appear;
+    softShadow(ctx, size * 0.35);
+    const end = drawRows(ctx, rows, w / 2, h * 0.48, size, 1.3, p.text, (1 - appear) * size * 0.2);
+    ctx.restore();
+    if (r.author) {
+      ctx.save();
+      ctx.globalAlpha = appear * 0.85;
+      ctx.font = `600 ${Math.round(size * 0.3)}px ${kit.FONT}`;
+      ctx.fillStyle = p.accent;
+      ctx.textAlign = "center";
+      ctx.fillText(r.author.toUpperCase().split("").join(" "), w / 2, end + size * 0.85);
+      ctx.restore();
+    }
+  },
+};
+
+const solidBoldStack: Engine = {
+  id: "solid-bold-stack",
+  name: "Solid · Bold Stack Solid",
+  desc: "Solid accent-dark field with stacked uppercase blocks and alternating accent-filled rows.",
+  draw: (ctx, r, kit) => {
+    const { w, h, palette: p } = r;
+    paintFlatSolid(ctx, w, h, deepen(p.accent, 0.86));
+    const { line, appear } = state(kit, r);
+    if (!line) return;
+    const { rows, size } = layout(
+      ctx,
+      kit,
+      line.text.toUpperCase(),
+      w * 0.66,
+      h * 0.4,
+      baseSize(r, 0.058, 0.072),
+      `900 {s}px ${kit.FONT}`,
+      1.32,
+    );
+    ctx.save();
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.font = `900 ${size}px ${kit.FONT}`;
+    let y = h * 0.5 - ((rows.length - 1) * size * 1.32) / 2;
+    rows.forEach((row, i) => {
+      const a = Math.max(0, Math.min(1, appear * 1.5 - i * 0.2));
+      const tw = ctx.measureText(row).width;
+      ctx.save();
+      ctx.globalAlpha = a;
+      if (i % 2 === 1) {
+        ctx.fillStyle = p.primary;
+        kit.roundRect(ctx, w / 2 - tw / 2 - size * 0.35, y - size * 0.62, tw + size * 0.7, size * 1.24, size * 0.08);
+        ctx.fill();
+        ctx.fillStyle = "#0b0b0c";
+      } else {
+        ctx.fillStyle = p.text;
+      }
+      ctx.fillText(row, w / 2, y + (1 - a) * size * 0.2);
+      ctx.restore();
+      y += size * 1.32;
+    });
+    ctx.restore();
+    kit.drawAuthor(ctx, r, y + size * 0.25);
+  },
+};
+
+export const TYPOGRAPHY_SOLID_ENGINES: Engine[] = [
+  solidMidnight,
+  solidInkGradient,
+  solidEmberFade,
+  solidSlateSplit,
+  solidMonoTerminal,
+  solidAuroraDeep,
+  solidPaperNoir,
+  solidBoldStack,
+];
+
+for (const e of TYPOGRAPHY_SOLID_ENGINES) {
+  EXTRA_MOTIVATIONAL_ENGINES.push(e);
+  EXTRA_MOTIVATIONAL_MAP.set(e.id, e);
+}
