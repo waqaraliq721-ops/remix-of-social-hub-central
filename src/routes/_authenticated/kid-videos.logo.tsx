@@ -626,7 +626,24 @@ function LogoPage() {
         ctx.restore();
       }
     },
-    [aspect, anims, styles, backgroundId, backgroundIntensity, heading, pal, revealSecs, showTimer, timerStyle, timeBarStyle],
+    [
+      aspect,
+      anims,
+      styles,
+      backgroundId,
+      backgroundIntensity,
+      heading,
+      pal,
+      revealSecs,
+      showTimer,
+      timerStyle,
+      timeBarStyle,
+      channelLogo,
+      channelLogoImg,
+      roundBadgeId,
+      logoFit,
+      sideText,
+    ],
   );
 
   const drawFrame = useCallback(
@@ -667,8 +684,19 @@ function LogoPage() {
         timeline.segs[timeline.segs.length - 1];
       if (!seg) return;
       drawRound(ctx, w, h, seg.round, seg.index, Math.max(0, t - seg.start), seg.dur, t);
+
+      // ---- round-to-round transition overlay ----
+      const half = roundTransition.duration / 2;
+      for (let i = 1; i < timeline.segs.length; i++) {
+        const boundary = timeline.segs[i].start;
+        if (t >= boundary - half && t <= boundary + half) {
+          const progress = (t - (boundary - half)) / roundTransition.duration;
+          drawRoundTransition(ctx, roundTransition, progress, w, h);
+          break;
+        }
+      }
     },
-    [dims, drawRound, intro, outro, timeline],
+    [dims, drawRound, intro, outro, timeline, roundTransition],
   );
 
   // preview loop
