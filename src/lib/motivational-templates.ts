@@ -2411,3 +2411,831 @@ for (const e of KINETIC_BACKDROP_ENGINES) {
   EXTRA_MOTIVATIONAL_ENGINES.push(e);
   EXTRA_MOTIVATIONAL_MAP.set(e.id, e);
 }
+
+// -------------------- 12 new: texture backgrounds + all-new text animations --------------------
+// Each of these paints a procedural, palette-tinted material texture (ignoring
+// any uploaded media, same as the solid/gradient engines above) and pairs it
+// with a text-reveal animation not used anywhere else in this file.
+
+function paintAgedPaper(ctx: C, w: number, h: number, t: number, base: string) {
+  paintFlatSolid(ctx, w, h, base);
+  ctx.save();
+  for (let i = 0; i < 22; i++) {
+    const n = (i * 5417) % 10000;
+    const x = (n / 10000) * w;
+    const y = (((n * 31 + i * 171) % 10000) / 10000) * h;
+    const rad = w * 0.05 + (i % 5) * w * 0.014;
+    const g = ctx.createRadialGradient(x, y, 0, x, y, rad);
+    g.addColorStop(0, "rgba(110,80,35,0.12)");
+    g.addColorStop(1, "rgba(110,80,35,0)");
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(x, y, rad, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+  paintGrain(ctx, w, h, t, 0.05, "#4a3a20", 280);
+  const vg = ctx.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.24, w / 2, h / 2, Math.max(w, h) * 0.75);
+  vg.addColorStop(0, "rgba(0,0,0,0)");
+  vg.addColorStop(1, "rgba(45,32,14,0.34)");
+  ctx.fillStyle = vg;
+  ctx.fillRect(0, 0, w, h);
+}
+
+function paintKraftPaper(ctx: C, w: number, h: number, t: number, base: string) {
+  paintFlatSolid(ctx, w, h, base);
+  paintGrain(ctx, w, h, t, 0.06, "#5a3a1c", 240);
+  ctx.save();
+  ctx.globalAlpha = 0.08;
+  ctx.strokeStyle = "#3f2711";
+  for (let i = 0; i < 16; i++) {
+    const n = (i * 3121) % 10000;
+    const y = (n / 10000) * h;
+    ctx.lineWidth = 1 + ((i * 13) % 3);
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(w, y + Math.sin(i) * h * 0.03);
+    ctx.stroke();
+  }
+  ctx.restore();
+  paintVignetteBreath(ctx, w, h, t, 0.3, 0.06);
+}
+
+function paintCrumpledPaper(ctx: C, w: number, h: number, t: number, base: string) {
+  paintFlatSolid(ctx, w, h, base);
+  ctx.save();
+  for (let i = 0; i < 36; i++) {
+    const n = (i * 9337) % 10000;
+    const x1 = (n / 10000) * w;
+    const y1 = (((n * 17 + i * 211) % 10000) / 10000) * h;
+    const ang = ((i * 47) % 360) * (Math.PI / 180);
+    const len = w * 0.1 + ((i * 7) % 5) * w * 0.025;
+    ctx.strokeStyle = i % 2 === 0 ? "rgba(255,255,255,0.32)" : "rgba(70,60,45,0.24)";
+    ctx.lineWidth = 1 + ((i * 3) % 2);
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x1 + Math.cos(ang) * len, y1 + Math.sin(ang) * len);
+    ctx.stroke();
+  }
+  ctx.restore();
+  paintGrain(ctx, w, h, t, 0.04, "#3a3020", 200);
+  paintVignetteBreath(ctx, w, h, t, 0.32, 0.07);
+}
+
+function paintLinenTexture(ctx: C, w: number, h: number, t: number, base: string) {
+  paintFlatSolid(ctx, w, h, base);
+  ctx.save();
+  ctx.lineWidth = 1;
+  const gap = Math.max(4, w * 0.007);
+  ctx.globalAlpha = 0.1;
+  ctx.strokeStyle = "#4a4536";
+  for (let x = -h; x < w + h; x += gap) {
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x + h, h);
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 0.07;
+  for (let x = -h; x < w + h; x += gap) {
+    ctx.beginPath();
+    ctx.moveTo(x, h);
+    ctx.lineTo(x + h, 0);
+    ctx.stroke();
+  }
+  ctx.restore();
+  paintVignetteBreath(ctx, w, h, t, 0.28, 0.06);
+}
+
+function paintConcreteTexture(ctx: C, w: number, h: number, t: number, base: string) {
+  paintFlatSolid(ctx, w, h, base);
+  paintGrain(ctx, w, h, t, 0.05, "#26261f", 320);
+  paintGrain(ctx, w, h, t + 50, 0.03, "#ffffff", 160);
+  ctx.save();
+  ctx.strokeStyle = "rgba(30,30,26,0.25)";
+  ctx.lineWidth = 1.4;
+  for (let i = 0; i < 7; i++) {
+    const n = (i * 6659) % 10000;
+    let x = (n / 10000) * w;
+    let y = (((n * 23) % 10000) / 10000) * h;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    for (let j = 0; j < 5; j++) {
+      x += (((i * 31 + j * 97) % 21) - 10) * w * 0.012;
+      y += h * 0.05 + (((i * 17 + j * 53) % 11) - 5) * h * 0.01;
+      ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+  ctx.restore();
+  paintVignetteBreath(ctx, w, h, t, 0.34, 0.06);
+}
+
+function paintBrushedMetal(ctx: C, w: number, h: number, t: number, base: string) {
+  const g = ctx.createLinearGradient(0, 0, w, h * 0.2);
+  g.addColorStop(0, mix(base, "#ffffff", 0.25));
+  g.addColorStop(0.5, base);
+  g.addColorStop(1, mix(base, "#000000", 0.25));
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, w, h);
+  ctx.save();
+  ctx.globalAlpha = 0.09;
+  ctx.strokeStyle = "#ffffff";
+  for (let i = 0; i < 120; i++) {
+    const n = (i * 8737) % 10000;
+    const y = (n / 10000) * h;
+    ctx.lineWidth = 0.6 + ((i * 3) % 3) * 0.3;
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(w, y + Math.sin(i + t * 0.05) * 2);
+    ctx.stroke();
+  }
+  ctx.restore();
+  paintVignetteBreath(ctx, w, h, t, 0.3, 0.05);
+}
+
+function paintBlueprintGrid(ctx: C, w: number, h: number, t: number, base: string) {
+  paintFlatSolid(ctx, w, h, base);
+  ctx.save();
+  ctx.strokeStyle = "rgba(255,255,255,0.12)";
+  ctx.lineWidth = 1;
+  const step = Math.max(18, w * 0.032);
+  for (let x = 0; x <= w; x += step) {
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, h);
+    ctx.stroke();
+  }
+  for (let y = 0; y <= h; y += step) {
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(w, y);
+    ctx.stroke();
+  }
+  ctx.strokeStyle = "rgba(255,255,255,0.22)";
+  ctx.lineWidth = 1.6;
+  const big = step * 5;
+  for (let x = 0; x <= w; x += big) {
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, h);
+    ctx.stroke();
+  }
+  for (let y = 0; y <= h; y += big) {
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(w, y);
+    ctx.stroke();
+  }
+  ctx.restore();
+  paintVignetteBreath(ctx, w, h, t, 0.3, 0.05);
+}
+
+function paintTornCollage(ctx: C, w: number, h: number, t: number, base: string, c0: string, c1: string, c2: string) {
+  paintFlatSolid(ctx, w, h, base);
+  const strips: [string, number][] = [
+    [c0, 0.85],
+    [c1, 0.78],
+    [c2, 0.78],
+  ];
+  for (let i = 0; i < 3; i++) {
+    const [col, a] = strips[i];
+    const sy = h * (0.1 + i * 0.3);
+    const sh = h * 0.13;
+    ctx.save();
+    ctx.globalAlpha = a;
+    ctx.fillStyle = col;
+    ctx.beginPath();
+    ctx.moveTo(0, sy);
+    for (let x = 0; x <= w; x += w * 0.05) ctx.lineTo(x, sy + Math.sin(x * 0.05 + i * 7) * h * 0.012);
+    for (let x = w; x >= 0; x -= w * 0.05) ctx.lineTo(x, sy + sh + Math.sin(x * 0.06 + i * 11) * h * 0.012);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+  paintGrain(ctx, w, h, t, 0.04, "#000000", 160);
+}
+
+function paintHalftoneNewsprint(ctx: C, w: number, h: number, t: number, base: string, dotColor: string) {
+  paintFlatSolid(ctx, w, h, base);
+  ctx.save();
+  ctx.fillStyle = dotColor;
+  const gap = Math.max(14, w * 0.026);
+  for (let y = gap / 2; y < h; y += gap) {
+    for (let x = gap / 2; x < w; x += gap) {
+      const n = ((x * 13 + y * 7) % 97) / 97;
+      const rad = gap * 0.4 * (0.22 + n * 0.5);
+      ctx.beginPath();
+      ctx.arc(x, y, rad, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  ctx.restore();
+  paintVignetteBreath(ctx, w, h, t, 0.2, 0.05);
+}
+
+function paintMarbleTexture(ctx: C, w: number, h: number, t: number, base: string) {
+  paintFlatSolid(ctx, w, h, base);
+  ctx.save();
+  for (let i = 0; i < 7; i++) {
+    const seed = i * 211;
+    ctx.strokeStyle = i % 2 === 0 ? "rgba(110,110,112,0.35)" : "rgba(70,70,82,0.22)";
+    ctx.lineWidth = 1 + ((i * 3) % 3);
+    ctx.beginPath();
+    let x = ((seed % 97) / 97) * w;
+    let y = -h * 0.1;
+    ctx.moveTo(x, y);
+    for (let s = 0; s < 14; s++) {
+      x += Math.sin(s * 0.7 + seed + t * 0.05) * w * 0.045;
+      y += h * 0.09;
+      ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+  ctx.restore();
+  paintVignetteBreath(ctx, w, h, t, 0.22, 0.04);
+}
+
+function paintChalkboard(ctx: C, w: number, h: number, t: number, base: string) {
+  paintFlatSolid(ctx, w, h, base);
+  paintGrain(ctx, w, h, t, 0.05, "#ffffff", 220);
+  ctx.save();
+  ctx.strokeStyle = "rgba(255,255,255,0.05)";
+  ctx.lineWidth = 1;
+  for (let i = 0; i < 16; i++) {
+    const n = (i * 4177) % 10000;
+    const x1 = (n / 10000) * w;
+    const y1 = (((n * 29) % 10000) / 10000) * h;
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x1 + (((i * 13) % 40) - 20), y1 + (((i * 7) % 40) - 20));
+    ctx.stroke();
+  }
+  ctx.restore();
+  paintVignetteBreath(ctx, w, h, t, 0.4, 0.08);
+}
+
+function paintRisoGrunge(ctx: C, w: number, h: number, t: number, base: string, c0: string, c1: string) {
+  paintFlatSolid(ctx, w, h, base);
+  ctx.save();
+  ctx.globalAlpha = 0.5;
+  ctx.globalCompositeOperation = "multiply";
+  ctx.fillStyle = c0;
+  for (let i = 0; i < 140; i++) {
+    const n = (i * 5297 + Math.floor(t * 3) * 911) % 10000;
+    const x = (n / 10000) * w;
+    const y = (((n * 41) % 10000) / 10000) * h;
+    ctx.fillRect(x, y, w * 0.006, h * 0.01);
+  }
+  ctx.fillStyle = c1;
+  for (let i = 0; i < 140; i++) {
+    const n = (i * 7591 + Math.floor(t * 3) * 733) % 10000;
+    const x = (n / 10000) * w;
+    const y = (((n * 53) % 10000) / 10000) * h;
+    ctx.fillRect(x, y, w * 0.006, h * 0.01);
+  }
+  ctx.restore();
+  paintGrain(ctx, w, h, t, 0.05, "#000000", 180);
+}
+
+// 1 — per-letter ink bleed on aged paper
+const textureAgedInkBleed: Engine = {
+  id: "texture-aged-ink-bleed",
+  name: "Aged Paper · Ink Bleed",
+  desc: "Sepia aged-paper texture where each letter blooms into view with a soft ink-bleed spread.",
+  draw: (ctx, r, kit) => {
+    const { w, h, palette: p } = r;
+    paintAgedPaper(ctx, w, h, r.t, mix("#e8ddc0", p.bg[0], 0.2));
+    const { line } = state(kit, r);
+    if (!line) return;
+    const { rows, size } = layout(ctx, kit, line.text, w * 0.74, h * 0.36, baseSize(r, 0.056, 0.07), `500 {s}px ${kit.SERIF}`, 1.32);
+    ctx.font = `500 ${size}px ${kit.SERIF}`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    const elapsed = Math.max(0, r.t - line.time);
+    const totalChars = Math.max(1, rows.reduce((a, row) => a + row.length, 0));
+    let y = h * 0.5 - ((rows.length - 1) * size * 1.32) / 2;
+    let idx = 0;
+    for (const row of rows) {
+      const widths = row.split("").map((c) => ctx.measureText(c).width);
+      const totalW = widths.reduce((a, b) => a + b, 0);
+      let x = w / 2 - totalW / 2;
+      for (let i = 0; i < row.length; i++) {
+        const delay = (idx / totalChars) * 0.55;
+        const local = kit.easeOutCubic(Math.max(0, Math.min(1, (elapsed - delay) / 0.45)));
+        ctx.save();
+        ctx.translate(x + widths[i] / 2, y);
+        ctx.globalAlpha = local * 0.22;
+        ctx.filter = `blur(${(1 - local) * size * 0.5}px)`;
+        ctx.fillStyle = p.text;
+        ctx.fillText(row[i], 0, 0);
+        ctx.filter = "none";
+        ctx.globalAlpha = local;
+        ctx.fillText(row[i], 0, 0);
+        ctx.restore();
+        x += widths[i];
+        idx++;
+      }
+      y += size * 1.32;
+    }
+    kit.drawAuthor(ctx, r, y - size * 0.15);
+  },
+};
+
+// 2 — typewriter stamp with paper shake on kraft paper
+const textureKraftTypewriterShake: Engine = {
+  id: "texture-kraft-typewriter-shake",
+  name: "Kraft Paper · Typewriter Stamp",
+  desc: "Kraft-paper texture where each character stamps down like a typewriter key, shaking the sheet.",
+  draw: (ctx, r, kit) => {
+    const { w, h, palette: p } = r;
+    const elapsedGlobal = r.t;
+    const jitter = (n: number) => Math.sin(elapsedGlobal * 47 + n * 13.7) * Math.exp(-((elapsedGlobal % 0.5) * 6));
+    ctx.save();
+    const { line } = state(kit, r);
+    const shakeAmt = line ? Math.max(0, 1 - (r.t - line.time) / 0.15) : 0;
+    ctx.translate(jitter(1) * shakeAmt * 2, jitter(2) * shakeAmt * 2);
+    paintKraftPaper(ctx, w, h, r.t, mix("#b98a52", p.primary, 0.18));
+    if (!line) {
+      ctx.restore();
+      return;
+    }
+    const { rows, size } = layout(ctx, kit, line.text.toUpperCase(), w * 0.76, h * 0.36, baseSize(r, 0.058, 0.072), `700 {s}px ${kit.MONO}`, 1.3);
+    ctx.font = `700 ${size}px ${kit.MONO}`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    const elapsed = Math.max(0, r.t - line.time);
+    const cps = 22; // chars per second typed
+    let y = h * 0.5 - ((rows.length - 1) * size * 1.3) / 2;
+    let idx = 0;
+    for (const row of rows) {
+      const widths = row.split("").map((c) => ctx.measureText(c).width);
+      const totalW = widths.reduce((a, b) => a + b, 0);
+      let x = w / 2 - totalW / 2;
+      for (let i = 0; i < row.length; i++) {
+        const revealAt = idx / cps;
+        const local = Math.max(0, Math.min(1, (elapsed - revealAt) / 0.12));
+        if (local > 0) {
+          const stampScale = 1 + (1 - local) * 0.9;
+          ctx.save();
+          ctx.globalAlpha = local;
+          ctx.translate(x + widths[i] / 2, y);
+          ctx.scale(stampScale, stampScale);
+          ctx.fillStyle = mix("#241408", p.text, 0.15);
+          ctx.fillText(row[i], 0, 0);
+          ctx.restore();
+        }
+        x += widths[i];
+        idx++;
+      }
+      y += size * 1.3;
+    }
+    ctx.restore();
+    kit.drawAuthor(ctx, r, y - size * 0.15);
+  },
+};
+
+// 3 — mask-wipe reveal on crumpled paper
+const textureCrumpledMaskWipe: Engine = {
+  id: "texture-crumpled-mask-wipe",
+  name: "Crumpled Paper · Mask Wipe",
+  desc: "Crumpled-paper texture with the quote revealed behind a jagged wipe that sweeps across.",
+  draw: (ctx, r, kit) => {
+    const { w, h, palette: p } = r;
+    paintCrumpledPaper(ctx, w, h, r.t, mix("#efe6d3", p.bg[1], 0.15));
+    const { line, frac } = state(kit, r);
+    if (!line) return;
+    const { rows, size } = layout(ctx, kit, line.text, w * 0.74, h * 0.36, baseSize(r, 0.055, 0.07), `600 {s}px ${kit.FONT}`, 1.3);
+    const boxH = rows.length * size * 1.3 + size;
+    const y0 = h * 0.5 - boxH / 2;
+    const progress = kit.easeOutCubic(Math.min(1, frac * 1.6));
+    const edgeX = w * 0.1 + (w * 0.8) * progress;
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(0, y0);
+    const teeth = 10;
+    for (let i = 0; i <= teeth; i++) {
+      const yy = y0 + (boxH * i) / teeth;
+      const jag = Math.sin(i * 2.3 + r.t) * w * 0.012;
+      ctx.lineTo(edgeX + jag, yy);
+    }
+    ctx.lineTo(0, y0 + boxH);
+    ctx.closePath();
+    ctx.clip();
+    drawRows(ctx, rows, w / 2, y0 + boxH / 2, size, 1.3, p.text);
+    ctx.restore();
+    kit.drawAuthor(ctx, r, y0 + boxH + size * 0.2);
+  },
+};
+
+// 4 — letters unfolding from a fold line on linen
+const textureLinenUnfold: Engine = {
+  id: "texture-linen-unfold",
+  name: "Linen · Fold Unfold",
+  desc: "Woven linen texture with letters creasing open from a central fold line.",
+  draw: (ctx, r, kit) => {
+    const { w, h, palette: p } = r;
+    paintLinenTexture(ctx, w, h, r.t, mix("#d8d2c2", p.bg[0], 0.18));
+    const { line } = state(kit, r);
+    if (!line) return;
+    const { rows, size } = layout(ctx, kit, line.text, w * 0.74, h * 0.36, baseSize(r, 0.055, 0.07), `600 {s}px ${kit.FONT}`, 1.3);
+    ctx.font = `600 ${size}px ${kit.FONT}`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    const elapsed = Math.max(0, r.t - line.time);
+    const fold = h * 0.5;
+    ctx.strokeStyle = kit.hexA(p.dim, 0.25);
+    ctx.lineWidth = Math.max(1, h * 0.001);
+    ctx.beginPath();
+    ctx.moveTo(w * 0.08, fold);
+    ctx.lineTo(w * 0.92, fold);
+    ctx.stroke();
+    let y = fold - ((rows.length - 1) * size * 1.3) / 2;
+    const totalChars = Math.max(1, rows.reduce((a, row) => a + row.length, 0));
+    let idx = 0;
+    for (const row of rows) {
+      const widths = row.split("").map((c) => ctx.measureText(c).width);
+      const totalW = widths.reduce((a, b) => a + b, 0);
+      let x = w / 2 - totalW / 2;
+      for (let i = 0; i < row.length; i++) {
+        const delay = (idx / totalChars) * 0.5;
+        const local = kit.easeOutCubic(Math.max(0, Math.min(1, (elapsed - delay) / 0.5)));
+        const foldAngle = (1 - local) * (Math.PI / 2);
+        ctx.save();
+        ctx.translate(x + widths[i] / 2, fold - (fold - y) * 1);
+        ctx.transform(1, 0, 0, Math.cos(foldAngle), 0, 0);
+        ctx.globalAlpha = local;
+        ctx.fillStyle = p.text;
+        ctx.fillText(row[i], 0, y - fold);
+        ctx.restore();
+        x += widths[i];
+        idx++;
+      }
+      y += size * 1.3;
+    }
+    kit.drawAuthor(ctx, r, fold + ((rows.length - 1) * size * 1.3) / 2 + size * 0.9);
+  },
+};
+
+// 5 — cut-out letters sliding in from the edges on concrete
+const textureConcreteCutoutSlide: Engine = {
+  id: "texture-concrete-cutout-slide",
+  name: "Concrete · Cut-out Slide",
+  desc: "Raw concrete texture with stencil-cut letters sliding in from alternating screen edges.",
+  draw: (ctx, r, kit) => {
+    const { w, h, palette: p } = r;
+    paintConcreteTexture(ctx, w, h, r.t, mix("#8b8b86", p.bg[1], 0.18));
+    const { line } = state(kit, r);
+    if (!line) return;
+    const text = line.text.toUpperCase();
+    const { rows, size } = layout(ctx, kit, text, w * 0.78, h * 0.4, baseSize(r, 0.068, 0.086), `900 {s}px ${kit.COND}`, 1.1);
+    ctx.font = `900 ${size}px ${kit.COND}`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    const elapsed = Math.max(0, r.t - line.time);
+    let y = h * 0.5 - ((rows.length - 1) * size * 1.1) / 2;
+    let idx = 0;
+    const totalChars = Math.max(1, rows.reduce((a, row) => a + row.length, 0));
+    for (const row of rows) {
+      const widths = row.split("").map((c) => ctx.measureText(c).width);
+      const totalW = widths.reduce((a, b) => a + b, 0);
+      let x = w / 2 - totalW / 2;
+      for (let i = 0; i < row.length; i++) {
+        const delay = (idx / totalChars) * 0.4;
+        const local = kit.easeOutCubic(Math.max(0, Math.min(1, (elapsed - delay) / 0.45)));
+        const fromTop = idx % 2 === 0;
+        const dist = (1 - local) * (fromTop ? -h * 0.5 : h * 0.5);
+        const dx = (1 - local) * (idx % 4 < 2 ? -w * 0.3 : w * 0.3);
+        ctx.save();
+        ctx.globalAlpha = local;
+        softShadow(ctx, size * 0.2);
+        ctx.fillStyle = p.text;
+        ctx.fillText(row[i], x + widths[i] / 2 + dx * 0.3, y + dist);
+        ctx.restore();
+        x += widths[i];
+        idx++;
+      }
+      y += size * 1.1;
+    }
+    kit.drawAuthor(ctx, r, y + size * 0.3);
+  },
+};
+
+// 6 — stencil spray reveal on brushed metal
+const textureMetalStencilSpray: Engine = {
+  id: "texture-metal-stencil-spray",
+  name: "Brushed Metal · Stencil Spray",
+  desc: "Brushed-metal texture with the quote filling in like spray paint through a stencil.",
+  draw: (ctx, r, kit) => {
+    const { w, h, palette: p } = r;
+    paintBrushedMetal(ctx, w, h, r.t, mix("#9aa1a8", p.bg[0], 0.15));
+    const { line, frac } = state(kit, r);
+    if (!line) return;
+    const { rows, size } = layout(ctx, kit, line.text.toUpperCase(), w * 0.76, h * 0.38, baseSize(r, 0.062, 0.078), `900 {s}px ${kit.COND}`, 1.15);
+    ctx.font = `900 ${size}px ${kit.COND}`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    const boxH = rows.length * size * 1.15 + size;
+    const y0 = h * 0.5 - boxH / 2;
+    const progress = Math.min(1, frac * 1.5);
+    ctx.save();
+    ctx.fillStyle = p.text;
+    let y = y0 + size * 0.6;
+    for (const row of rows) {
+      ctx.fillText(row, w / 2, y);
+      y += size * 1.15;
+    }
+    ctx.restore();
+    // spray dissolve mask: reveal grows from centre outward with speckled edge
+    ctx.save();
+    ctx.globalCompositeOperation = "destination-in";
+    const maxR = Math.max(w, h) * 0.85;
+    for (let i = 0; i < 260; i++) {
+      const n = (i * 6473) % 10000;
+      const ang = (n / 10000) * Math.PI * 2;
+      const rad = (((n * 31) % 10000) / 10000) * maxR;
+      const speed = 0.6 + ((i * 13) % 40) / 100;
+      const revealed = progress * speed * 1.4 > rad / maxR;
+      if (!revealed) continue;
+      const x = w / 2 + Math.cos(ang) * rad;
+      const y2 = h / 2 + Math.sin(ang) * rad * 0.6;
+      ctx.fillStyle = "#000";
+      ctx.beginPath();
+      ctx.arc(x, y2, maxR * 0.09, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    if (progress >= 0.98) {
+      ctx.fillStyle = "#000";
+      ctx.fillRect(0, 0, w, h);
+    }
+    ctx.restore();
+    kit.drawAuthor(ctx, r, y0 + boxH + size * 0.2);
+  },
+};
+
+// 7 — ripped-strip reveal on blueprint
+const textureBlueprintRippedStrip: Engine = {
+  id: "texture-blueprint-ripped-strip",
+  name: "Blueprint · Ripped Strip Reveal",
+  desc: "Technical blueprint grid where torn paper strips peel away to reveal the quote beneath.",
+  draw: (ctx, r, kit) => {
+    const { w, h, palette: p } = r;
+    paintBlueprintGrid(ctx, w, h, r.t, mix("#123a63", p.bg[1], 0.25));
+    const { line, frac } = state(kit, r);
+    if (!line) return;
+    const { rows, size } = layout(ctx, kit, line.text, w * 0.74, h * 0.36, baseSize(r, 0.055, 0.07), `600 {s}px ${kit.FONT}`, 1.3);
+    const boxH = rows.length * size * 1.3 + size;
+    const y0 = h * 0.5 - boxH / 2;
+    ctx.save();
+    ctx.fillStyle = p.text;
+    drawRows(ctx, rows, w / 2, h * 0.5, size, 1.3, p.text);
+    ctx.restore();
+    const stripCount = rows.length + 1;
+    const stripH = boxH / stripCount;
+    for (let i = 0; i < stripCount; i++) {
+      const delay = (i / stripCount) * 0.5;
+      const local = kit.easeOutCubic(Math.max(0, Math.min(1, (frac - delay) / 0.4)));
+      const dir = i % 2 === 0 ? 1 : -1;
+      const offset = (1 - local) === 0 ? w * 2 : (local > 0.999 ? w * 1.4 : 0);
+      const stripY = y0 + i * stripH;
+      const slide = local >= 1 ? w * 1.4 * dir : 0;
+      ctx.save();
+      ctx.translate(slide, 0);
+      ctx.fillStyle = mix("#123a63", p.bg[1], 0.25);
+      ctx.beginPath();
+      ctx.moveTo(-slide, stripY);
+      for (let x = 0; x <= w; x += w * 0.06) ctx.lineTo(x - slide, stripY + Math.sin(x * 0.05 + i * 3) * h * 0.008);
+      for (let x = w; x >= 0; x -= w * 0.06) ctx.lineTo(x - slide, stripY + stripH + Math.sin(x * 0.06 + i * 5) * h * 0.008);
+      ctx.closePath();
+      ctx.globalAlpha = local >= 1 ? 1 : 1;
+      ctx.fill();
+      ctx.restore();
+    }
+    kit.drawAuthor(ctx, r, y0 + boxH + size * 0.2);
+  },
+};
+
+// 8 — kinetic word-swap emphasis on torn collage
+const textureCollageWordSwap: Engine = {
+  id: "texture-collage-word-swap",
+  name: "Torn Collage · Kinetic Word Swap",
+  desc: "Torn-paper collage strips with emphasis cycling from word to word across the full line.",
+  draw: (ctx, r, kit) => {
+    const { w, h, palette: p } = r;
+    paintTornCollage(ctx, w, h, r.t, mix("#e4dcc8", p.bg[0], 0.2), kit.hexA(p.primary, 0.85), kit.hexA(p.accent, 0.8), kit.hexA(p.dim, 0.8));
+    const { line } = state(kit, r);
+    if (!line) return;
+    const words = line.text.split(" ").filter(Boolean);
+    if (!words.length) return;
+    const { rows, size } = layout(ctx, kit, line.text, w * 0.74, h * 0.36, baseSize(r, 0.05, 0.064), `700 {s}px ${kit.FONT}`, 1.32);
+    ctx.font = `700 ${size}px ${kit.FONT}`;
+    ctx.textBaseline = "middle";
+    const per = 0.55;
+    const cycle = Math.floor(Math.max(0, r.t - line.time) / per);
+    let y = h * 0.5 - ((rows.length - 1) * size * 1.32) / 2;
+    let wIdx = 0;
+    for (const row of rows) {
+      const rowWords = row.split(" ");
+      const widths = rowWords.map((wd) => ctx.measureText(wd + " ").width);
+      const totalW = widths.reduce((a, b) => a + b, 0);
+      let x = w / 2 - totalW / 2;
+      for (let i = 0; i < rowWords.length; i++) {
+        const active = wIdx % words.length === cycle % words.length;
+        const scale = active ? 1.18 : 1;
+        ctx.save();
+        ctx.translate(x + widths[i] / 2, y);
+        ctx.scale(scale, scale);
+        ctx.fillStyle = active ? p.accent : p.text;
+        ctx.textAlign = "center";
+        softShadow(ctx, size * 0.18);
+        ctx.fillText(rowWords[i], 0, 0);
+        ctx.restore();
+        x += widths[i];
+        wIdx++;
+      }
+      y += size * 1.32;
+    }
+    kit.drawAuthor(ctx, r, y + size * 0.2);
+  },
+};
+
+// 9 — baseline wave on halftone newsprint
+const textureHalftoneBaselineWave: Engine = {
+  id: "texture-halftone-baseline-wave",
+  name: "Halftone Newsprint · Baseline Wave",
+  desc: "Newsprint halftone dots with letters riding a rippling baseline wave.",
+  draw: (ctx, r, kit) => {
+    const { w, h, palette: p } = r;
+    paintHalftoneNewsprint(ctx, w, h, r.t, mix("#efeee6", p.bg[0], 0.15), kit.hexA(p.dim, 0.6));
+    const { line, appear } = state(kit, r);
+    if (!line) return;
+    const { rows, size } = layout(ctx, kit, line.text, w * 0.74, h * 0.36, baseSize(r, 0.056, 0.07), `700 {s}px ${kit.FONT}`, 1.4);
+    ctx.font = `700 ${size}px ${kit.FONT}`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    let y = h * 0.5 - ((rows.length - 1) * size * 1.4) / 2;
+    let idx = 0;
+    for (const row of rows) {
+      const widths = row.split("").map((c) => ctx.measureText(c).width);
+      const totalW = widths.reduce((a, b) => a + b, 0);
+      let x = w / 2 - totalW / 2;
+      for (let i = 0; i < row.length; i++) {
+        const wave = Math.sin(r.t * 2.4 + idx * 0.4) * size * 0.16;
+        ctx.save();
+        ctx.globalAlpha = appear;
+        ctx.fillStyle = p.text;
+        ctx.fillText(row[i], x + widths[i] / 2, y + wave);
+        ctx.restore();
+        x += widths[i];
+        idx++;
+      }
+      y += size * 1.4;
+    }
+    kit.drawAuthor(ctx, r, y + size * 0.1);
+  },
+};
+
+// 10 — letterpress emboss pop on marble
+const textureMarbleEmbossPop: Engine = {
+  id: "texture-marble-emboss-pop",
+  name: "Marble · Letterpress Emboss Pop",
+  desc: "Polished marble veining with each word popping into a pressed letterpress emboss.",
+  draw: (ctx, r, kit) => {
+    const { w, h, palette: p } = r;
+    paintMarbleTexture(ctx, w, h, r.t, mix("#efece6", p.bg[0], 0.15));
+    const { line } = state(kit, r);
+    if (!line) return;
+    const { rows, size } = layout(ctx, kit, line.text.toUpperCase(), w * 0.76, h * 0.38, baseSize(r, 0.06, 0.076), `800 {s}px ${kit.FONT}`, 1.25);
+    ctx.font = `800 ${size}px ${kit.FONT}`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    const elapsed = Math.max(0, r.t - line.time);
+    let y = h * 0.5 - ((rows.length - 1) * size * 1.25) / 2;
+    let wIdx = 0;
+    const totalWords = Math.max(1, rows.reduce((a, row) => a + row.split(" ").filter(Boolean).length, 0));
+    for (const row of rows) {
+      const rowWords = row.split(" ");
+      const widths = rowWords.map((wd) => ctx.measureText(wd + " ").width);
+      const totalW = widths.reduce((a, b) => a + b, 0);
+      let x = w / 2 - totalW / 2;
+      for (let i = 0; i < rowWords.length; i++) {
+        const delay = (wIdx / totalWords) * 0.7;
+        const local = Math.max(0, Math.min(1, (elapsed - delay) / 0.35));
+        const bounce = local < 1 ? 1 + Math.sin(local * Math.PI) * 0.35 : 1;
+        const depth = kit.easeOutCubic(local) * size * 0.05;
+        ctx.save();
+        ctx.translate(x + widths[i] / 2, y);
+        ctx.scale(bounce, bounce);
+        ctx.globalAlpha = Math.min(1, local * 1.6);
+        ctx.fillStyle = kit.hexA("#000000", 0.35);
+        ctx.fillText(rowWords[i], depth, depth);
+        ctx.fillStyle = kit.hexA("#ffffff", 0.5);
+        ctx.fillText(rowWords[i], -depth * 0.7, -depth * 0.7);
+        ctx.fillStyle = p.text;
+        ctx.fillText(rowWords[i], 0, 0);
+        ctx.restore();
+        x += widths[i];
+        wIdx++;
+      }
+      y += size * 1.25;
+    }
+    kit.drawAuthor(ctx, r, y + size * 0.2);
+  },
+};
+
+// 11 — handwriting stroke-on reveal on chalkboard
+const textureChalkboardHandwriting: Engine = {
+  id: "texture-chalkboard-handwriting",
+  name: "Chalkboard · Handwriting Stroke-on",
+  desc: "Chalkboard texture where the quote is written on stroke by stroke in a chalky hand.",
+  draw: (ctx, r, kit) => {
+    const { w, h, palette: p } = r;
+    paintChalkboard(ctx, w, h, r.t, mix("#1e2b24", p.bg[1], 0.2));
+    const { line, frac } = state(kit, r);
+    if (!line) return;
+    const { rows, size } = layout(ctx, kit, line.text, w * 0.74, h * 0.36, baseSize(r, 0.054, 0.068), `italic 500 {s}px ${kit.SERIF}`, 1.35);
+    ctx.font = `italic 500 ${size}px ${kit.SERIF}`;
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+    const totalChars = Math.max(1, rows.reduce((a, row) => a + row.length, 0));
+    const written = frac * totalChars * 1.15;
+    let y = h * 0.5 - ((rows.length - 1) * size * 1.35) / 2;
+    let idx = 0;
+    for (const row of rows) {
+      const rowW = ctx.measureText(row).width;
+      let x = w / 2 - rowW / 2;
+      for (let i = 0; i < row.length; i++) {
+        const local = Math.max(0, Math.min(1, written - idx));
+        if (local > 0) {
+          const jx = Math.sin(idx * 12.9) * size * 0.015 * (1 - local);
+          const jy = Math.cos(idx * 7.7) * size * 0.02 * (1 - local);
+          ctx.save();
+          ctx.globalAlpha = Math.min(1, local * 3);
+          ctx.fillStyle = kit.hexA(p.text, 0.95);
+          ctx.fillText(row[i], x + jx, y + jy);
+          ctx.restore();
+        }
+        x += ctx.measureText(row[i]).width;
+        idx++;
+      }
+      y += size * 1.35;
+    }
+    ctx.textAlign = "center";
+    kit.drawAuthor(ctx, r, y + size * 0.1);
+  },
+};
+
+// 12 — marquee scroll on riso grunge
+const textureRisoMarqueeScroll: Engine = {
+  id: "texture-riso-marquee-scroll",
+  name: "Riso Grunge · Marquee Scroll",
+  desc: "Two-tone riso-print grain with the whole quote scrolling by like a lit marquee sign.",
+  draw: (ctx, r, kit) => {
+    const { w, h, palette: p } = r;
+    paintRisoGrunge(ctx, w, h, r.t, mix("#f2ede1", p.bg[0], 0.15), kit.hexA(p.primary, 0.9), kit.hexA(p.accent, 0.9));
+    const { line } = state(kit, r);
+    if (!line) return;
+    const size = kit.fitFont(ctx, line.text, w * 5, baseSize(r, 0.06, 0.075), `800 {s}px ${kit.COND}`);
+    ctx.font = `800 ${size}px ${kit.COND}`;
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+    const bandY = h * 0.5;
+    const bandH = size * 1.6;
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, bandY - bandH / 2, w, bandH);
+    ctx.clip();
+    ctx.fillStyle = kit.hexA("#241b10", 0.85);
+    ctx.fillRect(0, bandY - bandH / 2, w, bandH);
+    const phrase = `${line.text.toUpperCase()}   ★   `;
+    const pw = Math.max(1, ctx.measureText(phrase).width);
+    const shift = ((r.t - line.time) * w * 0.14) % pw;
+    ctx.fillStyle = p.text;
+    for (let x = -shift; x < w + pw; x += pw) ctx.fillText(phrase, x, bandY);
+    ctx.restore();
+    ctx.strokeStyle = kit.hexA(p.accent, 0.7);
+    ctx.lineWidth = Math.max(2, h * 0.003);
+    ctx.strokeRect(0, bandY - bandH / 2, w, bandH);
+    ctx.textAlign = "center";
+    kit.drawAuthor(ctx, r, bandY + bandH / 2 + size * 0.5);
+  },
+};
+
+export const TEXTURE_ANIMATION_ENGINES: Engine[] = [
+  textureAgedInkBleed,
+  textureKraftTypewriterShake,
+  textureCrumpledMaskWipe,
+  textureLinenUnfold,
+  textureConcreteCutoutSlide,
+  textureMetalStencilSpray,
+  textureBlueprintRippedStrip,
+  textureCollageWordSwap,
+  textureHalftoneBaselineWave,
+  textureMarbleEmbossPop,
+  textureChalkboardHandwriting,
+  textureRisoMarqueeScroll,
+];
+
+for (const e of TEXTURE_ANIMATION_ENGINES) {
+  EXTRA_MOTIVATIONAL_ENGINES.push(e);
+  EXTRA_MOTIVATIONAL_MAP.set(e.id, e);
+}
