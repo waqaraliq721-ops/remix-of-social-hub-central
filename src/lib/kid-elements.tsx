@@ -1694,3 +1694,538 @@ export function ChannelLogoControls({
     </div>
   );
 }
+
+// ---------------------------------------------------------------------------
+// Round number badges
+// ---------------------------------------------------------------------------
+
+export type RoundBadgeId =
+  | "pill"
+  | "hexagon"
+  | "ribbon"
+  | "circle-stroke"
+  | "tab"
+  | "ticket-stub"
+  | "banner"
+  | "stamp"
+  | "chevron"
+  | "notebook-tab"
+  | "neon-outline"
+  | "block-3d"
+  | "bubble"
+  | "star-burst"
+  | "arcade-counter"
+  | "dot-matrix"
+  | "underline-only"
+  | "brush-stroke"
+  | "shield"
+  | "tape-strip"
+  | "diamond"
+  | "flag"
+  | "sunburst"
+  | "speech-bubble";
+
+export const ROUND_BADGES: { id: RoundBadgeId; name: string }[] = [
+  { id: "pill", name: "Pill" },
+  { id: "hexagon", name: "Hexagon" },
+  { id: "ribbon", name: "Ribbon" },
+  { id: "circle-stroke", name: "Circle stroke" },
+  { id: "tab", name: "Tab" },
+  { id: "ticket-stub", name: "Ticket stub" },
+  { id: "banner", name: "Banner" },
+  { id: "stamp", name: "Stamp" },
+  { id: "chevron", name: "Chevron" },
+  { id: "notebook-tab", name: "Notebook tab" },
+  { id: "neon-outline", name: "Neon outline" },
+  { id: "block-3d", name: "3D block" },
+  { id: "bubble", name: "Bubble" },
+  { id: "star-burst", name: "Star burst" },
+  { id: "arcade-counter", name: "Arcade counter" },
+  { id: "dot-matrix", name: "Dot matrix" },
+  { id: "underline-only", name: "Underline only" },
+  { id: "brush-stroke", name: "Brush stroke" },
+  { id: "shield", name: "Shield" },
+  { id: "tape-strip", name: "Tape strip" },
+  { id: "diamond", name: "Diamond" },
+  { id: "flag", name: "Flag" },
+  { id: "sunburst", name: "Sunburst" },
+  { id: "speech-bubble", name: "Speech bubble" },
+];
+
+export type RoundBadgeColors = { primary: string; accent: string; text: string };
+
+export type RoundBadgeOpts = { t?: number; rotate?: number };
+
+/**
+ * Draws a round-number badge (e.g. "Round 3") centred at (x, y). `size` sets
+ * the overall scale — roughly the badge's half-height in px.
+ */
+export function drawRoundBadge(
+  ctx: CanvasRenderingContext2D,
+  id: RoundBadgeId,
+  label: string,
+  x: number,
+  y: number,
+  size: number,
+  colors: RoundBadgeColors,
+  opts: RoundBadgeOpts = {},
+) {
+  const t = opts.t ?? 0;
+  ctx.save();
+  ctx.translate(x, y);
+  if (opts.rotate) ctx.rotate(opts.rotate);
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  const font = (px: number, weight = 800) => `${weight} ${px}px system-ui, sans-serif`;
+  const textW = ctx.measureText(label).width;
+
+  switch (id) {
+    case "pill": {
+      const w = Math.max(size * 3.2, textW + size * 1.6);
+      const h = size * 1.5;
+      ctx.beginPath();
+      ctx.roundRect(-w / 2, -h / 2, w, h, h / 2);
+      ctx.fillStyle = hexToRgba(colors.primary, 0.95);
+      ctx.fill();
+      ctx.fillStyle = colors.text;
+      ctx.font = font(size * 0.85);
+      ctx.fillText(label, 0, size * 0.04);
+      break;
+    }
+    case "hexagon": {
+      const w = Math.max(size * 3.4, textW + size * 1.8);
+      const h = size * 1.5;
+      ctx.beginPath();
+      const cut = h * 0.4;
+      ctx.moveTo(-w / 2 + cut, -h / 2);
+      ctx.lineTo(w / 2 - cut, -h / 2);
+      ctx.lineTo(w / 2, 0);
+      ctx.lineTo(w / 2 - cut, h / 2);
+      ctx.lineTo(-w / 2 + cut, h / 2);
+      ctx.lineTo(-w / 2, 0);
+      ctx.closePath();
+      ctx.fillStyle = hexToRgba(colors.accent, 0.95);
+      ctx.fill();
+      ctx.fillStyle = colors.text;
+      ctx.font = font(size * 0.8);
+      ctx.fillText(label, 0, size * 0.04);
+      break;
+    }
+    case "ribbon": {
+      const w = Math.max(size * 3.6, textW + size * 2);
+      const h = size * 1.3;
+      ctx.beginPath();
+      ctx.moveTo(-w / 2, -h / 2);
+      ctx.lineTo(w / 2, -h / 2);
+      ctx.lineTo(w / 2 - h * 0.35, 0);
+      ctx.lineTo(w / 2, h / 2);
+      ctx.lineTo(-w / 2, h / 2);
+      ctx.lineTo(-w / 2 + h * 0.35, 0);
+      ctx.closePath();
+      ctx.fillStyle = hexToRgba(colors.primary, 0.95);
+      ctx.fill();
+      ctx.fillStyle = colors.text;
+      ctx.font = font(size * 0.8);
+      ctx.fillText(label, 0, size * 0.04);
+      break;
+    }
+    case "circle-stroke": {
+      const r = size;
+      ctx.beginPath();
+      ctx.arc(0, 0, r, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(0,0,0,0.3)";
+      ctx.fill();
+      ctx.strokeStyle = colors.accent;
+      ctx.lineWidth = size * 0.14;
+      ctx.stroke();
+      ctx.fillStyle = colors.text;
+      ctx.font = font(size * 0.9);
+      ctx.fillText(label, 0, size * 0.04);
+      break;
+    }
+    case "tab": {
+      const w = Math.max(size * 3.2, textW + size * 1.6);
+      const h = size * 1.4;
+      ctx.beginPath();
+      ctx.roundRect(-w / 2, -h / 2, w, h, [0, 0, h * 0.5, h * 0.5]);
+      ctx.fillStyle = hexToRgba(colors.primary, 0.95);
+      ctx.fill();
+      ctx.fillStyle = colors.text;
+      ctx.font = font(size * 0.8);
+      ctx.fillText(label, 0, size * 0.04);
+      break;
+    }
+    case "ticket-stub": {
+      const w = Math.max(size * 3.6, textW + size * 2);
+      const h = size * 1.4;
+      ctx.beginPath();
+      ctx.roundRect(-w / 2, -h / 2, w, h, size * 0.2);
+      ctx.fillStyle = hexToRgba(colors.accent, 0.95);
+      ctx.fill();
+      ctx.save();
+      ctx.setLineDash([size * 0.16, size * 0.14]);
+      ctx.strokeStyle = "rgba(255,255,255,0.6)";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(-w * 0.15, -h / 2);
+      ctx.lineTo(-w * 0.15, h / 2);
+      ctx.stroke();
+      ctx.restore();
+      for (const sx of [-w / 2, w / 2]) {
+        ctx.beginPath();
+        ctx.arc(sx, 0, size * 0.22, 0, Math.PI * 2);
+        ctx.fillStyle = "rgba(0,0,0,0.001)";
+        ctx.globalCompositeOperation = "destination-out";
+        ctx.fill();
+        ctx.globalCompositeOperation = "source-over";
+      }
+      ctx.fillStyle = colors.text;
+      ctx.font = font(size * 0.75);
+      ctx.fillText(label, w * 0.08, size * 0.04);
+      break;
+    }
+    case "banner": {
+      const w = Math.max(size * 3.8, textW + size * 2.2);
+      const h = size * 1.3;
+      ctx.fillStyle = hexToRgba(colors.primary, 0.95);
+      ctx.beginPath();
+      ctx.rect(-w / 2, -h / 2, w, h);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(-w / 2, -h / 2);
+      ctx.lineTo(-w / 2 - h * 0.4, 0);
+      ctx.lineTo(-w / 2, h / 2);
+      ctx.closePath();
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(w / 2, -h / 2);
+      ctx.lineTo(w / 2 + h * 0.4, 0);
+      ctx.lineTo(w / 2, h / 2);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = colors.text;
+      ctx.font = font(size * 0.78);
+      ctx.fillText(label, 0, size * 0.04);
+      break;
+    }
+    case "stamp": {
+      const r = size * 1.05;
+      ctx.save();
+      ctx.rotate(-0.06);
+      ctx.beginPath();
+      const teeth = 18;
+      for (let i = 0; i < teeth; i++) {
+        const a0 = (i / teeth) * Math.PI * 2;
+        const a1 = ((i + 0.5) / teeth) * Math.PI * 2;
+        ctx.arc(0, 0, r, a0, a1);
+        ctx.lineTo(Math.cos(a1) * r * 0.86, Math.sin(a1) * r * 0.86);
+        const a2 = ((i + 1) / teeth) * Math.PI * 2;
+        ctx.lineTo(Math.cos(a2) * r, Math.sin(a2) * r);
+      }
+      ctx.closePath();
+      ctx.fillStyle = "transparent";
+      ctx.strokeStyle = colors.accent;
+      ctx.lineWidth = size * 0.1;
+      ctx.stroke();
+      ctx.restore();
+      ctx.fillStyle = colors.text;
+      ctx.font = font(size * 0.85);
+      ctx.fillText(label, 0, size * 0.04);
+      break;
+    }
+    case "chevron": {
+      const w = Math.max(size * 3.4, textW + size * 1.8);
+      const h = size * 1.4;
+      ctx.beginPath();
+      ctx.moveTo(-w / 2, -h / 2);
+      ctx.lineTo(w / 2 - h * 0.4, -h / 2);
+      ctx.lineTo(w / 2, 0);
+      ctx.lineTo(w / 2 - h * 0.4, h / 2);
+      ctx.lineTo(-w / 2, h / 2);
+      ctx.lineTo(-w / 2 + h * 0.4, 0);
+      ctx.closePath();
+      ctx.fillStyle = hexToRgba(colors.primary, 0.95);
+      ctx.fill();
+      ctx.fillStyle = colors.text;
+      ctx.font = font(size * 0.75);
+      ctx.fillText(label, -h * 0.1, size * 0.04);
+      break;
+    }
+    case "notebook-tab": {
+      const w = Math.max(size * 3, textW + size * 1.6);
+      const h = size * 1.5;
+      ctx.beginPath();
+      ctx.moveTo(-w / 2, -h / 2);
+      ctx.lineTo(w / 2, -h / 2);
+      ctx.lineTo(w / 2, h / 2 - h * 0.2);
+      ctx.lineTo(w / 2 - h * 0.2, h / 2);
+      ctx.lineTo(-w / 2 + h * 0.2, h / 2);
+      ctx.lineTo(-w / 2, h / 2 - h * 0.2);
+      ctx.closePath();
+      ctx.fillStyle = hexToRgba(colors.accent, 0.95);
+      ctx.fill();
+      for (let i = -1; i <= 1; i++) {
+        ctx.beginPath();
+        ctx.arc(i * (w / 3.2), -h / 2, size * 0.08, 0, Math.PI * 2);
+        ctx.fillStyle = "rgba(0,0,0,0.3)";
+        ctx.fill();
+      }
+      ctx.fillStyle = colors.text;
+      ctx.font = font(size * 0.75);
+      ctx.fillText(label, 0, size * 0.1);
+      break;
+    }
+    case "neon-outline": {
+      const w = Math.max(size * 3.2, textW + size * 1.6);
+      const h = size * 1.5;
+      ctx.shadowColor = colors.accent;
+      ctx.shadowBlur = size * 0.6;
+      ctx.beginPath();
+      ctx.roundRect(-w / 2, -h / 2, w, h, h / 2);
+      ctx.strokeStyle = colors.accent;
+      ctx.lineWidth = size * 0.12;
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = colors.text;
+      ctx.font = font(size * 0.82);
+      ctx.fillText(label, 0, size * 0.04);
+      break;
+    }
+    case "block-3d": {
+      const w = Math.max(size * 3.2, textW + size * 1.6);
+      const h = size * 1.5;
+      const depth = size * 0.22;
+      ctx.beginPath();
+      ctx.roundRect(-w / 2 + depth, -h / 2 + depth, w, h, h * 0.2);
+      ctx.fillStyle = "rgba(0,0,0,0.4)";
+      ctx.fill();
+      ctx.beginPath();
+      ctx.roundRect(-w / 2, -h / 2, w, h, h * 0.2);
+      ctx.fillStyle = hexToRgba(colors.primary, 0.95);
+      ctx.fill();
+      ctx.fillStyle = colors.text;
+      ctx.font = font(size * 0.85);
+      ctx.fillText(label, 0, size * 0.04);
+      break;
+    }
+    case "bubble": {
+      const r = size * 1.05;
+      ctx.beginPath();
+      ctx.arc(0, 0, r, 0, Math.PI * 2);
+      ctx.fillStyle = hexToRgba(colors.primary, 0.95);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(-r * 0.3, -r * 0.35, r * 0.28, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(255,255,255,0.35)";
+      ctx.fill();
+      ctx.fillStyle = colors.text;
+      ctx.font = font(size * 0.85);
+      ctx.fillText(label, 0, size * 0.04);
+      break;
+    }
+    case "star-burst": {
+      const spikes = 10;
+      const rOuter = size * 1.25;
+      const rInner = size * 0.85;
+      ctx.beginPath();
+      for (let i = 0; i < spikes * 2; i++) {
+        const r = i % 2 === 0 ? rOuter : rInner;
+        const a = (i / (spikes * 2)) * Math.PI * 2 + t * 0.15;
+        const px = Math.cos(a) * r;
+        const py = Math.sin(a) * r;
+        i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+      ctx.fillStyle = hexToRgba(colors.accent, 0.95);
+      ctx.fill();
+      ctx.fillStyle = colors.text;
+      ctx.font = font(size * 0.8);
+      ctx.fillText(label, 0, size * 0.04);
+      break;
+    }
+    case "arcade-counter": {
+      const w = Math.max(size * 3, textW + size * 1.4);
+      const h = size * 1.5;
+      ctx.beginPath();
+      ctx.roundRect(-w / 2, -h / 2, w, h, size * 0.16);
+      ctx.fillStyle = "rgba(10,10,14,0.95)";
+      ctx.fill();
+      ctx.strokeStyle = colors.accent;
+      ctx.lineWidth = size * 0.1;
+      ctx.stroke();
+      ctx.fillStyle = colors.accent;
+      ctx.font = `700 ${size * 0.8}px "JetBrains Mono", ui-monospace, monospace`;
+      ctx.fillText(label, 0, size * 0.04);
+      break;
+    }
+    case "dot-matrix": {
+      const w = Math.max(size * 3.4, textW + size * 1.8);
+      const h = size * 1.5;
+      ctx.beginPath();
+      ctx.roundRect(-w / 2, -h / 2, w, h, size * 0.2);
+      ctx.fillStyle = "rgba(0,0,0,0.4)";
+      ctx.fill();
+      const cols = 18;
+      for (let i = 0; i < cols; i++) {
+        for (let j = 0; j < 4; j++) {
+          const px = -w / 2 + (i + 0.5) * (w / cols);
+          const py = -h / 2 + (j + 0.5) * (h / 4);
+          ctx.beginPath();
+          ctx.arc(px, py, size * 0.03, 0, Math.PI * 2);
+          ctx.fillStyle = hexToRgba(colors.accent, 0.25);
+          ctx.fill();
+        }
+      }
+      ctx.fillStyle = colors.text;
+      ctx.font = font(size * 0.78);
+      ctx.fillText(label, 0, size * 0.04);
+      break;
+    }
+    case "underline-only": {
+      ctx.fillStyle = colors.text;
+      ctx.font = font(size * 1.1);
+      ctx.fillText(label, 0, 0);
+      ctx.beginPath();
+      ctx.roundRect(-textW / 2 - size * 0.2, size * 0.55, textW + size * 0.4, size * 0.16, size * 0.08);
+      ctx.fillStyle = colors.accent;
+      ctx.fill();
+      break;
+    }
+    case "brush-stroke": {
+      const w = Math.max(size * 3.4, textW + size * 1.8);
+      const h = size * 1.4;
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(-w / 2, -h * 0.3);
+      ctx.quadraticCurveTo(-w * 0.2, -h * 0.65, w / 2, -h * 0.35);
+      ctx.quadraticCurveTo(w * 0.55, 0, w / 2, h * 0.35);
+      ctx.quadraticCurveTo(0, h * 0.65, -w / 2, h * 0.3);
+      ctx.quadraticCurveTo(-w * 0.58, 0, -w / 2, -h * 0.3);
+      ctx.closePath();
+      ctx.fillStyle = hexToRgba(colors.primary, 0.92);
+      ctx.fill();
+      ctx.restore();
+      ctx.fillStyle = colors.text;
+      ctx.font = font(size * 0.8);
+      ctx.fillText(label, 0, size * 0.04);
+      break;
+    }
+    case "shield": {
+      const s = size * 1.1;
+      ctx.beginPath();
+      ctx.moveTo(0, -s * 1.15);
+      ctx.lineTo(s * 0.9, -s * 0.55);
+      ctx.lineTo(s * 0.7, s * 0.9);
+      ctx.lineTo(0, s * 1.3);
+      ctx.lineTo(-s * 0.7, s * 0.9);
+      ctx.lineTo(-s * 0.9, -s * 0.55);
+      ctx.closePath();
+      ctx.fillStyle = hexToRgba(colors.primary, 0.95);
+      ctx.fill();
+      ctx.strokeStyle = colors.accent;
+      ctx.lineWidth = size * 0.1;
+      ctx.stroke();
+      ctx.fillStyle = colors.text;
+      ctx.font = font(size * 0.75);
+      ctx.fillText(label, 0, size * 0.06);
+      break;
+    }
+    case "tape-strip": {
+      const w = Math.max(size * 3.4, textW + size * 1.8);
+      const h = size * 1.1;
+      ctx.save();
+      ctx.rotate(-0.05);
+      ctx.fillStyle = hexToRgba(colors.accent, 0.85);
+      ctx.fillRect(-w / 2, -h / 2, w, h);
+      ctx.restore();
+      ctx.fillStyle = colors.text;
+      ctx.font = font(size * 0.75);
+      ctx.fillText(label, 0, size * 0.04);
+      break;
+    }
+    case "diamond": {
+      const s = size * 1.3;
+      ctx.beginPath();
+      ctx.moveTo(0, -s);
+      ctx.lineTo(s, 0);
+      ctx.lineTo(0, s);
+      ctx.lineTo(-s, 0);
+      ctx.closePath();
+      ctx.fillStyle = hexToRgba(colors.primary, 0.95);
+      ctx.fill();
+      ctx.fillStyle = colors.text;
+      ctx.font = font(size * 0.7);
+      ctx.fillText(label, 0, size * 0.04);
+      break;
+    }
+    case "flag": {
+      const w = Math.max(size * 3, textW + size * 1.6);
+      const h = size * 1.4;
+      ctx.beginPath();
+      ctx.moveTo(-w / 2, -h / 2);
+      ctx.lineTo(w / 2, -h / 2);
+      ctx.lineTo(w / 2 - h * 0.3, 0);
+      ctx.lineTo(w / 2, h / 2);
+      ctx.lineTo(-w / 2, h / 2);
+      ctx.closePath();
+      ctx.fillStyle = hexToRgba(colors.accent, 0.95);
+      ctx.fill();
+      ctx.fillStyle = colors.text;
+      ctx.font = font(size * 0.75);
+      ctx.fillText(label, -h * 0.1, size * 0.04);
+      break;
+    }
+    case "sunburst": {
+      const rays = 16;
+      for (let i = 0; i < rays; i++) {
+        const a = (i / rays) * Math.PI * 2 + t * 0.1;
+        ctx.save();
+        ctx.rotate(a);
+        ctx.fillStyle = hexToRgba(colors.accent, 0.5);
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(-size * 0.1, -size * 1.6);
+        ctx.lineTo(size * 0.1, -size * 1.6);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+      }
+      ctx.beginPath();
+      ctx.arc(0, 0, size, 0, Math.PI * 2);
+      ctx.fillStyle = hexToRgba(colors.primary, 0.95);
+      ctx.fill();
+      ctx.fillStyle = colors.text;
+      ctx.font = font(size * 0.8);
+      ctx.fillText(label, 0, size * 0.04);
+      break;
+    }
+    case "speech-bubble": {
+      const w = Math.max(size * 3.2, textW + size * 1.6);
+      const h = size * 1.5;
+      ctx.beginPath();
+      ctx.roundRect(-w / 2, -h / 2, w, h, h * 0.4);
+      ctx.moveTo(-w * 0.1, h / 2);
+      ctx.lineTo(-w * 0.02, h / 2 + size * 0.35);
+      ctx.lineTo(w * 0.12, h / 2);
+      ctx.fillStyle = hexToRgba(colors.primary, 0.95);
+      ctx.fill();
+      ctx.fillStyle = colors.text;
+      ctx.font = font(size * 0.8);
+      ctx.fillText(label, 0, size * 0.02);
+      break;
+    }
+    default:
+      break;
+  }
+  ctx.restore();
+}
+
+export function RoundBadgePicker({
+  value,
+  onChange,
+}: {
+  value: RoundBadgeId;
+  onChange: (v: RoundBadgeId) => void;
+}) {
+  return <Picker label="Round badge style" value={value} options={ROUND_BADGES} onChange={onChange} />;
+}
