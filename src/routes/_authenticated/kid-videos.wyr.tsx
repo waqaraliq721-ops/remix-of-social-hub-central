@@ -75,6 +75,18 @@ import {
   drawTimeBar,
   TimeBarStylePicker,
   type TimeBarStyleId,
+  type ChannelLogoSpec,
+  defaultChannelLogo,
+  drawChannelLogo,
+  ChannelLogoControls,
+  type RoundBadgeId,
+  drawRoundBadge,
+  RoundBadgePicker,
+  type RoundTransitionSpec,
+  defaultRoundTransition,
+  drawRoundTransition,
+  roundTransitionCoverage,
+  RoundTransitionControls,
 } from "@/lib/kid-elements";
 
 export const Route = createFileRoute("/_authenticated/kid-videos/wyr")({
@@ -251,6 +263,22 @@ function WyrPage() {
   const [bgIntensity, setBgIntensity] = useState(1);
   const [timerStyle, setTimerStyle] = useState<TimerStyleId>("ring");
   const [timebarStyle, setTimebarStyle] = useState<TimeBarStyleId>("thin");
+  const [showHeading, setShowHeading] = useState(true);
+  const [sideLabel, setSideLabel] = useState("QUIZ BLITZ");
+  const [showSideLabel, setShowSideLabel] = useState(true);
+  const [channelLogo, setChannelLogo] = useState<ChannelLogoSpec>(defaultChannelLogo());
+  const [channelLogoUrl, setChannelLogoUrl] = useState<string | null>(null);
+  const [channelLogoImg, setChannelLogoImg] = useState<HTMLImageElement | null>(null);
+  const [roundBadgeStyle, setRoundBadgeStyle] = useState<RoundBadgeId>("pill");
+  const [roundTransition, setRoundTransition] = useState<RoundTransitionSpec>(defaultRoundTransition());
+
+  const onChannelLogo = (file: File) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => setChannelLogoImg(img);
+    img.src = url;
+    setChannelLogoUrl(url);
+  };
 
   const [provider, setProvider] = useState<TtsProvider>("elevenlabs");
   const [voice, setVoice] = useState(TTS_VOICES.elevenlabs[0].id);

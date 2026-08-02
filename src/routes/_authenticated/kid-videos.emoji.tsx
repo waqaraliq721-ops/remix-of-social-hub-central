@@ -71,6 +71,19 @@ import {
   drawTimeBar,
   TimeBarStylePicker,
   type TimeBarStyleId,
+  type ChannelLogoSpec,
+  defaultChannelLogo,
+  drawChannelLogo,
+  ChannelLogoControls,
+  type RoundBadgeId,
+  ROUND_BADGES,
+  drawRoundBadge,
+  RoundBadgePicker,
+  type RoundTransitionSpec,
+  defaultRoundTransition,
+  drawRoundTransition,
+  roundTransitionCoverage,
+  RoundTransitionControls,
 } from "@/lib/kid-elements";
 
 export const Route = createFileRoute("/_authenticated/kid-videos/emoji")({
@@ -284,6 +297,15 @@ function EmojiPage() {
   const [bgIntensity, setBgIntensity] = useState(1);
   const [timerStyle, setTimerStyle] = useState<TimerStyleId>("ring");
   const [timebarStyle, setTimebarStyle] = useState<TimeBarStyleId>("thin");
+  const [emojiGap, setEmojiGap] = useState(1);
+  const [emojiLineHeight, setEmojiLineHeight] = useState(1);
+
+  const [channelLogo, setChannelLogo] = useState<ChannelLogoSpec>(defaultChannelLogo());
+  const [channelLogoUrl, setChannelLogoUrl] = useState<string | null>(null);
+  const channelLogoImgRef = useRef<HTMLImageElement | null>(null);
+
+  const [roundBadgeId, setRoundBadgeId] = useState<RoundBadgeId>("pill");
+  const [roundTransition, setRoundTransition] = useState<RoundTransitionSpec>(defaultRoundTransition());
 
   const [provider, setProvider] = useState<TtsProvider>("elevenlabs");
   const [voice, setVoice] = useState(TTS_VOICES.elevenlabs[0].id);
@@ -304,6 +326,25 @@ function EmojiPage() {
   const lastRef = useRef(0);
   const audioElRef = useRef<HTMLAudioElement | null>(null);
   const playedRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (!channelLogoUrl) {
+      channelLogoImgRef.current = null;
+      return;
+    }
+    const img = new Image();
+    img.onload = () => {
+      channelLogoImgRef.current = img;
+    };
+    img.src = channelLogoUrl;
+  }, [channelLogoUrl]);
+
+  const onChannelLogoFile = (file: File | null) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => setChannelLogoUrl(String(reader.result));
+    reader.readAsDataURL(file);
+  };
 
   const dims = ASPECTS[aspect];
   const basePalette = PALETTES.find((p) => p.id === paletteId) ?? PALETTES[0];
