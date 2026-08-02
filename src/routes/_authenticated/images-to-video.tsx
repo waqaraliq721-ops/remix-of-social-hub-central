@@ -18,6 +18,7 @@ import {
   Volume2,
   Wand,
   Shuffle,
+  Scissors,
 } from "lucide-react";
 import {
   IntroOutroCard,
@@ -51,6 +52,14 @@ import {
   loadDraftImages,
   type DraftImage,
 } from "@/lib/i2v-draft";
+import { removeSilences, type SilenceOptions } from "@/lib/i2v-silence";
+import {
+  transcribeFile,
+  wordsToLines,
+  STT_PROVIDERS,
+  type SttProvider,
+  type TimedLine,
+} from "@/lib/transcribe";
 
 export const Route = createFileRoute("/_authenticated/images-to-video")({
   head: () => ({
@@ -358,6 +367,18 @@ function ImagesToVideoPage() {
   const [speechStart, setSpeechStart] = useState(0);
   const [speechEnd, setSpeechEnd] = useState(0);
 
+  // Auto-remove-silences controls
+  const [silenceThresholdDb, setSilenceThresholdDb] = useState(-40);
+  const [silenceMinMs, setSilenceMinMs] = useState(300);
+  const [silencePaddingMs, setSilencePaddingMs] = useState(80);
+  const [silenceProcessing, setSilenceProcessing] = useState(false);
+  const [voOriginalDuration, setVoOriginalDuration] = useState<number | null>(null);
+
+  // Transcription (accurate caption sync)
+  const [sttProvider, setSttProvider] = useState<SttProvider>("auto");
+  const [transcribing, setTranscribing] = useState(false);
+  const [transcribedLines, setTranscribedLines] = useState<TimedLine[] | null>(null);
+
   const [musicUrl, setMusicUrl] = useState<string | null>(null);
   const [musicName, setMusicName] = useState<string | null>(null);
   const [musicVolume, setMusicVolume] = useState(20);
@@ -435,6 +456,7 @@ function ImagesToVideoPage() {
           if (typeof s.captionBgOpacity === "number") setCaptionBgOpacity(s.captionBgOpacity);
           if (typeof s.musicVolume === "number") setMusicVolume(s.musicVolume);
           if (typeof s.voVolume === "number") setVoVolume(s.voVolume);
+          if (typeof s.sttProvider === "string") setSttProvider(s.sttProvider as SttProvider);
         }
         if (imgs.length) {
           const restored: ImgItem[] = [];
@@ -502,6 +524,7 @@ function ImagesToVideoPage() {
         captionBgOpacity,
         musicVolume,
         voVolume,
+        sttProvider,
       });
     }, 400);
     return () => clearTimeout(h);
@@ -510,7 +533,7 @@ function ImagesToVideoPage() {
     script, provider, voice, model,
     captionsOn, captionStyle, captionPos, captionWords, captionSize, captionColor, captionAccent,
     captionFont, captionUppercase, captionWeight, captionMargin, captionStrokeWidth, captionBgOpacity,
-    musicVolume, voVolume,
+    musicVolume, voVolume, sttProvider,
   ]);
 
   // Persist images (with their original blobs) on any change.
@@ -547,6 +570,10 @@ function ImagesToVideoPage() {
    * user has generated captions from an existing voiceover. */
   const captionSchedule = useMemo(() => {
     if (!captionsGenerated || voDuration <= 0) return [] as { start: number; end: number; text: string }[];
+    // Prefer word-accurate timings from transcription, when available.
+    if (transcribedLines && transcribedLines.length) {
+      return transcribedLines.map((l) => ({ start: l.time, end: l.end, text: l.text }));
+    }
     const chunks = buildCaptionChunks(script, captionWords);
     if (!chunks.length) return [];
     // Align chunks to the audible span of the voiceover, not the raw file length.
@@ -562,7 +589,7 @@ function ImagesToVideoPage() {
       cursor += dur;
     }
     return out;
-  }, [script, captionWords, voDuration, captionsGenerated, speechStart, speechEnd]);
+  }, [script, captionWords, voDuration, captionsGenerated, speechStart, speechEnd, transcribedLines]);
 
   // -------- Image loading --------
   const addFiles = useCallback(
@@ -1245,6 +1272,8 @@ function ImagesToVideoPage() {
       if (voUrl) URL.revokeObjectURL(voUrl);
       setVoUrl(url);
       setCaptionsGenerated(false); // require re-generate to match the new audio
+      setTranscribedLines(null);
+      setVoOriginalDuration(null);
       const audio = new Audio(url);
       audio.addEventListener("loadedmetadata", () => {
         setVoDuration(audio.duration);
@@ -1285,10 +1314,56 @@ function ImagesToVideoPage() {
     setSpeechStart(0);
     setSpeechEnd(0);
     setCaptionsGenerated(false);
+    setTranscribedLines(null);
+    setVoOriginalDuration(null);
     voAudioRef.current = null;
   };
 
-  const generateCaptions = () => {
+  /** Analyse the active voiceover, cut out quiet stretches, and swap it in. */
+  const handleRemoveSilences = async () => {
+    if (!voUrl) {
+      toast("Generate or upload a voiceover first");
+      return;
+    }
+    setSilenceProcessing(true);
+    try {
+      const res = await fetch(voUrl);
+      const sourceBlob = await res.blob();
+      const opts: SilenceOptions = {
+        thresholdDb: silenceThresholdDb,
+        minSilenceMs: silenceMinMs,
+        paddingMs: silencePaddingMs,
+      };
+      const result = await removeSilences(sourceBlob, opts);
+      if (result.removedCount === 0) {
+        toast("No silences long enough to trim — try a higher threshold or shorter min length");
+        return;
+      }
+      const newUrl = URL.createObjectURL(result.blob);
+      URL.revokeObjectURL(voUrl);
+      setVoUrl(newUrl);
+      setVoOriginalDuration(result.originalDuration);
+      setVoDuration(result.newDuration);
+      setCaptionsGenerated(false); // timings shifted — re-sync captions
+      setTranscribedLines(null);
+      const audio = new Audio(newUrl);
+      audio.addEventListener("loadedmetadata", () => {
+        setSpeechStart(0);
+        setSpeechEnd(audio.duration);
+      });
+      voAudioRef.current = audio;
+      toast.success(
+        `Removed ${result.removedCount} silence${result.removedCount > 1 ? "s" : ""} — ` +
+          `${result.originalDuration.toFixed(1)}s → ${result.newDuration.toFixed(1)}s`,
+      );
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Silence removal failed");
+    } finally {
+      setSilenceProcessing(false);
+    }
+  };
+
+  const generateCaptions = async () => {
     if (!voUrl || voDuration <= 0) {
       toast("Generate a voiceover first — captions align to it");
       return;
@@ -1297,8 +1372,31 @@ function ImagesToVideoPage() {
       toast("Write a script first");
       return;
     }
-    setCaptionsGenerated(true);
-    toast.success("Captions synced to voiceover");
+    setTranscribing(true);
+    try {
+      const res = await fetch(voUrl);
+      const blob = await res.blob();
+      const result = await transcribeFile(blob, { provider: sttProvider, filename: "voiceover.wav" });
+      if (result.words.length) {
+        const lines = wordsToLines(result.words, { maxWords: captionWords, maxChars: captionWords * 7 });
+        setTranscribedLines(lines);
+        setCaptionsGenerated(true);
+        toast.success(`Captions synced with ${result.words.length} word-accurate timings (${result.provider})`);
+      } else {
+        setTranscribedLines(null);
+        setCaptionsGenerated(true);
+        toast("Transcription gave no word timings — using estimated spacing instead");
+      }
+    } catch (e) {
+      // Fall back to the estimated (script-weight) sync so the feature still works offline.
+      setTranscribedLines(null);
+      setCaptionsGenerated(true);
+      toast.error(
+        (e instanceof Error ? e.message : "Transcription failed") + " — using estimated caption spacing",
+      );
+    } finally {
+      setTranscribing(false);
+    }
   };
 
   // -------- Music --------
@@ -1892,6 +1990,73 @@ function ImagesToVideoPage() {
                     </div>
                     <Slider min={0} max={100} step={1} value={[voVolume]} onValueChange={(v) => setVoVolume(v[0])} />
                   </div>
+                  <div className="space-y-2 rounded-lg border bg-muted/20 p-2">
+                    <div className="flex items-center justify-between">
+                      <Label className="flex items-center gap-1 text-xs">
+                        <Scissors className="h-3 w-3" /> Auto-remove silences
+                      </Label>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={handleRemoveSilences}
+                        disabled={silenceProcessing}
+                      >
+                        {silenceProcessing ? (
+                          <>
+                            <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> Processing…
+                          </>
+                        ) : (
+                          <>
+                            <Scissors className="mr-1 h-3.5 w-3.5" /> Trim silences
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                    <div>
+                      <div className="mb-1 flex justify-between text-[11px] text-muted-foreground">
+                        <span>Threshold</span>
+                        <span>{silenceThresholdDb} dB</span>
+                      </div>
+                      <Slider
+                        min={-60}
+                        max={-15}
+                        step={1}
+                        value={[silenceThresholdDb]}
+                        onValueChange={(v) => setSilenceThresholdDb(v[0])}
+                      />
+                    </div>
+                    <div>
+                      <div className="mb-1 flex justify-between text-[11px] text-muted-foreground">
+                        <span>Min silence length</span>
+                        <span>{silenceMinMs} ms</span>
+                      </div>
+                      <Slider
+                        min={100}
+                        max={2000}
+                        step={50}
+                        value={[silenceMinMs]}
+                        onValueChange={(v) => setSilenceMinMs(v[0])}
+                      />
+                    </div>
+                    <div>
+                      <div className="mb-1 flex justify-between text-[11px] text-muted-foreground">
+                        <span>Padding</span>
+                        <span>{silencePaddingMs} ms</span>
+                      </div>
+                      <Slider
+                        min={0}
+                        max={400}
+                        step={10}
+                        value={[silencePaddingMs]}
+                        onValueChange={(v) => setSilencePaddingMs(v[0])}
+                      />
+                    </div>
+                    {voOriginalDuration != null && (
+                      <p className="text-[11px] text-muted-foreground">
+                        Trimmed {voOriginalDuration.toFixed(1)}s → {voDuration.toFixed(1)}s
+                      </p>
+                    )}
+                  </div>
                 </div>
               )}
             </CardContent>
@@ -1982,15 +2147,41 @@ function ImagesToVideoPage() {
                 Captions are generated <strong>after</strong> your voiceover so they line up
                 exactly with the spoken audio. Regenerate them any time the script or voiceover changes.
               </p>
+              <div>
+                <Label className="mb-1 block text-xs">Transcription method</Label>
+                <Select value={sttProvider} onValueChange={(v) => setSttProvider(v as SttProvider)}>
+                  <SelectTrigger className="h-9">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {STT_PROVIDERS.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>
+                        {p.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  {STT_PROVIDERS.find((p) => p.id === sttProvider)?.note}
+                </p>
+              </div>
               <div className="flex items-center gap-2 rounded-lg border bg-muted/20 p-2">
                 <Button
                   size="sm"
                   onClick={generateCaptions}
-                  disabled={!voUrl || voDuration <= 0 || !script.trim()}
+                  disabled={!voUrl || voDuration <= 0 || !script.trim() || transcribing}
                   className="flex-1"
                 >
-                  <Captions className="mr-1 h-3.5 w-3.5" />
-                  {captionsGenerated ? "Re-sync captions" : "Generate captions"}
+                  {transcribing ? (
+                    <>
+                      <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> Transcribing…
+                    </>
+                  ) : (
+                    <>
+                      <Captions className="mr-1 h-3.5 w-3.5" />
+                      {captionsGenerated ? "Re-sync captions" : "Generate captions"}
+                    </>
+                  )}
                 </Button>
                 <span
                   className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
