@@ -1040,6 +1040,77 @@ function LogoPage() {
               />
               <TimerStylePicker value={timerStyle} onChange={setTimerStyle} />
               <TimeBarStylePicker value={timeBarStyle} onChange={setTimeBarStyle} />
+              <RoundBadgePicker value={roundBadgeId} onChange={setRoundBadgeId} />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Channel logo watermark</CardTitle>
+              <CardDescription>Your channel/brand logo — distinct from the quiz logo being guessed.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-dashed p-2 text-xs text-muted-foreground">
+                <Upload className="h-4 w-4" />
+                {channelLogoUrl ? "Replace channel logo" : "Upload channel logo"}
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) onChannelLogoImage(f);
+                  }}
+                />
+              </label>
+              {channelLogoUrl && (
+                <img src={channelLogoUrl} alt="Channel logo" className="h-16 w-16 rounded-full bg-white object-contain p-1" />
+              )}
+              <label className="flex items-center justify-between gap-2 text-sm">
+                Show watermark <Switch checked={channelLogo.visible} onCheckedChange={(v) => setChannelLogo({ ...channelLogo, visible: v })} />
+              </label>
+              <ChannelLogoControls value={channelLogo} onChange={setChannelLogo} />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Quiz logo image fit</CardTitle>
+              <CardDescription>Zoom, offset, rotate and crop the guessed logo inside its card.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <LogoFitControls value={logoFit} onChange={setLogoFit} />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Side text</CardTitle>
+              <CardDescription>Editable vertical text on the left/right edges.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="space-y-1">
+                <label className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                  Left text <Switch checked={sideText.leftVisible} onCheckedChange={(v) => setSideText((s) => ({ ...s, leftVisible: v }))} />
+                </label>
+                <Input value={sideText.left} onChange={(e) => setSideText((s) => ({ ...s, left: e.target.value }))} />
+              </div>
+              <div className="space-y-1">
+                <label className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                  Right text <Switch checked={sideText.rightVisible} onCheckedChange={(v) => setSideText((s) => ({ ...s, rightVisible: v }))} />
+                </label>
+                <Input value={sideText.right} onChange={(e) => setSideText((s) => ({ ...s, right: e.target.value }))} />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Round transition</CardTitle>
+              <CardDescription>Plays between rounds in both preview and export.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <RoundTransitionControls value={roundTransition} onChange={setRoundTransition} />
             </CardContent>
           </Card>
 

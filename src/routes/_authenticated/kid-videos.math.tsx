@@ -1129,6 +1129,64 @@ function MathPage() {
 
           <Card>
             <CardHeader>
+              <CardTitle className="text-base">Channel logo</CardTitle>
+              <CardDescription>Upload a badge and place it anywhere on the frame.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-dashed p-2 text-xs text-muted-foreground">
+                <Upload className="h-4 w-4" />
+                {logoUrl ? "Replace logo" : "Upload logo"}
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) onLogoFile(f);
+                  }}
+                />
+              </label>
+              {logoUrl && <img src={logoUrl} alt="Channel logo" className="h-16 w-16 rounded object-cover" />}
+              <ChannelLogoControls value={channelLogo} onChange={setChannelLogo} />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Round badge & transitions</CardTitle>
+              <CardDescription>Badge design for the round number, plus the wipe between rounds.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <RoundBadgePicker value={roundBadgeId} onChange={setRoundBadgeId} />
+              <RoundTransitionControls value={roundTransition} onChange={setRoundTransition} />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Side text</CardTitle>
+              <CardDescription>Vertical text running along the left/right edges.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="space-y-1">
+                <label className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                  Left side text
+                  <Switch checked={showLeftSideText} onCheckedChange={setShowLeftSideText} />
+                </label>
+                <Input value={leftSideText} onChange={(e) => setLeftSideText(e.target.value)} />
+              </div>
+              <div className="space-y-1">
+                <label className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                  Right side text
+                  <Switch checked={showRightSideText} onCheckedChange={setShowRightSideText} />
+                </label>
+                <Input value={rightSideText} onChange={(e) => setRightSideText(e.target.value)} />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
               <CardTitle className="text-base">Animations</CardTitle>
               <CardDescription>Entrance and looping motion per element.</CardDescription>
             </CardHeader>
