@@ -11,6 +11,7 @@ import {
   Shuffle,
   ArrowLeft,
   Wand2,
+  Upload,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -63,6 +64,18 @@ import {
   TimeBarStylePicker,
   type TimeBarStyleId,
   type ElementStyleSpec,
+  type ChannelLogoSpec,
+  defaultChannelLogo,
+  drawChannelLogo,
+  ChannelLogoControls,
+  type RoundBadgeId,
+  drawRoundBadge,
+  RoundBadgePicker,
+  type RoundTransitionSpec,
+  defaultRoundTransition,
+  drawRoundTransition,
+  roundTransitionCoverage,
+  RoundTransitionControls,
 } from "@/lib/kid-elements";
 import {
   TTS_PROVIDERS,
@@ -302,6 +315,27 @@ function MathPage() {
   const [timerStyle, setTimerStyle] = useState<TimerStyleId>("ring");
   const [timeBarStyle, setTimeBarStyle] = useState<TimeBarStyleId>("bar");
 
+  const [channelLogo, setChannelLogo] = useState<ChannelLogoSpec>(() => defaultChannelLogo({ corner: "top-right" }));
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [logoImg, setLogoImg] = useState<HTMLImageElement | null>(null);
+  const onLogoFile = (file: File) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => setLogoImg(img);
+    img.src = url;
+    setLogoUrl(url);
+  };
+
+  const [roundBadgeId, setRoundBadgeId] = useState<RoundBadgeId>("star-burst");
+  const [roundTransition, setRoundTransition] = useState<RoundTransitionSpec>(() =>
+    defaultRoundTransition({ id: "wipe-left" }),
+  );
+
+  const [leftSideText, setLeftSideText] = useState("MENTAL MATH • ");
+  const [rightSideText, setRightSideText] = useState("MENTAL MATH • ");
+  const [showLeftSideText, setShowLeftSideText] = useState(true);
+  const [showRightSideText, setShowRightSideText] = useState(true);
+
   const [intro, setIntro] = useState<CardConfig>({ ...defaultIntro, title: "Mental Math" });
   const [outro, setOutro] = useState<CardConfig>({ ...defaultOutro, title: "How many did you get?" });
 
@@ -380,7 +414,7 @@ function MathPage() {
       const revealK = revealing ? ease.out(Math.min(1, (local - guessDur) / 0.45)) : 0;
       const M = Math.min(w, h) * 0.06;
 
-      // ---- star round badge, top-left ----
+      // ---- round number badge, top-left ----
       if (styles.roundNumber?.visible ?? true) {
         const badgeAnim = computeAnim(anims.roundNumber ?? defaultAnim(), local);
         const r0 = Math.min(w, h) * 0.055;
@@ -389,67 +423,43 @@ function MathPage() {
         ctx.save();
         applyStyle(ctx, styles.roundNumber, bx, by, w, h);
         applyAnim(ctx, badgeAnim, bx, by);
-        ctx.beginPath();
-        ctx.arc(bx, by, r0, 0, Math.PI * 2);
-        ctx.fillStyle = hexA("#000000", 0.5);
-        ctx.fill();
-        ctx.strokeStyle = pal.primary;
-        ctx.lineWidth = Math.max(2, r0 * 0.1);
-        ctx.stroke();
-        ctx.fillStyle = "#fde047";
-        ctx.font = `900 ${Math.round(r0 * 0.9)}px ${FX_FONT}`;
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.fillText("★", bx, by - r0 * 0.32);
-        ctx.font = `800 ${Math.round(r0 * 0.5)}px ${FX_FONT}`;
-        ctx.fillStyle = pal.text;
-        ctx.fillText(`${index + 1}`, bx, by + r0 * 0.42);
+        ctx.font = `800 ${Math.round(r0 * 0.85)}px ${FX_FONT}`;
+        drawRoundBadge(
+          ctx,
+          roundBadgeId,
+          `ROUND ${index + 1}`,
+          bx,
+          by,
+          r0 * 0.62,
+          { primary: pal.primary, accent: pal.accent, text: pal.text },
+          { t: absT },
+        );
         ctx.restore();
       }
 
-      // ---- lightning difficulty badge, top-right ----
-      if (styles.roundNumber?.visible ?? true) {
-        const badgeAnim = computeAnim(anims.roundNumber ?? defaultAnim(), local);
-        const r0 = Math.min(w, h) * 0.055;
-        const bx = w - M - r0;
-        const by = M + r0;
-        const diffColor = DIFFICULTIES.find((d) => d.id === r.difficulty)?.color ?? pal.accent;
-        ctx.save();
-        applyStyle(ctx, styles.roundNumber, bx, by, w, h);
-        applyAnim(ctx, badgeAnim, bx, by);
-        ctx.beginPath();
-        ctx.arc(bx, by, r0, 0, Math.PI * 2);
-        ctx.fillStyle = hexA("#000000", 0.5);
-        ctx.fill();
-        ctx.strokeStyle = diffColor;
-        ctx.lineWidth = Math.max(2, r0 * 0.1);
-        ctx.stroke();
-        ctx.fillStyle = "#facc15";
-        ctx.font = `900 ${Math.round(r0 * 0.9)}px ${FX_FONT}`;
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.fillText("⚡", bx, by);
-        ctx.restore();
-      }
+      // ---- channel logo, positioned via its own corner/offset controls ----
+      drawChannelLogo(ctx, logoImg, channelLogo, w, h, absT);
 
       // ---- vertical side text ----
-      if (styles.footer?.visible ?? true) {
-        const sideAnim = computeAnim(anims.footer ?? defaultAnim(), local);
-        const label = "MENTAL MATH • ";
-        [M * 0.4, w - M * 0.4].forEach((x, i) => {
-          ctx.save();
-          applyStyle(ctx, styles.footer, x, h / 2, w, h);
-          applyAnim(ctx, sideAnim, x, h / 2);
-          ctx.translate(x, h / 2);
-          ctx.rotate(i === 0 ? -Math.PI / 2 : Math.PI / 2);
-          ctx.font = `700 ${Math.round(Math.min(w, h) * 0.018)}px ${FX_FONT}`;
-          ctx.fillStyle = hexA(pal.text, 0.35);
-          ctx.textAlign = "center";
-          ctx.textBaseline = "middle";
-          ctx.fillText(label.repeat(3), 0, 0);
-          ctx.restore();
-        });
-      }
+      const sideAnim = computeAnim(anims.footer ?? defaultAnim(), local);
+      const sideVisible = styles.footer?.visible ?? true;
+      [
+        { x: M * 0.4, rot: -Math.PI / 2, show: showLeftSideText, label: leftSideText },
+        { x: w - M * 0.4, rot: Math.PI / 2, show: showRightSideText, label: rightSideText },
+      ].forEach(({ x, rot, show, label }) => {
+        if (!sideVisible || !show || !label.trim()) return;
+        ctx.save();
+        applyStyle(ctx, styles.footer, x, h / 2, w, h);
+        applyAnim(ctx, sideAnim, x, h / 2);
+        ctx.translate(x, h / 2);
+        ctx.rotate(rot);
+        ctx.font = `700 ${Math.round(Math.min(w, h) * 0.018)}px ${FX_FONT}`;
+        ctx.fillStyle = hexA(pal.text, 0.35);
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(label.repeat(3), 0, 0);
+        ctx.restore();
+      });
 
       // ---- title + level pill ----
       if (styles.title?.visible ?? true) {
@@ -600,8 +610,8 @@ function MathPage() {
         ctx.restore();
       });
 
-      // ---- countdown timer ----
-      if (showTimer && (styles.timer?.visible ?? true)) {
+      // ---- countdown timer (guessing phase only) ----
+      if (showTimer && !revealing && (styles.timer?.visible ?? true)) {
         const timerAnim = computeAnim(anims.timer ?? defaultAnim(), local);
         const remaining = Math.max(0, guessDur - local);
         const tr = Math.min(w, h) * 0.05;
@@ -618,8 +628,8 @@ function MathPage() {
         ctx.restore();
       }
 
-      // ---- bottom time bar ----
-      if (showTimer && (styles.timebar?.visible ?? true)) {
+      // ---- bottom time bar (guessing phase only) ----
+      if (showTimer && !revealing && (styles.timebar?.visible ?? true)) {
         const timebarAnim = computeAnim(anims.timebar ?? defaultAnim(), local);
         const barW = w - M * 2.4;
         const barH = Math.min(w, h) * 0.022;
@@ -642,7 +652,26 @@ function MathPage() {
         ctx.restore();
       }
     },
-    [aspect, anims, styles, backgroundId, backgroundIntensity, timerStyle, timeBarStyle, heading, pal, revealSecs, showTimer],
+    [
+      aspect,
+      anims,
+      styles,
+      backgroundId,
+      backgroundIntensity,
+      timerStyle,
+      timeBarStyle,
+      heading,
+      pal,
+      revealSecs,
+      showTimer,
+      roundBadgeId,
+      channelLogo,
+      logoImg,
+      leftSideText,
+      rightSideText,
+      showLeftSideText,
+      showRightSideText,
+    ],
   );
 
   const drawFrame = useCallback(

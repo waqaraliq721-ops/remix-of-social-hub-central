@@ -462,7 +462,7 @@ function WyrPage() {
 
       // heading
       const titleStyle = styles.title ?? defaultStyle();
-      if (heading && titleStyle.visible) {
+      if (heading && showHeading && titleStyle.visible) {
         const titleAnim = computeAnim(anims.title ?? defaultAnim(), local);
         ctx.save();
         applyStyle(ctx, titleStyle, w / 2, h * 0.045, w, h);
@@ -532,7 +532,8 @@ function WyrPage() {
         const barH = Math.max(6, h * 0.012);
         const barX = (w - barW) / 2;
         const barY = h - barH * 2.4;
-        const frac2 = Math.max(0, Math.min(1, 1 - local / Math.max(0.01, dur)));
+        const guessDur2 = Math.min(timerSecs, dur);
+        const frac2 = Math.max(0, Math.min(1, 1 - local / Math.max(0.01, guessDur2)));
         const timebarAnim = computeAnim(anims.timebar ?? defaultAnim(), local);
         ctx.save();
         applyStyle(ctx, timebarStyleSpec, barX + barW / 2, barY + barH / 2, w, h);
@@ -550,13 +551,20 @@ function WyrPage() {
         ctx.save();
         applyStyle(ctx, roundNoStyle, rcx, rcy, w, h);
         applyAnim(ctx, roundAnim, rcx, rcy);
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.font = `800 ${Math.round(Math.min(w, h) * 0.03)}px ${FX_FONT}`;
-        ctx.fillStyle = "rgba(255,255,255,0.85)";
-        ctx.fillText(`#${roundIndex + 1}`, rcx, rcy);
+        drawRoundBadge(
+          ctx,
+          roundBadgeStyle,
+          `#${roundIndex + 1}`,
+          rcx,
+          rcy,
+          Math.min(w, h) * 0.024,
+          { primary: colors.a, accent: colors.b, text: "#ffffff" },
+        );
         ctx.restore();
       }
+
+      // channel logo
+      drawChannelLogo(ctx, channelLogoImg, channelLogo, w, h, local);
 
       // percentage reveal in the last second
       if (showPct && local > dur - 1.2) {
@@ -590,6 +598,7 @@ function WyrPage() {
       aspect,
       colors,
       heading,
+      showHeading,
       showPct,
       showTimer,
       showVs,
@@ -602,6 +611,9 @@ function WyrPage() {
       styles,
       timerStyle,
       timebarStyle,
+      roundBadgeStyle,
+      channelLogo,
+      channelLogoImg,
     ],
   );
 
@@ -634,54 +646,51 @@ function WyrPage() {
       const intro01 = ease.out(Math.min(1, local / 0.45));
       const M = h * 0.06;
 
-      // side text
-      ctx.save();
-      ctx.font = `900 ${Math.round(h * 0.03)}px ${FX_FONT}`;
-      ctx.fillStyle = "rgba(255,255,255,0.35)";
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.save();
-      ctx.translate(M * 0.55, h / 2);
-      ctx.rotate(-Math.PI / 2);
-      ctx.fillText("QUIZ BLITZ", 0, 0);
-      ctx.restore();
-      ctx.save();
-      ctx.translate(w - M * 0.55, h / 2);
-      ctx.rotate(Math.PI / 2);
-      ctx.fillText("QUIZ BLITZ", 0, 0);
-      ctx.restore();
-      ctx.restore();
+      // side text (editable)
+      if (showSideLabel && sideLabel) {
+        ctx.save();
+        ctx.font = `900 ${Math.round(h * 0.03)}px ${FX_FONT}`;
+        ctx.fillStyle = "rgba(255,255,255,0.35)";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.save();
+        ctx.translate(M * 0.55, h / 2);
+        ctx.rotate(-Math.PI / 2);
+        ctx.fillText(sideLabel.toUpperCase(), 0, 0);
+        ctx.restore();
+        ctx.save();
+        ctx.translate(w - M * 0.55, h / 2);
+        ctx.rotate(Math.PI / 2);
+        ctx.fillText(sideLabel.toUpperCase(), 0, 0);
+        ctx.restore();
+        ctx.restore();
+      }
 
-      // round badge top-left, lightning top-right
-      const roundAnim = computeAnim(anims.roundNo ?? defaultAnim(), local);
-      ctx.save();
-      applyAnim(ctx, roundAnim, M + h * 0.05, M + h * 0.05);
-      ctx.beginPath();
-      ctx.arc(M + h * 0.05, M + h * 0.05, h * 0.045, 0, Math.PI * 2);
-      ctx.fillStyle = "#fbbf24";
-      ctx.fill();
-      ctx.fillStyle = "#1e0b4e";
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.font = `900 ${Math.round(h * 0.035)}px ${FX_FONT}`;
-      ctx.fillText("★", M + h * 0.05, M + h * 0.05);
-      ctx.restore();
+      // round badge top-left
+      const roundNoStyleHQ = styles.roundNo ?? defaultStyle();
+      if (roundNoStyleHQ.visible) {
+        const roundAnim = computeAnim(anims.roundNo ?? defaultAnim(), local);
+        ctx.save();
+        applyStyle(ctx, roundNoStyleHQ, M + h * 0.05, M + h * 0.05, w, h);
+        applyAnim(ctx, roundAnim, M + h * 0.05, M + h * 0.05);
+        drawRoundBadge(
+          ctx,
+          roundBadgeStyle,
+          `#${roundIndex + 1}`,
+          M + h * 0.05,
+          M + h * 0.05,
+          h * 0.032,
+          { primary: colors.a, accent: colors.b, text: "#ffffff" },
+        );
+        ctx.restore();
+      }
 
-      const badgeAnim = computeAnim(anims.badge ?? defaultAnim(), local);
-      ctx.save();
-      applyAnim(ctx, badgeAnim, w - M - h * 0.05, M + h * 0.05);
-      ctx.beginPath();
-      ctx.arc(w - M - h * 0.05, M + h * 0.05, h * 0.045, 0, Math.PI * 2);
-      ctx.fillStyle = "#34d399";
-      ctx.fill();
-      ctx.fillStyle = "#0b0a2e";
-      ctx.font = `900 ${Math.round(h * 0.04)}px ${FX_FONT}`;
-      ctx.fillText("⚡", w - M - h * 0.05, M + h * 0.05);
-      ctx.restore();
+      // channel logo, top-right
+      drawChannelLogo(ctx, channelLogoImg, channelLogo, w, h, local);
 
       // title
       const titleStyleHQ = styles.title ?? defaultStyle();
-      if (heading && titleStyleHQ.visible) {
+      if (heading && showHeading && titleStyleHQ.visible) {
         const titleAnim = computeAnim(anims.title ?? defaultAnim(), local);
         ctx.save();
         applyStyle(ctx, titleStyleHQ, w / 2, M + h * 0.02, w, h);
@@ -810,7 +819,8 @@ function WyrPage() {
       const barW = w - M * 2.6;
       const barH = h * 0.02;
       const barY = h - M * 0.32;
-      const frac = Math.max(0, Math.min(1, 1 - local / Math.max(0.01, dur)));
+      const guessDurHQ = Math.min(timerSecs, dur);
+      const frac = Math.max(0, Math.min(1, 1 - local / Math.max(0.01, guessDurHQ)));
       if (timebarStyleHQ.visible) {
         const timebarAnim = computeAnim(anims.timebar ?? defaultAnim(), local);
         ctx.save();
@@ -820,7 +830,27 @@ function WyrPage() {
         ctx.restore();
       }
     },
-    [anims, colors, heading, showTimer, showVs, timerSecs, uppercase, zoom, styles, background, bgIntensity, timerStyle, timebarStyle],
+    [
+      anims,
+      colors,
+      heading,
+      showHeading,
+      showTimer,
+      showVs,
+      timerSecs,
+      uppercase,
+      zoom,
+      styles,
+      background,
+      bgIntensity,
+      timerStyle,
+      timebarStyle,
+      roundBadgeStyle,
+      channelLogo,
+      channelLogoImg,
+      sideLabel,
+      showSideLabel,
+    ],
   );
 
   const drawFrame = useCallback(
@@ -855,17 +885,35 @@ function WyrPage() {
         });
         return;
       }
-      const seg =
-        timeline.segs.find((s) => t >= s.start && t < s.start + s.dur) ??
-        timeline.segs[timeline.segs.length - 1];
+      const idx = timeline.segs.findIndex((s) => t >= s.start && t < s.start + s.dur);
+      const seg = idx >= 0 ? timeline.segs[idx] : timeline.segs[timeline.segs.length - 1];
       if (!seg) return;
+
+      // round-to-round transition overlay
+      let renderSeg = seg;
+      let inTransition = false;
+      let transProgress = 0;
+      const half = roundTransition.duration / 2;
+      if (idx > 0) {
+        const boundary = seg.start;
+        if (t < boundary + half) {
+          inTransition = true;
+          transProgress = Math.max(0, Math.min(1, (t - (boundary - half)) / roundTransition.duration));
+          if (transProgress < 0.5) renderSeg = timeline.segs[idx - 1];
+        }
+      }
+      const localT = Math.max(0, t - renderSeg.start);
+
       if (aspect === "16:9-hq") {
-        drawRoundHQ(ctx, w, h, seg.round, Math.max(0, t - seg.start), seg.dur, t, seg.index);
+        drawRoundHQ(ctx, w, h, renderSeg.round, localT, renderSeg.dur, t, renderSeg.index);
       } else {
-        drawRound(ctx, w, h, seg.round, Math.max(0, t - seg.start), seg.dur, seg.index);
+        drawRound(ctx, w, h, renderSeg.round, localT, renderSeg.dur, renderSeg.index);
+      }
+      if (inTransition) {
+        drawRoundTransition(ctx, roundTransition, transProgress, w, h);
       }
     },
-    [aspect, dims, drawRound, drawRoundHQ, intro, outro, timeline],
+    [aspect, dims, drawRound, drawRoundHQ, intro, outro, timeline, roundTransition],
   );
 
   // preview loop
@@ -1216,8 +1264,18 @@ function WyrPage() {
                 </Select>
               </div>
               <div>
-                <Label className="text-xs text-muted-foreground">Heading</Label>
-                <Input value={heading} onChange={(e) => setHeading(e.target.value)} />
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs text-muted-foreground">Heading</Label>
+                  <Switch checked={showHeading} onCheckedChange={setShowHeading} />
+                </div>
+                <Input value={heading} onChange={(e) => setHeading(e.target.value)} disabled={!showHeading} />
+              </div>
+              <div>
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs text-muted-foreground">Side label (16:9 HQ)</Label>
+                  <Switch checked={showSideLabel} onCheckedChange={setShowSideLabel} />
+                </div>
+                <Input value={sideLabel} onChange={(e) => setSideLabel(e.target.value)} disabled={!showSideLabel} />
               </div>
               <div>
                 <Label className="text-xs text-muted-foreground">Countdown · {timerSecs}s</Label>
@@ -1321,6 +1379,43 @@ function WyrPage() {
               />
               <TimerStylePicker value={timerStyle} onChange={setTimerStyle} />
               <TimeBarStylePicker value={timebarStyle} onChange={setTimebarStyle} />
+              <RoundBadgePicker value={roundBadgeStyle} onChange={setRoundBadgeStyle} />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Channel logo</CardTitle>
+              <CardDescription>Upload a badge that stays on screen every round.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-dashed p-2 text-xs text-muted-foreground">
+                <Upload className="h-4 w-4" />
+                {channelLogoUrl ? "Replace logo" : "Upload logo"}
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) onChannelLogo(f);
+                  }}
+                />
+              </label>
+              {channelLogoUrl && (
+                <img src={channelLogoUrl} alt="Channel logo" className="h-16 w-16 rounded-full border object-cover" />
+              )}
+              <ChannelLogoControls value={channelLogo} onChange={setChannelLogo} />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Round transition</CardTitle>
+              <CardDescription>Plays between every round, in preview and export.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <RoundTransitionControls value={roundTransition} onChange={setRoundTransition} />
             </CardContent>
           </Card>
 
