@@ -488,13 +488,29 @@ function LogoPage() {
         roundRect(ctx, cx - cardW / 2, cy - cardH / 2, cardW, cardH, cardH * 0.12);
         ctx.clip();
         if (r.img) {
-          const pad = cardW * 0.14;
+          const pad = logoFit.fit === "stretch" ? 0 : cardW * 0.08;
           const iw = r.img.naturalWidth;
           const ih = r.img.naturalHeight;
-          const ratio = Math.min((cardW - pad * 2) / iw, (cardH - pad * 2) / ih);
-          const dw = iw * ratio;
-          const dh = ih * ratio;
-          ctx.drawImage(r.img, cx - dw / 2, cy - dh / 2, dw, dh);
+          const boxW = cardW - pad * 2;
+          const boxH = cardH - pad * 2;
+          let dw: number;
+          let dh: number;
+          if (logoFit.fit === "fill" || logoFit.fit === "stretch") {
+            dw = boxW;
+            dh = boxH;
+          } else {
+            const ratio =
+              logoFit.fit === "cover" ? Math.max(boxW / iw, boxH / ih) : Math.min(boxW / iw, boxH / ih);
+            dw = iw * ratio;
+            dh = ih * ratio;
+          }
+          dw *= logoFit.scale;
+          dh *= logoFit.scale;
+          ctx.save();
+          ctx.translate(cx + (logoFit.ox / 100) * cardW, cy + (logoFit.oy / 100) * cardH);
+          ctx.rotate((logoFit.rotate * Math.PI) / 180);
+          ctx.drawImage(r.img, -dw / 2, -dh / 2, dw, dh);
+          ctx.restore();
         } else {
           ctx.fillStyle = "#94a3b8";
           ctx.font = `800 ${Math.round(cardW * 0.12)}px ${FX_FONT}`;
@@ -566,7 +582,7 @@ function LogoPage() {
       const barW = w - M * 2.4;
       const barH = Math.min(w, h) * 0.022;
       const barY = h - M * 0.9;
-      if (showTimer && (styles.timebar?.visible ?? true)) {
+      if (showTimer && !revealing && (styles.timebar?.visible ?? true)) {
         const timebarAnim = computeAnim(anims.timebar ?? defaultAnim(), local);
         const frac = Math.max(0, Math.min(1, local / Math.max(0.01, guessDur)));
         ctx.save();
@@ -587,7 +603,7 @@ function LogoPage() {
       }
 
       // ---- countdown timer ----
-      if (showTimer && (styles.timer?.visible ?? true)) {
+      if (showTimer && !revealing && (styles.timer?.visible ?? true)) {
         const timerAnim = computeAnim(anims.timer ?? defaultAnim(), local);
         const remaining = Math.max(0, guessDur - local);
         const tr = Math.min(w, h) * 0.045;

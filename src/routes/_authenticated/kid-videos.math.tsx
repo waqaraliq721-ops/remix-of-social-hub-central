@@ -712,8 +712,21 @@ function MathPage() {
         timeline.segs[timeline.segs.length - 1];
       if (!seg) return;
       drawRound(ctx, w, h, seg.round, seg.index, Math.max(0, t - seg.start), seg.dur, t);
+
+      // ---- round-to-round transition overlay ----
+      const trDur = Math.max(0.05, roundTransition.duration);
+      for (let i = 1; i < timeline.segs.length; i++) {
+        const boundary = timeline.segs[i].start;
+        const startT = boundary - trDur / 2;
+        const endT = boundary + trDur / 2;
+        if (t >= startT && t <= endT) {
+          const p = (t - startT) / trDur;
+          drawRoundTransition(ctx, roundTransition, p, w, h);
+          break;
+        }
+      }
     },
-    [dims, drawRound, intro, outro, timeline],
+    [dims, drawRound, intro, outro, timeline, roundTransition],
   );
 
   // preview loop
