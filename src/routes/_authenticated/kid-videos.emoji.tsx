@@ -71,6 +71,18 @@ import {
   drawTimeBar,
   TimeBarStylePicker,
   type TimeBarStyleId,
+  type ChannelLogoSpec,
+  defaultChannelLogo,
+  drawChannelLogo,
+  ChannelLogoControls,
+  type RoundBadgeId,
+  drawRoundBadge,
+  RoundBadgePicker,
+  type RoundTransitionSpec,
+  defaultRoundTransition,
+  drawRoundTransition,
+  roundTransitionCoverage,
+  RoundTransitionControls,
 } from "@/lib/kid-elements";
 
 export const Route = createFileRoute("/_authenticated/kid-videos/emoji")({
@@ -284,6 +296,15 @@ function EmojiPage() {
   const [bgIntensity, setBgIntensity] = useState(1);
   const [timerStyle, setTimerStyle] = useState<TimerStyleId>("ring");
   const [timebarStyle, setTimebarStyle] = useState<TimeBarStyleId>("thin");
+  const [emojiGap, setEmojiGap] = useState(1);
+  const [emojiLineHeight, setEmojiLineHeight] = useState(1);
+
+  const [channelLogo, setChannelLogo] = useState<ChannelLogoSpec>(defaultChannelLogo());
+  const [channelLogoUrl, setChannelLogoUrl] = useState<string | null>(null);
+  const channelLogoImgRef = useRef<HTMLImageElement | null>(null);
+
+  const [roundBadgeId, setRoundBadgeId] = useState<RoundBadgeId>("pill");
+  const [roundTransition, setRoundTransition] = useState<RoundTransitionSpec>(defaultRoundTransition());
 
   const [provider, setProvider] = useState<TtsProvider>("elevenlabs");
   const [voice, setVoice] = useState(TTS_VOICES.elevenlabs[0].id);
@@ -304,6 +325,25 @@ function EmojiPage() {
   const lastRef = useRef(0);
   const audioElRef = useRef<HTMLAudioElement | null>(null);
   const playedRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (!channelLogoUrl) {
+      channelLogoImgRef.current = null;
+      return;
+    }
+    const img = new Image();
+    img.onload = () => {
+      channelLogoImgRef.current = img;
+    };
+    img.src = channelLogoUrl;
+  }, [channelLogoUrl]);
+
+  const onChannelLogoFile = (file: File | null) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => setChannelLogoUrl(String(reader.result));
+    reader.readAsDataURL(file);
+  };
 
   const dims = ASPECTS[aspect];
   const basePalette = PALETTES.find((p) => p.id === paletteId) ?? PALETTES[0];
@@ -458,36 +498,49 @@ function EmojiPage() {
         ctx.restore();
       }
 
-      // ---- round number / category chips ----
+      // ---- round number badge / category chip ----
       const chipY = by + hs * 1.9;
-      const chips: { label: string; color: string }[] = [];
-      if (showRoundNo) chips.push({ label: `Round ${index + 1}`, color: pal.primary });
-      if (showCategory && r.category.trim()) chips.push({ label: r.category, color: pal.accent });
       const roundNoStyleSpec = styles.roundNo ?? defaultStyle();
-      if (chips.length && roundNoStyleSpec.visible) {
+      const cs = Math.round(hs * 0.5);
+      const hasCategory = showCategory && r.category.trim().length > 0;
+      if (showRoundNo && roundNoStyleSpec.visible) {
         const roundAnim = computeAnim(anims.roundNo ?? defaultAnim(), local);
+        const badgeY = hasCategory ? chipY - cs * 0.9 : chipY;
         ctx.save();
-        applyStyle(ctx, roundNoStyleSpec, w / 2, chipY, w, h);
-        applyAnim(ctx, roundAnim, w / 2, chipY);
+        applyStyle(ctx, roundNoStyleSpec, w / 2, badgeY, w, h);
+        applyAnim(ctx, roundAnim, w / 2, badgeY);
+        ctx.globalAlpha *= inK;
+        ctx.font = `800 ${cs}px system-ui, sans-serif`;
+        drawRoundBadge(
+          ctx,
+          roundBadgeId,
+          `ROUND ${index + 1}`,
+          w / 2,
+          badgeY,
+          cs,
+          { primary: pal.primary, accent: pal.accent, text: pal.text },
+          { t: absT },
+        );
+        ctx.restore();
+      }
+      if (hasCategory) {
+        const catY = showRoundNo && roundNoStyleSpec.visible ? chipY + cs * 1.1 : chipY;
+        ctx.save();
         ctx.textAlign = "left";
         ctx.textBaseline = "middle";
-        const cs = Math.round(hs * 0.5);
         ctx.font = `800 ${cs}px ${FX_FONT}`;
-        const widths = chips.map((c) => ctx.measureText(c.label.toUpperCase()).width + cs * 1.6);
-        const gap = cs * 0.6;
-        let x = w / 2 - (widths.reduce((a, b) => a + b, 0) + gap * (chips.length - 1)) / 2;
+        const label = r.category.toUpperCase();
+        const wch = ctx.measureText(label).width + cs * 1.6;
+        const x = w / 2 - wch / 2;
         ctx.globalAlpha *= inK;
-        chips.forEach((c, i) => {
-          ctx.fillStyle = hexA(c.color, 0.18);
-          roundRect(ctx, x, chipY - cs, widths[i], cs * 2, cs);
-          ctx.fill();
-          ctx.strokeStyle = hexA(c.color, 0.7);
-          ctx.lineWidth = Math.max(1.5, cs * 0.08);
-          ctx.stroke();
-          ctx.fillStyle = c.color;
-          ctx.fillText(c.label.toUpperCase(), x + cs * 0.8, chipY + cs * 0.04);
-          x += widths[i] + gap;
-        });
+        ctx.fillStyle = hexA(pal.accent, 0.18);
+        roundRect(ctx, x, catY - cs, wch, cs * 2, cs);
+        ctx.fill();
+        ctx.strokeStyle = hexA(pal.accent, 0.7);
+        ctx.lineWidth = Math.max(1.5, cs * 0.08);
+        ctx.stroke();
+        ctx.fillStyle = pal.accent;
+        ctx.fillText(label, x + cs * 0.8, catY + cs * 0.04);
         ctx.restore();
       }
 
@@ -544,12 +597,12 @@ function EmojiPage() {
         ctx.textBaseline = "middle";
         ctx.font = `${Math.round(size)}px ${EMOJI_FONT}`;
         rows.forEach((row, ri) => {
-          const rowY = cyCard + (ri - (rows.length - 1) / 2) * maxCell * 1.02;
+          const rowY = cyCard + (ri - (rows.length - 1) / 2) * maxCell * 1.02 * emojiLineHeight;
           row.forEach((e, i) => {
             const idx = ri * perRow + i;
             const pop = ease.back(Math.max(0, Math.min(1, (local - 0.12 * idx) / 0.45)));
             const wobble = Math.sin(absT * 2 + idx * 1.2) * 0.02 * bounce;
-            const x = cx + (i - (row.length - 1) / 2) * maxCell * 1.02;
+            const x = cx + (i - (row.length - 1) / 2) * maxCell * 1.02 * emojiGap;
             ctx.save();
             ctx.translate(x, rowY);
             ctx.scale(pop * (1 + wobble), pop * (1 - wobble));
@@ -605,9 +658,9 @@ function EmojiPage() {
         ctx.restore();
       }
 
-      // ---- time bar ----
+      // ---- time bar (guessing phase only) ----
       const timebarStyleSpec = styles.timebar ?? defaultStyle();
-      if (timebarStyleSpec.visible) {
+      if (timebarStyleSpec.visible && !revealing) {
         const barW = w - M * 2;
         const barH = Math.max(6, h * 0.012);
         const barX = M;
@@ -671,17 +724,24 @@ function EmojiPage() {
         lines.forEach((line, i) => ctx.fillText(line, w / 2, startY + i * asz * 1.05));
         ctx.restore();
       }
+
+      // ---- channel logo (always on top) ----
+      drawChannelLogo(ctx, channelLogoImgRef.current, channelLogo, w, h, absT);
     },
     [
       anims,
       aspect,
       bounce,
+      channelLogo,
       drawBackground,
       drawConfetti,
+      emojiGap,
+      emojiLineHeight,
       emojiScale,
       heading,
       pal,
       revealSecs,
+      roundBadgeId,
       showCategory,
       showHint,
       showRoundNo,
@@ -727,13 +787,28 @@ function EmojiPage() {
         });
         return;
       }
+      // ---- round-to-round transition overlay ----
+      const half = roundTransition.duration / 2;
+      for (let i = 0; i < timeline.segs.length - 1; i++) {
+        const boundary = timeline.segs[i + 1].start;
+        if (t >= boundary - half && t <= boundary + half) {
+          const progress = (t - (boundary - half)) / Math.max(0.01, roundTransition.duration);
+          const cov = roundTransitionCoverage(roundTransition, progress);
+          const activeSeg = cov < 1 && progress < 0.5 ? timeline.segs[i] : timeline.segs[i + 1];
+          const local = Math.max(0, Math.min(activeSeg.dur, t - activeSeg.start));
+          drawRound(ctx, w, h, activeSeg.round, activeSeg.index, local, activeSeg.dur, t);
+          drawRoundTransition(ctx, roundTransition, progress, w, h);
+          return;
+        }
+      }
+
       const seg =
         timeline.segs.find((s) => t >= s.start && t < s.start + s.dur) ??
         timeline.segs[timeline.segs.length - 1];
       if (!seg) return;
       drawRound(ctx, w, h, seg.round, seg.index, Math.max(0, t - seg.start), seg.dur, t);
     },
-    [dims, drawRound, intro, outro, timeline],
+    [dims, drawRound, intro, outro, timeline, roundTransition],
   );
 
   // preview loop
@@ -1140,6 +1215,30 @@ function EmojiPage() {
                   onValueChange={([v]) => setBounce(v)}
                 />
               </div>
+              <div>
+                <Label className="text-xs text-muted-foreground">
+                  Emoji spacing · {Math.round(emojiGap * 100)}%
+                </Label>
+                <Slider
+                  value={[emojiGap]}
+                  min={0.6}
+                  max={1.8}
+                  step={0.02}
+                  onValueChange={([v]) => setEmojiGap(v)}
+                />
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground">
+                  Emoji line height · {Math.round(emojiLineHeight * 100)}%
+                </Label>
+                <Slider
+                  value={[emojiLineHeight]}
+                  min={0.6}
+                  max={1.8}
+                  step={0.02}
+                  onValueChange={([v]) => setEmojiLineHeight(v)}
+                />
+              </div>
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <label className="flex items-center justify-between gap-2">
                   Timer <Switch checked={showTimer} onCheckedChange={setShowTimer} />
@@ -1244,10 +1343,61 @@ function EmojiPage() {
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Timer & bar</CardTitle>
+              <CardDescription>The progress bar only runs during the guessing phase.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
               <TimerStylePicker value={timerStyle} onChange={setTimerStyle} />
               <TimeBarStylePicker value={timebarStyle} onChange={setTimebarStyle} />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Round badge</CardTitle>
+              <CardDescription>Pick how the round number is displayed.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <RoundBadgePicker value={roundBadgeId} onChange={setRoundBadgeId} />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Round transition</CardTitle>
+              <CardDescription>Plays between rounds, in both preview and export.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <RoundTransitionControls value={roundTransition} onChange={setRoundTransition} />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Channel logo</CardTitle>
+              <CardDescription>Upload a badge/logo shown on the frame.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex items-center gap-3">
+                {channelLogoUrl && (
+                  <img
+                    src={channelLogoUrl}
+                    alt="Channel logo preview"
+                    className="h-10 w-10 rounded-full border object-cover"
+                  />
+                )}
+                <Input
+                  type="file"
+                  accept="image/*"
+                  className="text-xs"
+                  onChange={(e) => onChannelLogoFile(e.target.files?.[0] ?? null)}
+                />
+                {channelLogoUrl && (
+                  <Button variant="ghost" size="sm" onClick={() => setChannelLogoUrl(null)}>
+                    Remove
+                  </Button>
+                )}
+              </div>
+              <ChannelLogoControls value={channelLogo} onChange={setChannelLogo} />
             </CardContent>
           </Card>
 

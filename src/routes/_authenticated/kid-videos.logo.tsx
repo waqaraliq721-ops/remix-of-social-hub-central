@@ -63,6 +63,18 @@ import {
   TimeBarStylePicker,
   type TimeBarStyleId,
   type ElementStyleSpec,
+  type ChannelLogoSpec,
+  defaultChannelLogo,
+  drawChannelLogo,
+  ChannelLogoControls,
+  type RoundBadgeId,
+  drawRoundBadge,
+  RoundBadgePicker,
+  type RoundTransitionSpec,
+  defaultRoundTransition,
+  drawRoundTransition,
+  roundTransitionCoverage,
+  RoundTransitionControls,
 } from "@/lib/kid-elements";
 import {
   TTS_PROVIDERS,
@@ -185,6 +197,66 @@ function emptyRound(): Round {
   return { id: uid(), imgUrl: null, img: null, answer: "", duration: 6, script: "", voUrl: null, voBlob: null, voDur: 0 };
 }
 
+type LogoFitMode = "contain" | "cover" | "fill" | "stretch";
+
+type LogoFitSpec = {
+  fit: LogoFitMode;
+  scale: number;
+  ox: number;
+  oy: number;
+  rotate: number;
+};
+
+function defaultLogoFit(): LogoFitSpec {
+  return { fit: "contain", scale: 1, ox: 0, oy: 0, rotate: 0 };
+}
+
+const LOGO_FIT_MODES: { id: LogoFitMode; name: string }[] = [
+  { id: "contain", name: "Contain (fit inside)" },
+  { id: "cover", name: "Cover (crop to fill)" },
+  { id: "fill", name: "Fill (stretch to box)" },
+  { id: "stretch", name: "Stretch (edge to edge)" },
+];
+
+function LogoFitControls({ value, onChange }: { value: LogoFitSpec; onChange: (next: LogoFitSpec) => void }) {
+  const set = (patch: Partial<LogoFitSpec>) => onChange({ ...value, ...patch });
+  return (
+    <div className="space-y-2">
+      <div>
+        <Label className="text-[11px] text-muted-foreground">Fit mode</Label>
+        <Select value={value.fit} onValueChange={(v) => set({ fit: v as LogoFitMode })}>
+          <SelectTrigger className="h-8 text-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {LOGO_FIT_MODES.map((o) => (
+              <SelectItem key={o.id} value={o.id}>
+                {o.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <div>
+        <Label className="text-[11px] text-muted-foreground">Zoom · {value.scale.toFixed(2)}x</Label>
+        <Slider value={[value.scale]} min={0.3} max={3} step={0.05} onValueChange={([v]) => set({ scale: v })} />
+      </div>
+      <div>
+        <Label className="text-[11px] text-muted-foreground">X offset · {value.ox.toFixed(0)}%</Label>
+        <Slider value={[value.ox]} min={-50} max={50} step={1} onValueChange={([v]) => set({ ox: v })} />
+      </div>
+      <div>
+        <Label className="text-[11px] text-muted-foreground">Y offset · {value.oy.toFixed(0)}%</Label>
+        <Slider value={[value.oy]} min={-50} max={50} step={1} onValueChange={([v]) => set({ oy: v })} />
+      </div>
+      <div>
+        <Label className="text-[11px] text-muted-foreground">Rotation · {value.rotate.toFixed(0)}°</Label>
+        <Slider value={[value.rotate]} min={-45} max={45} step={1} onValueChange={([v]) => set({ rotate: v })} />
+      </div>
+    </div>
+  );
+}
+
 function LogoPage() {
   const [aspect, setAspect] = useState<AspectKey>("16:9");
   const [paletteId, setPaletteId] = useState(PALETTES[0].id);
@@ -203,6 +275,18 @@ function LogoPage() {
   const [backgroundIntensity, setBackgroundIntensity] = useState(1);
   const [timerStyle, setTimerStyle] = useState<TimerStyleId>("ring");
   const [timeBarStyle, setTimeBarStyle] = useState<TimeBarStyleId>("bar");
+  const [channelLogo, setChannelLogo] = useState<ChannelLogoSpec>(defaultChannelLogo());
+  const [channelLogoImg, setChannelLogoImg] = useState<HTMLImageElement | null>(null);
+  const [channelLogoUrl, setChannelLogoUrl] = useState<string | null>(null);
+  const [roundBadgeId, setRoundBadgeId] = useState<RoundBadgeId>("circle-stroke");
+  const [logoFit, setLogoFit] = useState<LogoFitSpec>(defaultLogoFit());
+  const [sideText, setSideText] = useState({
+    left: "GUESS THE LOGO • ",
+    right: "GUESS THE LOGO • ",
+    leftVisible: true,
+    rightVisible: true,
+  });
+  const [roundTransition, setRoundTransition] = useState<RoundTransitionSpec>(defaultRoundTransition());
 
   const [intro, setIntro] = useState<CardConfig>({ ...defaultIntro, title: "Guess The Logo" });
   const [outro, setOutro] = useState<CardConfig>({ ...defaultOutro, title: "How many did you get?" });
@@ -256,6 +340,16 @@ function LogoPage() {
     img.src = url;
   };
 
+  const onChannelLogoImage = (file: File) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      setChannelLogoImg(img);
+      setChannelLogoUrl(url);
+    };
+    img.src = url;
+  };
+
   // ---------------- rendering ----------------
 
   const drawRound = useCallback(
@@ -293,71 +387,51 @@ function LogoPage() {
       const revealK = revealing ? ease.out(Math.min(1, (local - guessDur) / 0.45)) : 0;
       const M = Math.min(w, h) * 0.06;
 
-      // ---- star round badge, top-left ----
+      // ---- round-number badge, top-left ----
       if (styles.roundNumber?.visible ?? true) {
         const badgeAnim = computeAnim(anims.roundNumber ?? defaultAnim(), local);
-        const r0 = Math.min(w, h) * 0.055;
-        const bx = M + r0;
-        const by = M + r0;
+        const r0 = Math.min(w, h) * 0.06;
+        const bx = M + r0 * 1.3;
+        const by = M + r0 * 1.1;
         ctx.save();
         applyStyle(ctx, styles.roundNumber, bx, by, w, h);
         applyAnim(ctx, badgeAnim, bx, by);
-        ctx.beginPath();
-        ctx.arc(bx, by, r0, 0, Math.PI * 2);
-        ctx.fillStyle = hexA("#000000", 0.5);
-        ctx.fill();
-        ctx.strokeStyle = pal.primary;
-        ctx.lineWidth = Math.max(2, r0 * 0.1);
-        ctx.stroke();
-        ctx.fillStyle = "#fde047";
-        ctx.font = `900 ${Math.round(r0 * 0.9)}px ${FX_FONT}`;
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.fillText("★", bx, by - r0 * 0.32);
-        ctx.font = `800 ${Math.round(r0 * 0.5)}px ${FX_FONT}`;
-        ctx.fillStyle = pal.text;
-        ctx.fillText(`${index + 1}`, bx, by + r0 * 0.42);
+        drawRoundBadge(
+          ctx,
+          roundBadgeId,
+          `ROUND ${index + 1}`,
+          bx,
+          by,
+          r0,
+          { primary: pal.primary, accent: pal.accent, text: pal.text },
+          { t: absT },
+        );
         ctx.restore();
       }
 
-      // ---- lightning badge, top-right ----
-      if (styles.roundNumber?.visible ?? true) {
-        const badgeAnim = computeAnim(anims.roundNumber ?? defaultAnim(), local);
-        const r0 = Math.min(w, h) * 0.055;
-        const bx = w - M - r0;
-        const by = M + r0;
-        ctx.save();
-        applyStyle(ctx, styles.roundNumber, bx, by, w, h);
-        applyAnim(ctx, badgeAnim, bx, by);
-        ctx.beginPath();
-        ctx.arc(bx, by, r0, 0, Math.PI * 2);
-        ctx.fillStyle = hexA("#000000", 0.5);
-        ctx.fill();
-        ctx.strokeStyle = pal.accent;
-        ctx.lineWidth = Math.max(2, r0 * 0.1);
-        ctx.stroke();
-        ctx.fillStyle = "#facc15";
-        ctx.font = `900 ${Math.round(r0 * 0.9)}px ${FX_FONT}`;
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.fillText("⚡", bx, by);
-        ctx.restore();
-      }
+      // ---- channel logo watermark ----
+      drawChannelLogo(ctx, channelLogoImg, channelLogo, w, h, absT);
 
       // ---- vertical side text ----
       {
         const sideAnim = computeAnim(anims.side ?? defaultAnim(), local);
-        const label = "GUESS THE LOGO • ";
-        [M * 0.4, w - M * 0.4].forEach((x, i) => {
+        const items: { x: number; rot: number; text: string }[] = [];
+        if (sideText.leftVisible && sideText.left.trim()) {
+          items.push({ x: M * 0.4, rot: -Math.PI / 2, text: sideText.left });
+        }
+        if (sideText.rightVisible && sideText.right.trim()) {
+          items.push({ x: w - M * 0.4, rot: Math.PI / 2, text: sideText.right });
+        }
+        items.forEach(({ x, rot, text }) => {
           ctx.save();
           applyAnim(ctx, sideAnim, x, h / 2);
           ctx.translate(x, h / 2);
-          ctx.rotate(i === 0 ? -Math.PI / 2 : Math.PI / 2);
+          ctx.rotate(rot);
           ctx.font = `700 ${Math.round(Math.min(w, h) * 0.018)}px ${FX_FONT}`;
           ctx.fillStyle = hexA(pal.text, 0.35);
           ctx.textAlign = "center";
           ctx.textBaseline = "middle";
-          ctx.fillText(label.repeat(3), 0, 0);
+          ctx.fillText(text.repeat(3), 0, 0);
           ctx.restore();
         });
       }
@@ -414,13 +488,29 @@ function LogoPage() {
         roundRect(ctx, cx - cardW / 2, cy - cardH / 2, cardW, cardH, cardH * 0.12);
         ctx.clip();
         if (r.img) {
-          const pad = cardW * 0.14;
+          const pad = logoFit.fit === "stretch" ? 0 : cardW * 0.08;
           const iw = r.img.naturalWidth;
           const ih = r.img.naturalHeight;
-          const ratio = Math.min((cardW - pad * 2) / iw, (cardH - pad * 2) / ih);
-          const dw = iw * ratio;
-          const dh = ih * ratio;
-          ctx.drawImage(r.img, cx - dw / 2, cy - dh / 2, dw, dh);
+          const boxW = cardW - pad * 2;
+          const boxH = cardH - pad * 2;
+          let dw: number;
+          let dh: number;
+          if (logoFit.fit === "fill" || logoFit.fit === "stretch") {
+            dw = boxW;
+            dh = boxH;
+          } else {
+            const ratio =
+              logoFit.fit === "cover" ? Math.max(boxW / iw, boxH / ih) : Math.min(boxW / iw, boxH / ih);
+            dw = iw * ratio;
+            dh = ih * ratio;
+          }
+          dw *= logoFit.scale;
+          dh *= logoFit.scale;
+          ctx.save();
+          ctx.translate(cx + (logoFit.ox / 100) * cardW, cy + (logoFit.oy / 100) * cardH);
+          ctx.rotate((logoFit.rotate * Math.PI) / 180);
+          ctx.drawImage(r.img, -dw / 2, -dh / 2, dw, dh);
+          ctx.restore();
         } else {
           ctx.fillStyle = "#94a3b8";
           ctx.font = `800 ${Math.round(cardW * 0.12)}px ${FX_FONT}`;
@@ -492,7 +582,7 @@ function LogoPage() {
       const barW = w - M * 2.4;
       const barH = Math.min(w, h) * 0.022;
       const barY = h - M * 0.9;
-      if (showTimer && (styles.timebar?.visible ?? true)) {
+      if (showTimer && !revealing && (styles.timebar?.visible ?? true)) {
         const timebarAnim = computeAnim(anims.timebar ?? defaultAnim(), local);
         const frac = Math.max(0, Math.min(1, local / Math.max(0.01, guessDur)));
         ctx.save();
@@ -513,7 +603,7 @@ function LogoPage() {
       }
 
       // ---- countdown timer ----
-      if (showTimer && (styles.timer?.visible ?? true)) {
+      if (showTimer && !revealing && (styles.timer?.visible ?? true)) {
         const timerAnim = computeAnim(anims.timer ?? defaultAnim(), local);
         const remaining = Math.max(0, guessDur - local);
         const tr = Math.min(w, h) * 0.045;
@@ -536,7 +626,24 @@ function LogoPage() {
         ctx.restore();
       }
     },
-    [aspect, anims, styles, backgroundId, backgroundIntensity, heading, pal, revealSecs, showTimer, timerStyle, timeBarStyle],
+    [
+      aspect,
+      anims,
+      styles,
+      backgroundId,
+      backgroundIntensity,
+      heading,
+      pal,
+      revealSecs,
+      showTimer,
+      timerStyle,
+      timeBarStyle,
+      channelLogo,
+      channelLogoImg,
+      roundBadgeId,
+      logoFit,
+      sideText,
+    ],
   );
 
   const drawFrame = useCallback(
@@ -577,8 +684,19 @@ function LogoPage() {
         timeline.segs[timeline.segs.length - 1];
       if (!seg) return;
       drawRound(ctx, w, h, seg.round, seg.index, Math.max(0, t - seg.start), seg.dur, t);
+
+      // ---- round-to-round transition overlay ----
+      const half = roundTransition.duration / 2;
+      for (let i = 1; i < timeline.segs.length; i++) {
+        const boundary = timeline.segs[i].start;
+        if (t >= boundary - half && t <= boundary + half) {
+          const progress = (t - (boundary - half)) / roundTransition.duration;
+          drawRoundTransition(ctx, roundTransition, progress, w, h);
+          break;
+        }
+      }
     },
-    [dims, drawRound, intro, outro, timeline],
+    [dims, drawRound, intro, outro, timeline, roundTransition],
   );
 
   // preview loop
@@ -922,6 +1040,77 @@ function LogoPage() {
               />
               <TimerStylePicker value={timerStyle} onChange={setTimerStyle} />
               <TimeBarStylePicker value={timeBarStyle} onChange={setTimeBarStyle} />
+              <RoundBadgePicker value={roundBadgeId} onChange={setRoundBadgeId} />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Channel logo watermark</CardTitle>
+              <CardDescription>Your channel/brand logo — distinct from the quiz logo being guessed.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-dashed p-2 text-xs text-muted-foreground">
+                <Upload className="h-4 w-4" />
+                {channelLogoUrl ? "Replace channel logo" : "Upload channel logo"}
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) onChannelLogoImage(f);
+                  }}
+                />
+              </label>
+              {channelLogoUrl && (
+                <img src={channelLogoUrl} alt="Channel logo" className="h-16 w-16 rounded-full bg-white object-contain p-1" />
+              )}
+              <label className="flex items-center justify-between gap-2 text-sm">
+                Show watermark <Switch checked={channelLogo.visible} onCheckedChange={(v) => setChannelLogo({ ...channelLogo, visible: v })} />
+              </label>
+              <ChannelLogoControls value={channelLogo} onChange={setChannelLogo} />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Quiz logo image fit</CardTitle>
+              <CardDescription>Zoom, offset, rotate and crop the guessed logo inside its card.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <LogoFitControls value={logoFit} onChange={setLogoFit} />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Side text</CardTitle>
+              <CardDescription>Editable vertical text on the left/right edges.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="space-y-1">
+                <label className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                  Left text <Switch checked={sideText.leftVisible} onCheckedChange={(v) => setSideText((s) => ({ ...s, leftVisible: v }))} />
+                </label>
+                <Input value={sideText.left} onChange={(e) => setSideText((s) => ({ ...s, left: e.target.value }))} />
+              </div>
+              <div className="space-y-1">
+                <label className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                  Right text <Switch checked={sideText.rightVisible} onCheckedChange={(v) => setSideText((s) => ({ ...s, rightVisible: v }))} />
+                </label>
+                <Input value={sideText.right} onChange={(e) => setSideText((s) => ({ ...s, right: e.target.value }))} />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Round transition</CardTitle>
+              <CardDescription>Plays between rounds in both preview and export.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <RoundTransitionControls value={roundTransition} onChange={setRoundTransition} />
             </CardContent>
           </Card>
 

@@ -13,6 +13,16 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { RotateCcw } from "lucide-react";
+import {
+  EASING_FNS,
+  type EasingId,
+  type ElementAnimSpec,
+  defaultAnim,
+  computeAnim,
+  applyAnim,
+  AnimControls,
+  EASINGS,
+} from "@/lib/kid-anim";
 
 // ---------------------------------------------------------------------------
 // Per-element transform (position / scale / rotation / opacity)
@@ -975,6 +985,14 @@ export type TimeBarStyleId =
   | "wave-bar"
   | "neon-outline"
   | "step-blocks"
+  | "chunk-glow"
+  | "dotted-countdown"
+  | "liquid-wave"
+  | "candy-march"
+  | "battery"
+  | "ring-dots"
+  | "rainbow-sweep"
+  | "shrinking-pill"
   | "none";
 
 export const TIMEBAR_STYLES: { id: TimeBarStyleId; name: string }[] = [
@@ -992,7 +1010,14 @@ export const TIMEBAR_STYLES: { id: TimeBarStyleId; name: string }[] = [
   { id: "wave-bar", name: "Wave bar" },
   { id: "neon-outline", name: "Neon outline" },
   { id: "step-blocks", name: "Step blocks" },
-  { id: "none", name: "Hidden" },
+  { id: "chunk-glow", name: "Chunk glow" },
+  { id: "dotted-countdown", name: "Dotted countdown" },
+  { id: "liquid-wave", name: "Liquid wave" },
+  { id: "candy-march", name: "Candy march" },
+  { id: "battery", name: "Battery" },
+  { id: "ring-dots", name: "Ring of dots" },
+  { id: "rainbow-sweep", name: "Rainbow sweep" },
+  { id: "shrinking-pill", name: "Shrinking pill" },
   { id: "none", name: "Hidden" },
 ];
 
@@ -1213,6 +1238,153 @@ export function drawTimeBar(
       }
       break;
     }
+    case "chunk-glow": {
+      const n = 12;
+      const gap = h * 0.22;
+      const bw = (w - gap * (n - 1)) / n;
+      const filled = k * n;
+      for (let i = 0; i < n; i++) {
+        const on = i < filled;
+        const isEdge = on && i >= filled - 1;
+        ctx.save();
+        if (isEdge) {
+          ctx.shadowColor = col;
+          ctx.shadowBlur = h * 1.4 + Math.sin(t * 10) * h * 0.3;
+        }
+        ctx.beginPath();
+        ctx.roundRect(x + i * (bw + gap), y, bw, h, h * 0.25);
+        ctx.fillStyle = on ? col : hexToRgba(colors.text, 0.15);
+        ctx.fill();
+        ctx.restore();
+      }
+      break;
+    }
+    case "dotted-countdown": {
+      const n = 18;
+      const gap = (w - h * n) / Math.max(1, n - 1);
+      const filled = Math.round(k * n);
+      for (let i = 0; i < n; i++) {
+        const idx = n - 1 - i;
+        const cx = x + i * (h + gap) + h / 2;
+        const on = idx < filled;
+        const pulse = on && idx === filled - 1 ? 1 + Math.sin(t * 8) * 0.25 : 1;
+        ctx.beginPath();
+        ctx.arc(cx, y + h / 2, (h / 2) * 0.85 * pulse, 0, Math.PI * 2);
+        ctx.fillStyle = on ? col : hexToRgba(colors.text, 0.15);
+        ctx.fill();
+      }
+      break;
+    }
+    case "liquid-wave": {
+      track();
+      ctx.save();
+      ctx.beginPath();
+      ctx.roundRect(x, y, w, h, h / 2);
+      ctx.clip();
+      const fillW = w * k;
+      ctx.beginPath();
+      ctx.moveTo(x, y + h);
+      for (let sx = x; sx <= x + fillW + 10; sx += 6) {
+        ctx.lineTo(sx, y + h * 0.25 + Math.sin(sx / 18 + t * 6) * h * 0.18);
+      }
+      ctx.lineTo(x + fillW, y + h);
+      ctx.closePath();
+      const g = ctx.createLinearGradient(x, y, x, y + h);
+      g.addColorStop(0, hexToRgba(col, 0.85));
+      g.addColorStop(1, col);
+      ctx.fillStyle = g;
+      ctx.fill();
+      ctx.restore();
+      break;
+    }
+    case "candy-march": {
+      track();
+      ctx.save();
+      ctx.beginPath();
+      ctx.roundRect(x, y, Math.max(h, w * k), h, h / 2);
+      ctx.clip();
+      ctx.fillStyle = col;
+      ctx.fillRect(x, y, w, h);
+      const step = h * 1.1;
+      const off = (t * -50) % (step * 2);
+      ctx.fillStyle = "rgba(255,255,255,0.32)";
+      for (let sx = x - step * 2 + off; sx < x + w + step * 2; sx += step * 2) {
+        ctx.save();
+        ctx.translate(sx, y);
+        ctx.beginPath();
+        ctx.moveTo(0, h);
+        ctx.lineTo(step, 0);
+        ctx.lineTo(step * 1.6, 0);
+        ctx.lineTo(step * 0.6, h);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+      }
+      ctx.restore();
+      break;
+    }
+    case "battery": {
+      const capW = h * 0.32;
+      const bodyW = w - capW;
+      ctx.beginPath();
+      ctx.roundRect(x, y, bodyW, h, h * 0.18);
+      ctx.strokeStyle = hexToRgba(colors.text, 0.4);
+      ctx.lineWidth = Math.max(2, h * 0.1);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.roundRect(x + bodyW + h * 0.06, y + h * 0.28, capW - h * 0.1, h * 0.44, h * 0.08);
+      ctx.fillStyle = hexToRgba(colors.text, 0.4);
+      ctx.fill();
+      const pad = h * 0.16;
+      const innerW = Math.max(0, bodyW - pad * 2) * k;
+      const battCol = k < 0.25 ? colors.accent : k < 0.5 ? "#f5c542" : col;
+      ctx.beginPath();
+      ctx.roundRect(x + pad, y + pad, innerW, h - pad * 2, h * 0.1);
+      ctx.fillStyle = battCol;
+      ctx.fill();
+      break;
+    }
+    case "ring-dots": {
+      const n = 24;
+      const cx = x + w / 2;
+      const cy = y + h / 2;
+      const rad = Math.max(w, h * 3) / 2 - h;
+      const filled = Math.round(k * n);
+      for (let i = 0; i < n; i++) {
+        const a = -Math.PI / 2 + (i / n) * Math.PI * 2;
+        const px = cx + Math.cos(a) * rad;
+        const py = cy + Math.sin(a) * rad * 0.4;
+        ctx.beginPath();
+        ctx.arc(px, py, h * 0.22, 0, Math.PI * 2);
+        ctx.fillStyle = i < filled ? col : hexToRgba(colors.text, 0.15);
+        ctx.fill();
+      }
+      break;
+    }
+    case "rainbow-sweep": {
+      track();
+      const rainbow = ["#ff595e", "#ffca3a", "#8ac926", "#1982c4", "#6a4c93"];
+      const g = ctx.createLinearGradient(x - (t * 80) % (w * 2), 0, x - (t * 80) % (w * 2) + w * 2, 0);
+      rainbow.forEach((c, i) => g.addColorStop(i / (rainbow.length - 1), c));
+      ctx.beginPath();
+      ctx.roundRect(x, y, Math.max(h, w * k), h, h / 2);
+      ctx.fillStyle = g;
+      ctx.fill();
+      break;
+    }
+    case "shrinking-pill": {
+      const fullW = w * k;
+      const pulse = 1 + Math.sin(t * 5) * 0.03;
+      ctx.beginPath();
+      ctx.roundRect(x + w - fullW, y - (h * (pulse - 1)) / 2, fullW * pulse, h * pulse, (h * pulse) / 2);
+      ctx.fillStyle = hexToRgba(colors.text, 0.12);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.roundRect(x + w - fullW, y, fullW, h, h / 2);
+      ctx.fillStyle = col;
+      ctx.fill();
+      break;
+    }
     default:
       break;
   }
@@ -1326,6 +1498,1460 @@ export function ElementStyleGroup({
           />
         </div>
       ))}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Channel logo
+// ---------------------------------------------------------------------------
+
+export type ChannelLogoCorner = "top-left" | "top-right" | "bottom-left" | "bottom-right" | "top-center" | "bottom-center";
+
+export type ChannelLogoShape = "square" | "rounded" | "circle";
+
+export type ChannelLogoSpec = {
+  visible: boolean;
+  corner: ChannelLogoCorner;
+  /** Extra horizontal offset in percent of canvas width. */
+  dx: number;
+  /** Extra vertical offset in percent of canvas height. */
+  dy: number;
+  scale: number;
+  rotate: number;
+  opacity: number;
+  shape: ChannelLogoShape;
+  ring: boolean;
+  ringColor?: string;
+  anim: ElementAnimSpec;
+};
+
+export function defaultChannelLogo(partial?: Partial<ChannelLogoSpec>): ChannelLogoSpec {
+  return {
+    visible: true,
+    corner: "top-right",
+    dx: 0,
+    dy: 0,
+    scale: 1,
+    rotate: 0,
+    opacity: 1,
+    shape: "circle",
+    ring: true,
+    anim: defaultAnim({ preset: "pop", loop: "none" }),
+    ...partial,
+  };
+}
+
+export const CHANNEL_LOGO_CORNERS: { id: ChannelLogoCorner; name: string }[] = [
+  { id: "top-left", name: "Top left" },
+  { id: "top-center", name: "Top center" },
+  { id: "top-right", name: "Top right" },
+  { id: "bottom-left", name: "Bottom left" },
+  { id: "bottom-center", name: "Bottom center" },
+  { id: "bottom-right", name: "Bottom right" },
+];
+
+export const CHANNEL_LOGO_SHAPES: { id: ChannelLogoShape; name: string }[] = [
+  { id: "square", name: "Square" },
+  { id: "rounded", name: "Rounded square" },
+  { id: "circle", name: "Circle" },
+];
+
+function channelLogoAnchor(corner: ChannelLogoCorner, w: number, h: number, size: number) {
+  const pad = size * 0.9;
+  switch (corner) {
+    case "top-left":
+      return { x: pad, y: pad };
+    case "top-center":
+      return { x: w / 2, y: pad };
+    case "top-right":
+      return { x: w - pad, y: pad };
+    case "bottom-left":
+      return { x: pad, y: h - pad };
+    case "bottom-center":
+      return { x: w / 2, y: h - pad };
+    case "bottom-right":
+    default:
+      return { x: w - pad, y: h - pad };
+  }
+}
+
+/** Draws a circular/rounded/square channel logo badge anchored to a corner. */
+export function drawChannelLogo(
+  ctx: CanvasRenderingContext2D,
+  img: HTMLImageElement | null | undefined,
+  spec: ChannelLogoSpec,
+  w: number,
+  h: number,
+  tSinceStart = 0,
+) {
+  if (!spec.visible) return;
+  const base = Math.min(w, h) * 0.11 * spec.scale;
+  const { x: ax, y: ay } = channelLogoAnchor(spec.corner, w, h, base);
+  const anim = computeAnim(spec.anim, tSinceStart);
+
+  ctx.save();
+  ctx.globalAlpha *= Math.max(0, Math.min(1, spec.opacity));
+  applyAnim(ctx, anim, ax, ay);
+  ctx.translate(ax + (spec.dx / 100) * w, ay + (spec.dy / 100) * h);
+  ctx.rotate((spec.rotate * Math.PI) / 180);
+
+  const size = base * 2;
+  const r = spec.shape === "circle" ? size / 2 : spec.shape === "rounded" ? size * 0.22 : 0;
+
+  ctx.save();
+  ctx.beginPath();
+  if (spec.shape === "circle") {
+    ctx.arc(0, 0, size / 2, 0, Math.PI * 2);
+  } else {
+    ctx.roundRect(-size / 2, -size / 2, size, size, r);
+  }
+  ctx.closePath();
+  ctx.save();
+  ctx.shadowColor = "rgba(0,0,0,0.4)";
+  ctx.shadowBlur = size * 0.18;
+  ctx.fillStyle = "rgba(0,0,0,0.25)";
+  ctx.fill();
+  ctx.restore();
+  ctx.clip();
+  if (img) {
+    ctx.drawImage(img, -size / 2, -size / 2, size, size);
+  } else {
+    ctx.fillStyle = "rgba(255,255,255,0.15)";
+    ctx.fillRect(-size / 2, -size / 2, size, size);
+  }
+  ctx.restore();
+
+  if (spec.ring) {
+    ctx.beginPath();
+    if (spec.shape === "circle") {
+      ctx.arc(0, 0, size / 2, 0, Math.PI * 2);
+    } else {
+      ctx.roundRect(-size / 2, -size / 2, size, size, r);
+    }
+    ctx.strokeStyle = spec.ringColor ?? "rgba(255,255,255,0.9)";
+    ctx.lineWidth = Math.max(2, size * 0.06);
+    ctx.stroke();
+  }
+
+  ctx.restore();
+}
+
+export function ChannelLogoControls({
+  value,
+  onChange,
+}: {
+  value: ChannelLogoSpec;
+  onChange: (next: ChannelLogoSpec) => void;
+}) {
+  const set = (patch: Partial<ChannelLogoSpec>) => onChange({ ...value, ...patch });
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <Label className="text-[11px] text-muted-foreground">Channel logo</Label>
+        <Button variant="ghost" size="sm" className="h-6 px-2" onClick={() => onChange(defaultChannelLogo())}>
+          <RotateCcw className="mr-1 h-3 w-3" /> Reset
+        </Button>
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <Picker label="Corner" value={value.corner} options={CHANNEL_LOGO_CORNERS} onChange={(v) => set({ corner: v })} />
+        <Picker label="Shape" value={value.shape} options={CHANNEL_LOGO_SHAPES} onChange={(v) => set({ shape: v })} />
+      </div>
+      <div>
+        <Label className="text-[11px] text-muted-foreground">X offset · {value.dx.toFixed(0)}%</Label>
+        <Slider value={[value.dx]} min={-20} max={20} step={1} onValueChange={([v]) => set({ dx: v })} />
+      </div>
+      <div>
+        <Label className="text-[11px] text-muted-foreground">Y offset · {value.dy.toFixed(0)}%</Label>
+        <Slider value={[value.dy]} min={-20} max={20} step={1} onValueChange={([v]) => set({ dy: v })} />
+      </div>
+      <div>
+        <Label className="text-[11px] text-muted-foreground">Scale · {value.scale.toFixed(2)}x</Label>
+        <Slider value={[value.scale]} min={0.4} max={2} step={0.05} onValueChange={([v]) => set({ scale: v })} />
+      </div>
+      <div>
+        <Label className="text-[11px] text-muted-foreground">Rotation · {value.rotate.toFixed(0)}°</Label>
+        <Slider value={[value.rotate]} min={-45} max={45} step={1} onValueChange={([v]) => set({ rotate: v })} />
+      </div>
+      <div>
+        <Label className="text-[11px] text-muted-foreground">Opacity · {Math.round(value.opacity * 100)}%</Label>
+        <Slider value={[value.opacity]} min={0} max={1} step={0.05} onValueChange={([v]) => set({ opacity: v })} />
+      </div>
+      <div className="flex items-center justify-between">
+        <Label className="text-[11px] text-muted-foreground">Ring outline</Label>
+        <Button
+          variant={value.ring ? "default" : "outline"}
+          size="sm"
+          className="h-7 px-3 text-xs"
+          onClick={() => set({ ring: !value.ring })}
+        >
+          {value.ring ? "On" : "Off"}
+        </Button>
+      </div>
+      <div>
+        <Label className="mb-1 block text-[11px] text-muted-foreground">Entrance / loop</Label>
+        <AnimControls value={value.anim} onChange={(anim) => set({ anim })} />
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Round number badges
+// ---------------------------------------------------------------------------
+
+export type RoundBadgeId =
+  | "pill"
+  | "hexagon"
+  | "ribbon"
+  | "circle-stroke"
+  | "tab"
+  | "ticket-stub"
+  | "banner"
+  | "stamp"
+  | "chevron"
+  | "notebook-tab"
+  | "neon-outline"
+  | "block-3d"
+  | "bubble"
+  | "star-burst"
+  | "arcade-counter"
+  | "dot-matrix"
+  | "underline-only"
+  | "brush-stroke"
+  | "shield"
+  | "tape-strip"
+  | "diamond"
+  | "flag"
+  | "sunburst"
+  | "speech-bubble";
+
+export const ROUND_BADGES: { id: RoundBadgeId; name: string }[] = [
+  { id: "pill", name: "Pill" },
+  { id: "hexagon", name: "Hexagon" },
+  { id: "ribbon", name: "Ribbon" },
+  { id: "circle-stroke", name: "Circle stroke" },
+  { id: "tab", name: "Tab" },
+  { id: "ticket-stub", name: "Ticket stub" },
+  { id: "banner", name: "Banner" },
+  { id: "stamp", name: "Stamp" },
+  { id: "chevron", name: "Chevron" },
+  { id: "notebook-tab", name: "Notebook tab" },
+  { id: "neon-outline", name: "Neon outline" },
+  { id: "block-3d", name: "3D block" },
+  { id: "bubble", name: "Bubble" },
+  { id: "star-burst", name: "Star burst" },
+  { id: "arcade-counter", name: "Arcade counter" },
+  { id: "dot-matrix", name: "Dot matrix" },
+  { id: "underline-only", name: "Underline only" },
+  { id: "brush-stroke", name: "Brush stroke" },
+  { id: "shield", name: "Shield" },
+  { id: "tape-strip", name: "Tape strip" },
+  { id: "diamond", name: "Diamond" },
+  { id: "flag", name: "Flag" },
+  { id: "sunburst", name: "Sunburst" },
+  { id: "speech-bubble", name: "Speech bubble" },
+];
+
+export type RoundBadgeColors = { primary: string; accent: string; text: string };
+
+export type RoundBadgeOpts = { t?: number; rotate?: number };
+
+/**
+ * Draws a round-number badge (e.g. "Round 3") centred at (x, y). `size` sets
+ * the overall scale — roughly the badge's half-height in px.
+ */
+export function drawRoundBadge(
+  ctx: CanvasRenderingContext2D,
+  id: RoundBadgeId,
+  label: string,
+  x: number,
+  y: number,
+  size: number,
+  colors: RoundBadgeColors,
+  opts: RoundBadgeOpts = {},
+) {
+  const t = opts.t ?? 0;
+  ctx.save();
+  ctx.translate(x, y);
+  if (opts.rotate) ctx.rotate(opts.rotate);
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  const font = (px: number, weight = 800) => `${weight} ${px}px system-ui, sans-serif`;
+  const textW = ctx.measureText(label).width;
+
+  switch (id) {
+    case "pill": {
+      const w = Math.max(size * 3.2, textW + size * 1.6);
+      const h = size * 1.5;
+      ctx.beginPath();
+      ctx.roundRect(-w / 2, -h / 2, w, h, h / 2);
+      ctx.fillStyle = hexToRgba(colors.primary, 0.95);
+      ctx.fill();
+      ctx.fillStyle = colors.text;
+      ctx.font = font(size * 0.85);
+      ctx.fillText(label, 0, size * 0.04);
+      break;
+    }
+    case "hexagon": {
+      const w = Math.max(size * 3.4, textW + size * 1.8);
+      const h = size * 1.5;
+      ctx.beginPath();
+      const cut = h * 0.4;
+      ctx.moveTo(-w / 2 + cut, -h / 2);
+      ctx.lineTo(w / 2 - cut, -h / 2);
+      ctx.lineTo(w / 2, 0);
+      ctx.lineTo(w / 2 - cut, h / 2);
+      ctx.lineTo(-w / 2 + cut, h / 2);
+      ctx.lineTo(-w / 2, 0);
+      ctx.closePath();
+      ctx.fillStyle = hexToRgba(colors.accent, 0.95);
+      ctx.fill();
+      ctx.fillStyle = colors.text;
+      ctx.font = font(size * 0.8);
+      ctx.fillText(label, 0, size * 0.04);
+      break;
+    }
+    case "ribbon": {
+      const w = Math.max(size * 3.6, textW + size * 2);
+      const h = size * 1.3;
+      ctx.beginPath();
+      ctx.moveTo(-w / 2, -h / 2);
+      ctx.lineTo(w / 2, -h / 2);
+      ctx.lineTo(w / 2 - h * 0.35, 0);
+      ctx.lineTo(w / 2, h / 2);
+      ctx.lineTo(-w / 2, h / 2);
+      ctx.lineTo(-w / 2 + h * 0.35, 0);
+      ctx.closePath();
+      ctx.fillStyle = hexToRgba(colors.primary, 0.95);
+      ctx.fill();
+      ctx.fillStyle = colors.text;
+      ctx.font = font(size * 0.8);
+      ctx.fillText(label, 0, size * 0.04);
+      break;
+    }
+    case "circle-stroke": {
+      const r = size;
+      ctx.beginPath();
+      ctx.arc(0, 0, r, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(0,0,0,0.3)";
+      ctx.fill();
+      ctx.strokeStyle = colors.accent;
+      ctx.lineWidth = size * 0.14;
+      ctx.stroke();
+      ctx.fillStyle = colors.text;
+      ctx.font = font(size * 0.9);
+      ctx.fillText(label, 0, size * 0.04);
+      break;
+    }
+    case "tab": {
+      const w = Math.max(size * 3.2, textW + size * 1.6);
+      const h = size * 1.4;
+      ctx.beginPath();
+      ctx.roundRect(-w / 2, -h / 2, w, h, [0, 0, h * 0.5, h * 0.5]);
+      ctx.fillStyle = hexToRgba(colors.primary, 0.95);
+      ctx.fill();
+      ctx.fillStyle = colors.text;
+      ctx.font = font(size * 0.8);
+      ctx.fillText(label, 0, size * 0.04);
+      break;
+    }
+    case "ticket-stub": {
+      const w = Math.max(size * 3.6, textW + size * 2);
+      const h = size * 1.4;
+      ctx.beginPath();
+      ctx.roundRect(-w / 2, -h / 2, w, h, size * 0.2);
+      ctx.fillStyle = hexToRgba(colors.accent, 0.95);
+      ctx.fill();
+      ctx.save();
+      ctx.setLineDash([size * 0.16, size * 0.14]);
+      ctx.strokeStyle = "rgba(255,255,255,0.6)";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(-w * 0.15, -h / 2);
+      ctx.lineTo(-w * 0.15, h / 2);
+      ctx.stroke();
+      ctx.restore();
+      for (const sx of [-w / 2, w / 2]) {
+        ctx.beginPath();
+        ctx.arc(sx, 0, size * 0.22, 0, Math.PI * 2);
+        ctx.fillStyle = "rgba(0,0,0,0.001)";
+        ctx.globalCompositeOperation = "destination-out";
+        ctx.fill();
+        ctx.globalCompositeOperation = "source-over";
+      }
+      ctx.fillStyle = colors.text;
+      ctx.font = font(size * 0.75);
+      ctx.fillText(label, w * 0.08, size * 0.04);
+      break;
+    }
+    case "banner": {
+      const w = Math.max(size * 3.8, textW + size * 2.2);
+      const h = size * 1.3;
+      ctx.fillStyle = hexToRgba(colors.primary, 0.95);
+      ctx.beginPath();
+      ctx.rect(-w / 2, -h / 2, w, h);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(-w / 2, -h / 2);
+      ctx.lineTo(-w / 2 - h * 0.4, 0);
+      ctx.lineTo(-w / 2, h / 2);
+      ctx.closePath();
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(w / 2, -h / 2);
+      ctx.lineTo(w / 2 + h * 0.4, 0);
+      ctx.lineTo(w / 2, h / 2);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = colors.text;
+      ctx.font = font(size * 0.78);
+      ctx.fillText(label, 0, size * 0.04);
+      break;
+    }
+    case "stamp": {
+      const r = size * 1.05;
+      ctx.save();
+      ctx.rotate(-0.06);
+      ctx.beginPath();
+      const teeth = 18;
+      for (let i = 0; i < teeth; i++) {
+        const a0 = (i / teeth) * Math.PI * 2;
+        const a1 = ((i + 0.5) / teeth) * Math.PI * 2;
+        ctx.arc(0, 0, r, a0, a1);
+        ctx.lineTo(Math.cos(a1) * r * 0.86, Math.sin(a1) * r * 0.86);
+        const a2 = ((i + 1) / teeth) * Math.PI * 2;
+        ctx.lineTo(Math.cos(a2) * r, Math.sin(a2) * r);
+      }
+      ctx.closePath();
+      ctx.fillStyle = "transparent";
+      ctx.strokeStyle = colors.accent;
+      ctx.lineWidth = size * 0.1;
+      ctx.stroke();
+      ctx.restore();
+      ctx.fillStyle = colors.text;
+      ctx.font = font(size * 0.85);
+      ctx.fillText(label, 0, size * 0.04);
+      break;
+    }
+    case "chevron": {
+      const w = Math.max(size * 3.4, textW + size * 1.8);
+      const h = size * 1.4;
+      ctx.beginPath();
+      ctx.moveTo(-w / 2, -h / 2);
+      ctx.lineTo(w / 2 - h * 0.4, -h / 2);
+      ctx.lineTo(w / 2, 0);
+      ctx.lineTo(w / 2 - h * 0.4, h / 2);
+      ctx.lineTo(-w / 2, h / 2);
+      ctx.lineTo(-w / 2 + h * 0.4, 0);
+      ctx.closePath();
+      ctx.fillStyle = hexToRgba(colors.primary, 0.95);
+      ctx.fill();
+      ctx.fillStyle = colors.text;
+      ctx.font = font(size * 0.75);
+      ctx.fillText(label, -h * 0.1, size * 0.04);
+      break;
+    }
+    case "notebook-tab": {
+      const w = Math.max(size * 3, textW + size * 1.6);
+      const h = size * 1.5;
+      ctx.beginPath();
+      ctx.moveTo(-w / 2, -h / 2);
+      ctx.lineTo(w / 2, -h / 2);
+      ctx.lineTo(w / 2, h / 2 - h * 0.2);
+      ctx.lineTo(w / 2 - h * 0.2, h / 2);
+      ctx.lineTo(-w / 2 + h * 0.2, h / 2);
+      ctx.lineTo(-w / 2, h / 2 - h * 0.2);
+      ctx.closePath();
+      ctx.fillStyle = hexToRgba(colors.accent, 0.95);
+      ctx.fill();
+      for (let i = -1; i <= 1; i++) {
+        ctx.beginPath();
+        ctx.arc(i * (w / 3.2), -h / 2, size * 0.08, 0, Math.PI * 2);
+        ctx.fillStyle = "rgba(0,0,0,0.3)";
+        ctx.fill();
+      }
+      ctx.fillStyle = colors.text;
+      ctx.font = font(size * 0.75);
+      ctx.fillText(label, 0, size * 0.1);
+      break;
+    }
+    case "neon-outline": {
+      const w = Math.max(size * 3.2, textW + size * 1.6);
+      const h = size * 1.5;
+      ctx.shadowColor = colors.accent;
+      ctx.shadowBlur = size * 0.6;
+      ctx.beginPath();
+      ctx.roundRect(-w / 2, -h / 2, w, h, h / 2);
+      ctx.strokeStyle = colors.accent;
+      ctx.lineWidth = size * 0.12;
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = colors.text;
+      ctx.font = font(size * 0.82);
+      ctx.fillText(label, 0, size * 0.04);
+      break;
+    }
+    case "block-3d": {
+      const w = Math.max(size * 3.2, textW + size * 1.6);
+      const h = size * 1.5;
+      const depth = size * 0.22;
+      ctx.beginPath();
+      ctx.roundRect(-w / 2 + depth, -h / 2 + depth, w, h, h * 0.2);
+      ctx.fillStyle = "rgba(0,0,0,0.4)";
+      ctx.fill();
+      ctx.beginPath();
+      ctx.roundRect(-w / 2, -h / 2, w, h, h * 0.2);
+      ctx.fillStyle = hexToRgba(colors.primary, 0.95);
+      ctx.fill();
+      ctx.fillStyle = colors.text;
+      ctx.font = font(size * 0.85);
+      ctx.fillText(label, 0, size * 0.04);
+      break;
+    }
+    case "bubble": {
+      const r = size * 1.05;
+      ctx.beginPath();
+      ctx.arc(0, 0, r, 0, Math.PI * 2);
+      ctx.fillStyle = hexToRgba(colors.primary, 0.95);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(-r * 0.3, -r * 0.35, r * 0.28, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(255,255,255,0.35)";
+      ctx.fill();
+      ctx.fillStyle = colors.text;
+      ctx.font = font(size * 0.85);
+      ctx.fillText(label, 0, size * 0.04);
+      break;
+    }
+    case "star-burst": {
+      const spikes = 10;
+      const rOuter = size * 1.25;
+      const rInner = size * 0.85;
+      ctx.beginPath();
+      for (let i = 0; i < spikes * 2; i++) {
+        const r = i % 2 === 0 ? rOuter : rInner;
+        const a = (i / (spikes * 2)) * Math.PI * 2 + t * 0.15;
+        const px = Math.cos(a) * r;
+        const py = Math.sin(a) * r;
+        i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+      ctx.fillStyle = hexToRgba(colors.accent, 0.95);
+      ctx.fill();
+      ctx.fillStyle = colors.text;
+      ctx.font = font(size * 0.8);
+      ctx.fillText(label, 0, size * 0.04);
+      break;
+    }
+    case "arcade-counter": {
+      const w = Math.max(size * 3, textW + size * 1.4);
+      const h = size * 1.5;
+      ctx.beginPath();
+      ctx.roundRect(-w / 2, -h / 2, w, h, size * 0.16);
+      ctx.fillStyle = "rgba(10,10,14,0.95)";
+      ctx.fill();
+      ctx.strokeStyle = colors.accent;
+      ctx.lineWidth = size * 0.1;
+      ctx.stroke();
+      ctx.fillStyle = colors.accent;
+      ctx.font = `700 ${size * 0.8}px "JetBrains Mono", ui-monospace, monospace`;
+      ctx.fillText(label, 0, size * 0.04);
+      break;
+    }
+    case "dot-matrix": {
+      const w = Math.max(size * 3.4, textW + size * 1.8);
+      const h = size * 1.5;
+      ctx.beginPath();
+      ctx.roundRect(-w / 2, -h / 2, w, h, size * 0.2);
+      ctx.fillStyle = "rgba(0,0,0,0.4)";
+      ctx.fill();
+      const cols = 18;
+      for (let i = 0; i < cols; i++) {
+        for (let j = 0; j < 4; j++) {
+          const px = -w / 2 + (i + 0.5) * (w / cols);
+          const py = -h / 2 + (j + 0.5) * (h / 4);
+          ctx.beginPath();
+          ctx.arc(px, py, size * 0.03, 0, Math.PI * 2);
+          ctx.fillStyle = hexToRgba(colors.accent, 0.25);
+          ctx.fill();
+        }
+      }
+      ctx.fillStyle = colors.text;
+      ctx.font = font(size * 0.78);
+      ctx.fillText(label, 0, size * 0.04);
+      break;
+    }
+    case "underline-only": {
+      ctx.fillStyle = colors.text;
+      ctx.font = font(size * 1.1);
+      ctx.fillText(label, 0, 0);
+      ctx.beginPath();
+      ctx.roundRect(-textW / 2 - size * 0.2, size * 0.55, textW + size * 0.4, size * 0.16, size * 0.08);
+      ctx.fillStyle = colors.accent;
+      ctx.fill();
+      break;
+    }
+    case "brush-stroke": {
+      const w = Math.max(size * 3.4, textW + size * 1.8);
+      const h = size * 1.4;
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(-w / 2, -h * 0.3);
+      ctx.quadraticCurveTo(-w * 0.2, -h * 0.65, w / 2, -h * 0.35);
+      ctx.quadraticCurveTo(w * 0.55, 0, w / 2, h * 0.35);
+      ctx.quadraticCurveTo(0, h * 0.65, -w / 2, h * 0.3);
+      ctx.quadraticCurveTo(-w * 0.58, 0, -w / 2, -h * 0.3);
+      ctx.closePath();
+      ctx.fillStyle = hexToRgba(colors.primary, 0.92);
+      ctx.fill();
+      ctx.restore();
+      ctx.fillStyle = colors.text;
+      ctx.font = font(size * 0.8);
+      ctx.fillText(label, 0, size * 0.04);
+      break;
+    }
+    case "shield": {
+      const s = size * 1.1;
+      ctx.beginPath();
+      ctx.moveTo(0, -s * 1.15);
+      ctx.lineTo(s * 0.9, -s * 0.55);
+      ctx.lineTo(s * 0.7, s * 0.9);
+      ctx.lineTo(0, s * 1.3);
+      ctx.lineTo(-s * 0.7, s * 0.9);
+      ctx.lineTo(-s * 0.9, -s * 0.55);
+      ctx.closePath();
+      ctx.fillStyle = hexToRgba(colors.primary, 0.95);
+      ctx.fill();
+      ctx.strokeStyle = colors.accent;
+      ctx.lineWidth = size * 0.1;
+      ctx.stroke();
+      ctx.fillStyle = colors.text;
+      ctx.font = font(size * 0.75);
+      ctx.fillText(label, 0, size * 0.06);
+      break;
+    }
+    case "tape-strip": {
+      const w = Math.max(size * 3.4, textW + size * 1.8);
+      const h = size * 1.1;
+      ctx.save();
+      ctx.rotate(-0.05);
+      ctx.fillStyle = hexToRgba(colors.accent, 0.85);
+      ctx.fillRect(-w / 2, -h / 2, w, h);
+      ctx.restore();
+      ctx.fillStyle = colors.text;
+      ctx.font = font(size * 0.75);
+      ctx.fillText(label, 0, size * 0.04);
+      break;
+    }
+    case "diamond": {
+      const s = size * 1.3;
+      ctx.beginPath();
+      ctx.moveTo(0, -s);
+      ctx.lineTo(s, 0);
+      ctx.lineTo(0, s);
+      ctx.lineTo(-s, 0);
+      ctx.closePath();
+      ctx.fillStyle = hexToRgba(colors.primary, 0.95);
+      ctx.fill();
+      ctx.fillStyle = colors.text;
+      ctx.font = font(size * 0.7);
+      ctx.fillText(label, 0, size * 0.04);
+      break;
+    }
+    case "flag": {
+      const w = Math.max(size * 3, textW + size * 1.6);
+      const h = size * 1.4;
+      ctx.beginPath();
+      ctx.moveTo(-w / 2, -h / 2);
+      ctx.lineTo(w / 2, -h / 2);
+      ctx.lineTo(w / 2 - h * 0.3, 0);
+      ctx.lineTo(w / 2, h / 2);
+      ctx.lineTo(-w / 2, h / 2);
+      ctx.closePath();
+      ctx.fillStyle = hexToRgba(colors.accent, 0.95);
+      ctx.fill();
+      ctx.fillStyle = colors.text;
+      ctx.font = font(size * 0.75);
+      ctx.fillText(label, -h * 0.1, size * 0.04);
+      break;
+    }
+    case "sunburst": {
+      const rays = 16;
+      for (let i = 0; i < rays; i++) {
+        const a = (i / rays) * Math.PI * 2 + t * 0.1;
+        ctx.save();
+        ctx.rotate(a);
+        ctx.fillStyle = hexToRgba(colors.accent, 0.5);
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(-size * 0.1, -size * 1.6);
+        ctx.lineTo(size * 0.1, -size * 1.6);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+      }
+      ctx.beginPath();
+      ctx.arc(0, 0, size, 0, Math.PI * 2);
+      ctx.fillStyle = hexToRgba(colors.primary, 0.95);
+      ctx.fill();
+      ctx.fillStyle = colors.text;
+      ctx.font = font(size * 0.8);
+      ctx.fillText(label, 0, size * 0.04);
+      break;
+    }
+    case "speech-bubble": {
+      const w = Math.max(size * 3.2, textW + size * 1.6);
+      const h = size * 1.5;
+      ctx.beginPath();
+      ctx.roundRect(-w / 2, -h / 2, w, h, h * 0.4);
+      ctx.moveTo(-w * 0.1, h / 2);
+      ctx.lineTo(-w * 0.02, h / 2 + size * 0.35);
+      ctx.lineTo(w * 0.12, h / 2);
+      ctx.fillStyle = hexToRgba(colors.primary, 0.95);
+      ctx.fill();
+      ctx.fillStyle = colors.text;
+      ctx.font = font(size * 0.8);
+      ctx.fillText(label, 0, size * 0.02);
+      break;
+    }
+    default:
+      break;
+  }
+  ctx.restore();
+}
+
+export function RoundBadgePicker({
+  value,
+  onChange,
+}: {
+  value: RoundBadgeId;
+  onChange: (v: RoundBadgeId) => void;
+}) {
+  return <Picker label="Round badge style" value={value} options={ROUND_BADGES} onChange={onChange} />;
+}
+
+// ---------------------------------------------------------------------------
+// Round transitions
+// ---------------------------------------------------------------------------
+
+export type RoundTransitionId =
+  | "wipe-left"
+  | "wipe-right"
+  | "wipe-up"
+  | "wipe-down"
+  | "wipe-tl"
+  | "wipe-tr"
+  | "wipe-bl"
+  | "wipe-br"
+  | "bars-horizontal"
+  | "bars-vertical"
+  | "blinds-horizontal"
+  | "blinds-vertical"
+  | "circle-expand"
+  | "iris"
+  | "diamond-expand"
+  | "shatter"
+  | "pixelate"
+  | "brush-strokes"
+  | "paint-splat"
+  | "ink-drop"
+  | "curtains"
+  | "zoom-blur-flash"
+  | "colour-flash"
+  | "checkerboard"
+  | "spiral"
+  | "clock-wipe"
+  | "ripple"
+  | "page-turn"
+  | "film-burn"
+  | "zigzag"
+  | "star-wipe"
+  | "confetti-burst"
+  | "slide-push-left"
+  | "slide-push-right"
+  | "slide-push-up"
+  | "slide-push-down"
+  | "cross-fade"
+  | "split-horizontal"
+  | "split-vertical"
+  | "heart-wipe"
+  | "triangle-wipe"
+  | "hex-wipe"
+  | "vortex"
+  | "confetti-fade"
+  | "double-wipe"
+  | "venetian"
+  | "ripple-rings"
+  | "shockwave"
+  | "glitch"
+  | "sparkle-burst"
+  | "rain-wipe"
+  | "petal-wipe"
+  | "kaleidoscope";
+
+export const ROUND_TRANSITIONS: { id: RoundTransitionId; name: string }[] = [
+  { id: "wipe-left", name: "Wipe left" },
+  { id: "wipe-right", name: "Wipe right" },
+  { id: "wipe-up", name: "Wipe up" },
+  { id: "wipe-down", name: "Wipe down" },
+  { id: "wipe-tl", name: "Wipe diagonal (TL)" },
+  { id: "wipe-tr", name: "Wipe diagonal (TR)" },
+  { id: "wipe-bl", name: "Wipe diagonal (BL)" },
+  { id: "wipe-br", name: "Wipe diagonal (BR)" },
+  { id: "bars-horizontal", name: "Bars (horizontal)" },
+  { id: "bars-vertical", name: "Bars (vertical)" },
+  { id: "blinds-horizontal", name: "Blinds (horizontal)" },
+  { id: "blinds-vertical", name: "Blinds (vertical)" },
+  { id: "circle-expand", name: "Circle expand" },
+  { id: "iris", name: "Iris" },
+  { id: "diamond-expand", name: "Diamond expand" },
+  { id: "shatter", name: "Shatter" },
+  { id: "pixelate", name: "Pixelate" },
+  { id: "brush-strokes", name: "Brush strokes" },
+  { id: "paint-splat", name: "Paint splat" },
+  { id: "ink-drop", name: "Ink drop" },
+  { id: "curtains", name: "Curtains" },
+  { id: "zoom-blur-flash", name: "Zoom blur flash" },
+  { id: "colour-flash", name: "Colour flash" },
+  { id: "checkerboard", name: "Checkerboard" },
+  { id: "spiral", name: "Spiral" },
+  { id: "clock-wipe", name: "Clock wipe" },
+  { id: "ripple", name: "Ripple" },
+  { id: "page-turn", name: "Page turn" },
+  { id: "film-burn", name: "Film burn" },
+  { id: "zigzag", name: "Zigzag" },
+  { id: "star-wipe", name: "Star wipe" },
+  { id: "confetti-burst", name: "Confetti burst" },
+  { id: "slide-push-left", name: "Slide push left" },
+  { id: "slide-push-right", name: "Slide push right" },
+  { id: "slide-push-up", name: "Slide push up" },
+  { id: "slide-push-down", name: "Slide push down" },
+  { id: "cross-fade", name: "Cross fade" },
+  { id: "split-horizontal", name: "Split (horizontal)" },
+  { id: "split-vertical", name: "Split (vertical)" },
+  { id: "heart-wipe", name: "Heart wipe" },
+  { id: "triangle-wipe", name: "Triangle wipe" },
+  { id: "hex-wipe", name: "Hex wipe" },
+  { id: "vortex", name: "Vortex" },
+  { id: "confetti-fade", name: "Confetti fade" },
+  { id: "double-wipe", name: "Double wipe" },
+  { id: "venetian", name: "Venetian blinds" },
+  { id: "ripple-rings", name: "Ripple rings" },
+  { id: "shockwave", name: "Shockwave" },
+  { id: "glitch", name: "Glitch" },
+  { id: "sparkle-burst", name: "Sparkle burst" },
+  { id: "rain-wipe", name: "Rain wipe" },
+  { id: "petal-wipe", name: "Petal wipe" },
+  { id: "kaleidoscope", name: "Kaleidoscope" },
+];
+
+export type RoundTransitionSpec = {
+  id: RoundTransitionId;
+  /** Total transition duration in seconds (cover + uncover). */
+  duration: number;
+  color: string;
+  easing: EasingId;
+};
+
+export function defaultRoundTransition(partial?: Partial<RoundTransitionSpec>): RoundTransitionSpec {
+  return { id: "wipe-left", duration: 0.8, color: "#7c3aed", easing: "ease-in-out", ...partial };
+}
+
+/**
+ * Returns 0..1 "coverage" of the frame at a given progress (0..1 across the
+ * whole transition). Coverage rises to 1 at the midpoint then falls back to 0
+ * — callers should swap round content once coverage crosses ~0.5 upward and
+ * stays swapped until it falls back through 0.5.
+ */
+export function roundTransitionCoverage(spec: RoundTransitionSpec, progress: number): number {
+  const p = Math.max(0, Math.min(1, progress));
+  // Triangular envelope: ramps up over first half, back down over second half.
+  return p < 0.5 ? p * 2 : (1 - p) * 2;
+}
+
+/**
+ * Paints the transition overlay for the given progress (0..1 across the whole
+ * transition, symmetric cover/uncover). Deterministic given (spec, progress).
+ */
+export function drawRoundTransition(
+  ctx: CanvasRenderingContext2D,
+  spec: RoundTransitionSpec,
+  progress: number,
+  w: number,
+  h: number,
+) {
+  const p = Math.max(0, Math.min(1, progress));
+  if (p <= 0 || p >= 1) return;
+  const ease = EASING_FNS[spec.easing] ?? EASING_FNS["ease-in-out"];
+  const cov = roundTransitionCoverage(spec, p);
+  const k = Math.max(0, Math.min(1, ease(cov))); // 0..1..0 shaped coverage, eased
+  if (k <= 0) return;
+  const col = spec.color;
+  const diag = Math.hypot(w, h);
+
+  ctx.save();
+
+  const fillAll = () => {
+    ctx.fillStyle = col;
+    ctx.fillRect(0, 0, w, h);
+  };
+
+  switch (spec.id) {
+    case "wipe-left":
+      ctx.fillStyle = col;
+      ctx.fillRect(0, 0, w * k, h);
+      break;
+    case "wipe-right":
+      ctx.fillStyle = col;
+      ctx.fillRect(w - w * k, 0, w * k, h);
+      break;
+    case "wipe-up":
+      ctx.fillStyle = col;
+      ctx.fillRect(0, h - h * k, w, h * k);
+      break;
+    case "wipe-down":
+      ctx.fillStyle = col;
+      ctx.fillRect(0, 0, w, h * k);
+      break;
+    case "wipe-tl":
+    case "wipe-tr":
+    case "wipe-bl":
+    case "wipe-br": {
+      ctx.save();
+      const cx = spec.id.includes("l") && !spec.id.includes("r") ? 0 : w;
+      const cx2 = spec.id === "wipe-tl" || spec.id === "wipe-bl" ? 0 : w;
+      const cy = spec.id === "wipe-tl" || spec.id === "wipe-tr" ? 0 : h;
+      ctx.beginPath();
+      ctx.arc(cx2, cy, diag * k, 0, Math.PI * 2);
+      ctx.fillStyle = col;
+      ctx.fill();
+      ctx.restore();
+      break;
+    }
+    case "bars-horizontal": {
+      const n = 6;
+      const bh = h / n;
+      for (let i = 0; i < n; i++) {
+        const dir = i % 2 === 0 ? 1 : -1;
+        const bw = w * k;
+        ctx.fillStyle = col;
+        ctx.fillRect(dir > 0 ? 0 : w - bw, i * bh, bw, bh);
+      }
+      break;
+    }
+    case "bars-vertical": {
+      const n = 8;
+      const bw = w / n;
+      for (let i = 0; i < n; i++) {
+        const dir = i % 2 === 0 ? 1 : -1;
+        const bh = h * k;
+        ctx.fillStyle = col;
+        ctx.fillRect(i * bw, dir > 0 ? 0 : h - bh, bw, bh);
+      }
+      break;
+    }
+    case "blinds-horizontal":
+    case "venetian": {
+      const n = 10;
+      const bh = h / n;
+      for (let i = 0; i < n; i++) {
+        ctx.fillStyle = col;
+        ctx.fillRect(0, i * bh, w, bh * k);
+      }
+      break;
+    }
+    case "blinds-vertical": {
+      const n = 12;
+      const bw = w / n;
+      for (let i = 0; i < n; i++) {
+        ctx.fillStyle = col;
+        ctx.fillRect(i * bw, 0, bw * k, h);
+      }
+      break;
+    }
+    case "circle-expand":
+      ctx.beginPath();
+      ctx.arc(w / 2, h / 2, diag * 0.6 * k, 0, Math.PI * 2);
+      ctx.fillStyle = col;
+      ctx.fill();
+      break;
+    case "iris": {
+      ctx.beginPath();
+      ctx.rect(0, 0, w, h);
+      ctx.arc(w / 2, h / 2, diag * 0.55 * (1 - k), 0, Math.PI * 2, true);
+      ctx.fillStyle = col;
+      ctx.fill("evenodd");
+      break;
+    }
+    case "diamond-expand": {
+      const s = diag * 0.7 * k;
+      ctx.save();
+      ctx.translate(w / 2, h / 2);
+      ctx.rotate(Math.PI / 4);
+      ctx.fillStyle = col;
+      ctx.fillRect(-s / 2, -s / 2, s, s);
+      ctx.restore();
+      break;
+    }
+    case "shatter": {
+      const cols = 8;
+      const rows = 5;
+      const cw = w / cols;
+      const ch = h / rows;
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          const seed = r * cols + c;
+          const delay = rnd(seed) * 0.4;
+          const local = Math.max(0, Math.min(1, (k - delay) / (1 - delay)));
+          if (local <= 0) continue;
+          const cx = c * cw + cw / 2;
+          const cy = r * ch + ch / 2;
+          ctx.save();
+          ctx.globalAlpha = local;
+          ctx.translate(cx, cy);
+          ctx.scale(local, local);
+          ctx.fillStyle = col;
+          ctx.fillRect(-cw / 2, -ch / 2, cw, ch);
+          ctx.restore();
+        }
+      }
+      break;
+    }
+    case "pixelate": {
+      const maxCell = 64;
+      const cell = Math.max(4, maxCell * (k < 0.5 ? k * 2 : (1 - k) * 2) + 4);
+      ctx.globalAlpha = k;
+      for (let y = 0; y < h; y += cell) {
+        for (let x = 0; x < w; x += cell) {
+          const shade = rnd((x * 7 + y * 13) * 0.01) * 0.3;
+          ctx.fillStyle = col;
+          ctx.globalAlpha = k * (0.7 + shade);
+          ctx.fillRect(x, y, cell, cell);
+        }
+      }
+      break;
+    }
+    case "brush-strokes": {
+      const n = 7;
+      for (let i = 0; i < n; i++) {
+        const y0 = (i / n) * h;
+        const delay = i * 0.05;
+        const local = Math.max(0, Math.min(1, (k - delay) / (1 - delay)));
+        ctx.fillStyle = col;
+        ctx.fillRect(0, y0, w * local, h / n + 2);
+      }
+      break;
+    }
+    case "paint-splat": {
+      const cx = w / 2;
+      const cy = h / 2;
+      const blobs = 14;
+      ctx.fillStyle = col;
+      for (let i = 0; i < blobs; i++) {
+        const a = (i / blobs) * Math.PI * 2;
+        const dist = diag * 0.6 * k * (0.5 + rnd(i) * 0.6);
+        const r = diag * 0.14 * k * (0.5 + rnd(i * 3) * 0.8) + 4;
+        ctx.beginPath();
+        ctx.arc(cx + Math.cos(a) * dist, cy + Math.sin(a) * dist, r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.beginPath();
+      ctx.arc(cx, cy, diag * 0.3 * k, 0, Math.PI * 2);
+      ctx.fill();
+      break;
+    }
+    case "ink-drop": {
+      const cx = w / 2;
+      const cy = h / 2;
+      ctx.beginPath();
+      ctx.arc(cx, cy, diag * 0.62 * k, 0, Math.PI * 2);
+      ctx.fillStyle = col;
+      ctx.fill();
+      for (let i = 0; i < 10; i++) {
+        const a = (i / 10) * Math.PI * 2;
+        const len = diag * 0.62 * k * (0.9 + rnd(i) * 0.4);
+        ctx.beginPath();
+        ctx.arc(cx + Math.cos(a) * len, cy + Math.sin(a) * len, diag * 0.02, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      break;
+    }
+    case "curtains": {
+      ctx.fillStyle = col;
+      ctx.fillRect(0, 0, (w / 2) * k, h);
+      ctx.fillRect(w - (w / 2) * k, 0, (w / 2) * k, h);
+      break;
+    }
+    case "zoom-blur-flash": {
+      ctx.globalAlpha = k;
+      const rg = ctx.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, diag * 0.7);
+      rg.addColorStop(0, col);
+      rg.addColorStop(1, hexToRgba(col, 0));
+      ctx.fillStyle = rg;
+      ctx.fillRect(0, 0, w, h);
+      ctx.globalAlpha = k * 0.6;
+      fillAll();
+      break;
+    }
+    case "colour-flash":
+      ctx.globalAlpha = k;
+      fillAll();
+      break;
+    case "checkerboard": {
+      const cols = 10;
+      const rows = 6;
+      const cw = w / cols;
+      const ch = h / rows;
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          const seed = (r + c) / (rows + cols);
+          const delay = seed * 0.5;
+          const local = Math.max(0, Math.min(1, (k - delay) / (1 - delay)));
+          if (local <= 0) continue;
+          ctx.globalAlpha = local;
+          ctx.fillStyle = col;
+          ctx.fillRect(c * cw, r * ch, cw + 1, ch + 1);
+        }
+      }
+      break;
+    }
+    case "spiral": {
+      ctx.save();
+      ctx.translate(w / 2, h / 2);
+      ctx.rotate(k * Math.PI * 3);
+      ctx.beginPath();
+      ctx.arc(0, 0, diag * 0.6 * k, 0, Math.PI * 2);
+      ctx.fillStyle = col;
+      ctx.fill();
+      ctx.restore();
+      break;
+    }
+    case "clock-wipe": {
+      ctx.save();
+      ctx.translate(w / 2, h / 2);
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.arc(0, 0, diag, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * k);
+      ctx.closePath();
+      ctx.fillStyle = col;
+      ctx.fill();
+      ctx.restore();
+      break;
+    }
+    case "ripple":
+    case "ripple-rings": {
+      ctx.globalCompositeOperation = "source-over";
+      const rings = 5;
+      for (let i = 0; i < rings; i++) {
+        const rp = Math.max(0, Math.min(1, k * 1.4 - i * 0.1));
+        if (rp <= 0) continue;
+        ctx.beginPath();
+        ctx.arc(w / 2, h / 2, diag * 0.6 * rp, 0, Math.PI * 2);
+        ctx.strokeStyle = col;
+        ctx.lineWidth = diag * 0.05 * (1 - rp) + 4;
+        ctx.stroke();
+      }
+      if (k > 0.5) {
+        ctx.globalAlpha = (k - 0.5) * 2;
+        fillAll();
+      }
+      break;
+    }
+    case "page-turn": {
+      const shear = (1 - k) * w * 0.5;
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(w * k, 0);
+      ctx.lineTo(w * k - shear * 0.2, h);
+      ctx.lineTo(0, h);
+      ctx.closePath();
+      ctx.fillStyle = col;
+      ctx.fill();
+      ctx.restore();
+      break;
+    }
+    case "film-burn": {
+      ctx.globalAlpha = k;
+      const rg = ctx.createRadialGradient(w * 0.5, h * 0.5, 0, w * 0.5, h * 0.5, diag * 0.7 * (0.3 + k));
+      rg.addColorStop(0, "#fff7e0");
+      rg.addColorStop(0.4, col);
+      rg.addColorStop(1, hexToRgba(col, 0));
+      ctx.fillStyle = rg;
+      ctx.fillRect(0, 0, w, h);
+      break;
+    }
+    case "zigzag": {
+      const step = h / 8;
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      for (let y = 0, row = 0; y <= h; y += step, row++) {
+        const x = w * k + (row % 2 === 0 ? -1 : 1) * step * 0.5;
+        ctx.lineTo(x, y);
+      }
+      ctx.lineTo(0, h);
+      ctx.closePath();
+      ctx.fillStyle = col;
+      ctx.fill();
+      break;
+    }
+    case "star-wipe": {
+      ctx.save();
+      ctx.translate(w / 2, h / 2);
+      const spikes = 8;
+      const rOuter = diag * 0.75 * k;
+      const rInner = rOuter * 0.5;
+      ctx.beginPath();
+      for (let i = 0; i < spikes * 2; i++) {
+        const r = i % 2 === 0 ? rOuter : rInner;
+        const a = (i / (spikes * 2)) * Math.PI * 2;
+        const px = Math.cos(a) * r;
+        const py = Math.sin(a) * r;
+        i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+      ctx.fillStyle = col;
+      ctx.fill();
+      ctx.restore();
+      break;
+    }
+    case "confetti-burst":
+    case "confetti-fade": {
+      ctx.globalAlpha = k;
+      fillAll();
+      ctx.globalAlpha = 1;
+      const n = 60;
+      for (let i = 0; i < n; i++) {
+        const a = rnd(i) * Math.PI * 2;
+        const dist = diag * 0.7 * k * (0.3 + rnd(i * 2) * 0.7);
+        const x = w / 2 + Math.cos(a) * dist;
+        const y = h / 2 + Math.sin(a) * dist;
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(a * 3);
+        ctx.fillStyle = i % 2 ? "#fff" : hexToRgba(col, 0.7);
+        ctx.fillRect(-5, -9, 10, 18);
+        ctx.restore();
+      }
+      break;
+    }
+    case "slide-push-left":
+      ctx.fillStyle = col;
+      ctx.fillRect(w - w * k, 0, w * k, h);
+      break;
+    case "slide-push-right":
+      ctx.fillStyle = col;
+      ctx.fillRect(0, 0, w * k, h);
+      break;
+    case "slide-push-up":
+      ctx.fillStyle = col;
+      ctx.fillRect(0, h - h * k, w, h * k);
+      break;
+    case "slide-push-down":
+      ctx.fillStyle = col;
+      ctx.fillRect(0, 0, w, h * k);
+      break;
+    case "cross-fade":
+      ctx.globalAlpha = k;
+      fillAll();
+      break;
+    case "split-horizontal":
+      ctx.fillStyle = col;
+      ctx.fillRect(0, h / 2 - (h / 2) * k, w, h * k);
+      break;
+    case "split-vertical":
+      ctx.fillStyle = col;
+      ctx.fillRect(w / 2 - (w / 2) * k, 0, w * k, h);
+      break;
+    case "heart-wipe": {
+      ctx.save();
+      ctx.translate(w / 2, h / 2);
+      const s = diag * 0.045 * k;
+      ctx.beginPath();
+      ctx.moveTo(0, s * 3);
+      ctx.bezierCurveTo(-s * 5, -s, -s * 2, -s * 5, 0, -s * 1.5);
+      ctx.bezierCurveTo(s * 2, -s * 5, s * 5, -s, 0, s * 3);
+      ctx.closePath();
+      ctx.fillStyle = col;
+      ctx.fill();
+      ctx.restore();
+      break;
+    }
+    case "triangle-wipe": {
+      const s = diag * 0.9 * k;
+      ctx.save();
+      ctx.translate(w / 2, h / 2);
+      ctx.beginPath();
+      ctx.moveTo(0, -s * 0.6);
+      ctx.lineTo(s * 0.55, s * 0.4);
+      ctx.lineTo(-s * 0.55, s * 0.4);
+      ctx.closePath();
+      ctx.fillStyle = col;
+      ctx.fill();
+      ctx.restore();
+      break;
+    }
+    case "hex-wipe": {
+      const r = diag * 0.55 * k;
+      ctx.save();
+      ctx.translate(w / 2, h / 2);
+      ctx.beginPath();
+      for (let i = 0; i < 6; i++) {
+        const a = (Math.PI / 3) * i;
+        const px = Math.cos(a) * r;
+        const py = Math.sin(a) * r;
+        i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+      ctx.fillStyle = col;
+      ctx.fill();
+      ctx.restore();
+      break;
+    }
+    case "vortex": {
+      ctx.save();
+      ctx.translate(w / 2, h / 2);
+      const arms = 6;
+      for (let i = 0; i < arms; i++) {
+        ctx.save();
+        ctx.rotate((i / arms) * Math.PI * 2 + k * Math.PI * 2);
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.arc(0, 0, diag * 0.7 * k, 0, Math.PI / arms);
+        ctx.closePath();
+        ctx.fillStyle = col;
+        ctx.fill();
+        ctx.restore();
+      }
+      ctx.restore();
+      break;
+    }
+    case "double-wipe": {
+      ctx.fillStyle = col;
+      ctx.fillRect(0, 0, (w / 2) * k, h);
+      ctx.fillRect(w, 0, -(w / 2) * k, h);
+      break;
+    }
+    case "shockwave": {
+      const rp = k;
+      ctx.beginPath();
+      ctx.arc(w / 2, h / 2, diag * 0.65 * rp, 0, Math.PI * 2);
+      ctx.strokeStyle = col;
+      ctx.lineWidth = diag * 0.08 * (1 - rp) + 6;
+      ctx.stroke();
+      if (rp > 0.6) {
+        ctx.globalAlpha = (rp - 0.6) / 0.4;
+        fillAll();
+      }
+      break;
+    }
+    case "glitch": {
+      const rows = 16;
+      const rh = h / rows;
+      for (let i = 0; i < rows; i++) {
+        const off = (rnd(i * 3.1 + Math.floor(p * 20)) - 0.5) * w * (1 - k) * 0.4;
+        ctx.globalAlpha = k;
+        ctx.fillStyle = col;
+        ctx.fillRect(off, i * rh, w, rh);
+      }
+      break;
+    }
+    case "sparkle-burst": {
+      ctx.globalAlpha = k;
+      fillAll();
+      ctx.globalAlpha = 1;
+      for (let i = 0; i < 30; i++) {
+        const a = rnd(i * 5) * Math.PI * 2;
+        const dist = diag * 0.5 * k;
+        const x = w / 2 + Math.cos(a) * dist;
+        const y = h / 2 + Math.sin(a) * dist;
+        ctx.beginPath();
+        ctx.arc(x, y, 3 + rnd(i) * 5, 0, Math.PI * 2);
+        ctx.fillStyle = "#fff";
+        ctx.fill();
+      }
+      break;
+    }
+    case "rain-wipe": {
+      const cols = 24;
+      const cw = w / cols;
+      for (let i = 0; i < cols; i++) {
+        const delay = rnd(i) * 0.3;
+        const local = Math.max(0, Math.min(1, (k - delay) / (1 - delay)));
+        ctx.fillStyle = col;
+        ctx.fillRect(i * cw, 0, cw + 1, h * local);
+      }
+      break;
+    }
+    case "petal-wipe": {
+      ctx.save();
+      ctx.translate(w / 2, h / 2);
+      const petals = 6;
+      for (let i = 0; i < petals; i++) {
+        ctx.save();
+        ctx.rotate((i / petals) * Math.PI * 2);
+        ctx.beginPath();
+        ctx.ellipse(0, -diag * 0.3 * k, diag * 0.16 * k, diag * 0.32 * k, 0, 0, Math.PI * 2);
+        ctx.fillStyle = col;
+        ctx.fill();
+        ctx.restore();
+      }
+      ctx.restore();
+      break;
+    }
+    case "kaleidoscope": {
+      ctx.save();
+      ctx.translate(w / 2, h / 2);
+      const segs = 8;
+      for (let i = 0; i < segs; i++) {
+        ctx.save();
+        ctx.rotate((i / segs) * Math.PI * 2 + k * 1.2);
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.arc(0, 0, diag * 0.7 * k, 0, Math.PI / segs);
+        ctx.closePath();
+        ctx.fillStyle = hexToRgba(col, 0.85);
+        ctx.fill();
+        ctx.restore();
+      }
+      ctx.restore();
+      break;
+    }
+    default:
+      ctx.globalAlpha = k;
+      fillAll();
+      break;
+  }
+
+  ctx.restore();
+}
+
+export function RoundTransitionControls({
+  value,
+  onChange,
+}: {
+  value: RoundTransitionSpec;
+  onChange: (next: RoundTransitionSpec) => void;
+}) {
+  const set = (patch: Partial<RoundTransitionSpec>) => onChange({ ...value, ...patch });
+  return (
+    <div className="space-y-2">
+      <Picker label="Transition" value={value.id} options={ROUND_TRANSITIONS} onChange={(v) => set({ id: v })} />
+      <div>
+        <Label className="text-[11px] text-muted-foreground">Duration · {value.duration.toFixed(2)}s</Label>
+        <Slider value={[value.duration]} min={0.2} max={2} step={0.05} onValueChange={([v]) => set({ duration: v })} />
+      </div>
+      <Picker label="Easing" value={value.easing} options={EASINGS} onChange={(v) => set({ easing: v })} />
+      <div className="flex items-center gap-2">
+        <Label className="text-[11px] text-muted-foreground">Colour</Label>
+        <input
+          type="color"
+          value={value.color}
+          onChange={(e) => set({ color: e.target.value })}
+          className="h-8 w-14 cursor-pointer rounded border bg-transparent"
+        />
+      </div>
     </div>
   );
 }
