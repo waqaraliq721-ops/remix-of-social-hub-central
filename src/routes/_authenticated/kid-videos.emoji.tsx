@@ -1536,6 +1536,46 @@ function EmojiPage() {
                 )}
               </div>
               <ChannelLogoControls value={channelLogo} onChange={setChannelLogo} />
+              <div>
+                <Label className="text-xs text-muted-foreground">Or use an emoji as the logo</Label>
+                <Input
+                  value={channelLogoEmoji}
+                  placeholder="⚡"
+                  onChange={(e) => setChannelLogoEmoji(e.target.value)}
+                />
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  Used when no image is uploaded above.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Side text</CardTitle>
+              <CardDescription>Editable vertical text on the left/right edges.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="space-y-1">
+                <label className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                  Left text
+                  <Switch
+                    checked={sideText.leftVisible}
+                    onCheckedChange={(v) => setSideText((s) => ({ ...s, leftVisible: v }))}
+                  />
+                </label>
+                <Input value={sideText.left} onChange={(e) => setSideText((s) => ({ ...s, left: e.target.value }))} />
+              </div>
+              <div className="space-y-1">
+                <label className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                  Right text
+                  <Switch
+                    checked={sideText.rightVisible}
+                    onCheckedChange={(v) => setSideText((s) => ({ ...s, rightVisible: v }))}
+                  />
+                </label>
+                <Input value={sideText.right} onChange={(e) => setSideText((s) => ({ ...s, right: e.target.value }))} />
+              </div>
             </CardContent>
           </Card>
 
