@@ -265,6 +265,9 @@ function LogoPage() {
   const [heading, setHeading] = useState("Guess The Logo");
   const [revealSecs, setRevealSecs] = useState(2);
   const [showTimer, setShowTimer] = useState(true);
+  const [showTimeBar, setShowTimeBar] = useState(true);
+  const [answerFontScale, setAnswerFontScale] = useState(1);
+  const [answerColor, setAnswerColor] = useState("");
   const [anims, setAnims] = useState<Record<string, ElementAnimSpec>>(defaultAnimMap());
   const setAnim = (key: string, spec: ElementAnimSpec) =>
     setAnims((a) => ({ ...a, [key]: spec }));
@@ -568,9 +571,9 @@ function LogoPage() {
           ctx.textAlign = "center";
           ctx.textBaseline = "middle";
           const answer = r.answer.toUpperCase();
-          const asz = fitText(ctx, answer, w - M * 2 - bandH * 0.5, bandH * 0.4, 900);
+          const asz = fitText(ctx, answer, w - M * 2 - bandH * 0.5, bandH * 0.4 * answerFontScale, 900);
           ctx.font = `900 ${asz}px ${FX_FONT}`;
-          ctx.fillStyle = pal.text;
+          ctx.fillStyle = answerColor.trim() || pal.text;
           ctx.shadowColor = hexA(pal.accent, 0.5);
           ctx.shadowBlur = asz * 0.35;
           ctx.fillText(answer, bcx, bandY + bandH * 0.66);
@@ -582,7 +585,7 @@ function LogoPage() {
       const barW = w - M * 2.4;
       const barH = Math.min(w, h) * 0.022;
       const barY = h - M * 0.9;
-      if (showTimer && !revealing && (styles.timebar?.visible ?? true)) {
+      if (showTimeBar && !revealing && (styles.timebar?.visible ?? true)) {
         const timebarAnim = computeAnim(anims.timebar ?? defaultAnim(), local);
         const frac = Math.max(0, Math.min(1, local / Math.max(0.01, guessDur)));
         ctx.save();
@@ -629,6 +632,8 @@ function LogoPage() {
     [
       aspect,
       anims,
+      answerColor,
+      answerFontScale,
       styles,
       backgroundId,
       backgroundIntensity,
@@ -636,6 +641,7 @@ function LogoPage() {
       pal,
       revealSecs,
       showTimer,
+      showTimeBar,
       timerStyle,
       timeBarStyle,
       channelLogo,
@@ -1019,9 +1025,47 @@ function LogoPage() {
                   onValueChange={([v]) => setRevealSecs(v)}
                 />
               </div>
-              <label className="flex items-center justify-between gap-2 text-sm">
-                Timer bar <Switch checked={showTimer} onCheckedChange={setShowTimer} />
-              </label>
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <label className="flex items-center justify-between gap-2">
+                  Timer ring <Switch checked={showTimer} onCheckedChange={setShowTimer} />
+                </label>
+                <label className="flex items-center justify-between gap-2">
+                  Time bar <Switch checked={showTimeBar} onCheckedChange={setShowTimeBar} />
+                </label>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Answer text</CardTitle>
+              <CardDescription>Font size and colour of the revealed answer.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div>
+                <Label className="text-xs text-muted-foreground">
+                  Font size · {Math.round(answerFontScale * 100)}%
+                </Label>
+                <Slider
+                  value={[answerFontScale]}
+                  min={0.5}
+                  max={1.6}
+                  step={0.02}
+                  onValueChange={([v]) => setAnswerFontScale(v)}
+                />
+              </div>
+              <div className="flex items-center gap-3">
+                <Label className="text-xs text-muted-foreground">Colour</Label>
+                <input
+                  type="color"
+                  value={answerColor || "#ffffff"}
+                  onChange={(e) => setAnswerColor(e.target.value)}
+                  className="h-7 w-10 cursor-pointer rounded border"
+                />
+                <Button variant="ghost" size="sm" onClick={() => setAnswerColor("")}>
+                  Reset to palette
+                </Button>
+              </div>
             </CardContent>
           </Card>
 
