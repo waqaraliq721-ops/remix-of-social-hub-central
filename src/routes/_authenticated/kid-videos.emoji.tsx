@@ -172,7 +172,7 @@ type Round = {
   voDur: number;
 };
 
-type StyleId = "bubble" | "arcade" | "chalk" | "confetti" | "clean" | "quizshow";
+type StyleId = "bubble" | "arcade" | "chalk" | "confetti" | "clean" | "quizshow" | "hq";
 const STYLES: { id: StyleId; name: string; desc: string }[] = [
   { id: "bubble", name: "Bubble Pop", desc: "Soft rounded card with bouncy emoji pop-in." },
   { id: "arcade", name: "Arcade", desc: "Pixel frame, scanlines and a chunky timer." },
@@ -180,6 +180,7 @@ const STYLES: { id: StyleId; name: string; desc: string }[] = [
   { id: "confetti", name: "Confetti Party", desc: "Falling confetti on the answer reveal." },
   { id: "clean", name: "Clean Studio", desc: "Minimal, big type, no distractions." },
   { id: "quizshow", name: "Quiz Show", desc: "Stage lights, spotlight glow and a bold banner." },
+  { id: "hq", name: "HQ Diamond", desc: "Blue diamond-tile backdrop, big cartoon title, side texts and a striped time bar." },
 ];
 
 type Pal = PaletteLike & { id: string; name: string };
@@ -298,6 +299,16 @@ function EmojiPage() {
   const [timebarStyle, setTimebarStyle] = useState<TimeBarStyleId>("thin");
   const [emojiGap, setEmojiGap] = useState(1);
   const [emojiLineHeight, setEmojiLineHeight] = useState(1);
+  const [highlightWord, setHighlightWord] = useState("Emoji");
+  const [emojiOutlineWidth, setEmojiOutlineWidth] = useState(0);
+  const [emojiOutlineColor, setEmojiOutlineColor] = useState("#ffffff");
+  const [sideText, setSideText] = useState({
+    left: "GUESS THE WORD • ",
+    right: "GUESS THE WORD • ",
+    leftVisible: false,
+    rightVisible: false,
+  });
+  const [channelLogoEmoji, setChannelLogoEmoji] = useState("");
 
   const [channelLogo, setChannelLogo] = useState<ChannelLogoSpec>(defaultChannelLogo());
   const [channelLogoUrl, setChannelLogoUrl] = useState<string | null>(null);
@@ -405,6 +416,27 @@ function EmojiPage() {
         ctx.fillStyle = "rgba(0,0,0,0.07)";
         for (let y = 0; y < h; y += 6) ctx.fillRect(0, y, w, 2);
       }
+      if (style === "hq") {
+        const cell = Math.min(w, h) * 0.09;
+        ctx.save();
+        ctx.strokeStyle = "rgba(255,255,255,0.10)";
+        ctx.lineWidth = Math.max(1, cell * 0.02);
+        for (let y = -cell * 2; y < h + cell * 2; y += cell) {
+          for (let x = -cell * 2; x < w + cell * 2; x += cell) {
+            ctx.save();
+            ctx.translate(x + ((y / cell) % 2) * (cell / 2), y);
+            ctx.beginPath();
+            ctx.moveTo(0, -cell / 2);
+            ctx.lineTo(cell / 2, 0);
+            ctx.lineTo(0, cell / 2);
+            ctx.lineTo(-cell / 2, 0);
+            ctx.closePath();
+            ctx.stroke();
+            ctx.restore();
+          }
+        }
+        ctx.restore();
+      }
       // subtle rotating ray-burst for a lively, non-static backdrop
       ctx.save();
       ctx.translate(w / 2, h / 2);
@@ -493,8 +525,25 @@ function EmojiPage() {
         ctx.strokeStyle = hexA(pal.primary, 0.7);
         ctx.lineWidth = Math.max(2, hs * 0.05);
         ctx.stroke();
-        ctx.fillStyle = pal.text;
-        ctx.fillText(title, w / 2, by, w - M * 2 - padX * 2);
+        const hw = highlightWord.trim() ? (uppercase ? highlightWord.toUpperCase() : highlightWord) : "";
+        if (hw && title.includes(hw)) {
+          const idx = title.indexOf(hw);
+          const before = title.slice(0, idx);
+          const after = title.slice(idx + hw.length);
+          ctx.textAlign = "left";
+          const beforeW = ctx.measureText(before).width;
+          const hwW = ctx.measureText(hw).width;
+          const startX = w / 2 - tw / 2;
+          ctx.fillStyle = pal.text;
+          ctx.fillText(before, startX, by);
+          ctx.fillStyle = pal.accent;
+          ctx.fillText(hw, startX + beforeW, by);
+          ctx.fillStyle = pal.text;
+          ctx.fillText(after, startX + beforeW + hwW, by);
+        } else {
+          ctx.fillStyle = pal.text;
+          ctx.fillText(title, w / 2, by, w - M * 2 - padX * 2);
+        }
         ctx.restore();
       }
 

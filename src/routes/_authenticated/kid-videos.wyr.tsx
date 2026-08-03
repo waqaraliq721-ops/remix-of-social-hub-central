@@ -111,12 +111,13 @@ export const Route = createFileRoute("/_authenticated/kid-videos/wyr")({
   component: WyrPage,
 });
 
-type AspectKey = "9:16" | "1:1" | "16:9" | "16:9-hq";
+type AspectKey = "9:16" | "1:1" | "16:9" | "16:9-hq" | "16:9-uhd";
 const ASPECTS: Record<AspectKey, { w: number; h: number; label: string }> = {
   "9:16": { w: 1080, h: 1920, label: "Vertical · TikTok/Reels/Shorts" },
   "1:1": { w: 1080, h: 1080, label: "Square · Feed" },
   "16:9": { w: 1920, h: 1080, label: "Widescreen · YouTube" },
   "16:9-hq": { w: 1920, h: 1080, label: "16:9 HQ · Quiz-show layout" },
+  "16:9-uhd": { w: 1920, h: 1080, label: "ULTRA HD Vid · Sunburst quiz show" },
 };
 
 const ANIM_ELEMENTS: { key: string; label: string }[] = [
@@ -271,6 +272,12 @@ function WyrPage() {
   const [channelLogoImg, setChannelLogoImg] = useState<HTMLImageElement | null>(null);
   const [roundBadgeStyle, setRoundBadgeStyle] = useState<RoundBadgeId>("pill");
   const [roundTransition, setRoundTransition] = useState<RoundTransitionSpec>(defaultRoundTransition());
+  // ULTRA HD Vid layout specific controls
+  const [uhdLogoMode, setUhdLogoMode] = useState<"image" | "emoji">("emoji");
+  const [uhdLogoEmoji, setUhdLogoEmoji] = useState("⚡");
+  const [uhdRiderEmoji, setUhdRiderEmoji] = useState("🏃");
+  const [showUhdRider, setShowUhdRider] = useState(true);
+  const [sideLabelColor, setSideLabelColor] = useState("#ffffff");
 
   const onChannelLogo = (file: File) => {
     const url = URL.createObjectURL(file);
@@ -850,6 +857,282 @@ function WyrPage() {
       channelLogoImg,
       sideLabel,
       showSideLabel,
+    ],
+  );
+
+  const drawRoundUHD = useCallback(
+    (
+      ctx: CanvasRenderingContext2D,
+      w: number,
+      h: number,
+      r: Round,
+      local: number,
+      dur: number,
+      absT: number,
+      roundIndex = 0,
+    ) => {
+      // Orange sunburst-style animated background (uses the shared registry so
+      // any style added there is available here too — default leans warm/orange).
+      drawBackground(
+        ctx,
+        background,
+        { bg: ["#ff8a00", "#7a2a00"], primary: "#ffb545", accent: "#ff5b1f" },
+        w,
+        h,
+        absT,
+        bgIntensity,
+      );
+      const v = ctx.createRadialGradient(w / 2, h / 2, h * 0.15, w / 2, h / 2, h * 0.9);
+      v.addColorStop(0, "rgba(0,0,0,0)");
+      v.addColorStop(1, "rgba(0,0,0,0.45)");
+      ctx.fillStyle = v;
+      ctx.fillRect(0, 0, w, h);
+
+      const intro01 = ease.out(Math.min(1, local / 0.45));
+      const M = h * 0.055;
+
+      // vertical side texts, both edges
+      if (showSideLabel && sideLabel) {
+        ctx.save();
+        ctx.font = `900 ${Math.round(h * 0.028)}px ${FX_FONT}`;
+        ctx.fillStyle = hexA(sideLabelColor, 0.55);
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.save();
+        ctx.translate(M * 0.5, h / 2);
+        ctx.rotate(-Math.PI / 2);
+        ctx.fillText(sideLabel.toUpperCase(), 0, 0);
+        ctx.restore();
+        ctx.save();
+        ctx.translate(w - M * 0.5, h / 2);
+        ctx.rotate(Math.PI / 2);
+        ctx.fillText(sideLabel.toUpperCase(), 0, 0);
+        ctx.restore();
+        ctx.restore();
+      }
+
+      // round-number badge, top-left
+      const roundNoStyleUHD = styles.roundNo ?? defaultStyle();
+      if (roundNoStyleUHD.visible) {
+        const roundAnim = computeAnim(anims.roundNo ?? defaultAnim(), local);
+        ctx.save();
+        applyStyle(ctx, roundNoStyleUHD, M + h * 0.045, M + h * 0.045, w, h);
+        applyAnim(ctx, roundAnim, M + h * 0.045, M + h * 0.045);
+        drawRoundBadge(
+          ctx,
+          roundBadgeStyle,
+          `#${roundIndex + 1}`,
+          M + h * 0.045,
+          M + h * 0.045,
+          h * 0.03,
+          { primary: "#ffdd55", accent: "#ff5b1f", text: "#3a1400" },
+        );
+        ctx.restore();
+      }
+
+      // top-right logo: uploaded image via the shared channel-logo helper, or
+      // an emoji/text logo drawn locally so no image upload is required.
+      if (uhdLogoMode === "image") {
+        drawChannelLogo(ctx, channelLogoImg, channelLogo, w, h, local);
+      } else if (channelLogo.visible) {
+        const size = Math.min(w, h) * 0.11 * channelLogo.scale;
+        const ax = w - size * 0.9 + (channelLogo.dx / 100) * w;
+        const ay = size * 0.9 + (channelLogo.dy / 100) * h;
+        ctx.save();
+        ctx.globalAlpha *= Math.max(0, Math.min(1, channelLogo.opacity));
+        ctx.translate(ax, ay);
+        ctx.rotate((channelLogo.rotate * Math.PI) / 180);
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.font = `900 ${Math.round(size * 1.6)}px ${FX_FONT}`;
+        ctx.shadowColor = "rgba(0,0,0,0.5)";
+        ctx.shadowBlur = size * 0.3;
+        ctx.fillText(uhdLogoEmoji, 0, 0);
+        ctx.restore();
+      }
+
+      // title, white with heavy outline
+      const titleStyleUHD = styles.title ?? defaultStyle();
+      if (heading && showHeading && titleStyleUHD.visible) {
+        const titleAnim = computeAnim(anims.title ?? defaultAnim(), local);
+        ctx.save();
+        applyStyle(ctx, titleStyleUHD, w / 2, M + h * 0.075, w, h);
+        applyAnim(ctx, titleAnim, w / 2, M + h * 0.075);
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.font = `900 ${Math.round(h * 0.085)}px ${FX_FONT}`;
+        ctx.globalAlpha *= intro01;
+        ctx.lineJoin = "round";
+        ctx.lineWidth = h * 0.014;
+        ctx.strokeStyle = "#3a1400";
+        ctx.strokeText(heading.toUpperCase(), w / 2, M + h * 0.075);
+        ctx.fillStyle = "#ffffff";
+        ctx.fillText(heading.toUpperCase(), w / 2, M + h * 0.075);
+        ctx.restore();
+      }
+
+      // two rounded, white-framed image cards
+      const panelTop = h * 0.22;
+      const panelH = h * 0.55;
+      const gap = w * 0.035;
+      const panelW = (w - M * 2.8 - gap) / 2;
+      const panels = [
+        { img: r.imgA, text: r.textA, x: M * 1.4, key: "imageA" as const },
+        { img: r.imgB, text: r.textB, x: M * 1.4 + panelW + gap, key: "imageB" as const },
+      ];
+      panels.forEach((p, i) => {
+        const panelStyle = styles[p.key] ?? defaultStyle();
+        if (!panelStyle.visible) return;
+        const anim = computeAnim(anims[p.key] ?? defaultAnim(), local);
+        ctx.save();
+        applyStyle(ctx, panelStyle, p.x + panelW / 2, panelTop + panelH / 2, w, h);
+        applyAnim(ctx, anim, p.x + panelW / 2, panelTop + panelH / 2);
+        ctx.save();
+        ctx.shadowColor = "rgba(0,0,0,0.5)";
+        ctx.shadowBlur = h * 0.03;
+        roundRect(ctx, p.x, panelTop, panelW, panelH, h * 0.035);
+        ctx.fillStyle = "#111";
+        ctx.fill();
+        ctx.restore();
+        roundRect(ctx, p.x, panelTop, panelW, panelH, h * 0.035);
+        ctx.save();
+        ctx.clip();
+        if (p.img) {
+          drawCover(ctx, p.img, p.x, panelTop, panelW, panelH, zoom);
+        } else {
+          ctx.fillStyle = "rgba(255,255,255,0.12)";
+          ctx.fillRect(p.x, panelTop, panelW, panelH);
+        }
+        ctx.restore();
+        ctx.lineWidth = h * 0.009;
+        ctx.strokeStyle = "#ffffff";
+        ctx.stroke();
+        ctx.restore();
+
+        // white answer plate below each card
+        const labelKeyUHD = i === 0 ? "labelA" : "labelB";
+        const labelStyleUHD = styles[labelKeyUHD] ?? defaultStyle();
+        const label = uppercase ? p.text.toUpperCase() : p.text;
+        if (label && labelStyleUHD.visible) {
+          const plateY = panelTop + panelH + h * 0.055;
+          const labelAnim = computeAnim(anims[labelKeyUHD] ?? defaultAnim(), local);
+          ctx.save();
+          applyStyle(ctx, labelStyleUHD, p.x + panelW / 2, plateY, w, h);
+          applyAnim(ctx, labelAnim, p.x + panelW / 2, plateY);
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          const base = Math.round(h * 0.038);
+          fitText(ctx, label, panelW * 0.88, base, 800);
+          const size = parseInt(ctx.font, 10);
+          const tw = ctx.measureText(label).width;
+          ctx.fillStyle = "#ffffff";
+          roundRect(
+            ctx,
+            p.x + panelW / 2 - tw / 2 - size * 0.7,
+            plateY - size * 0.85,
+            tw + size * 1.4,
+            size * 1.7,
+            size * 0.85,
+          );
+          ctx.fill();
+          ctx.fillStyle = "#e8590c";
+          ctx.fillText(label, p.x + panelW / 2, plateY);
+          ctx.restore();
+        }
+      });
+
+      // VS badge
+      const badgeStyleUHD = styles.badge ?? defaultStyle();
+      if (showVs && badgeStyleUHD.visible) {
+        const pop = ease.back(Math.min(1, local / 0.5));
+        const badgeAnimUHD = computeAnim(anims.badge ?? defaultAnim(), local);
+        ctx.save();
+        applyStyle(ctx, badgeStyleUHD, w / 2, panelTop + panelH / 2, w, h);
+        applyAnim(ctx, badgeAnimUHD, w / 2, panelTop + panelH / 2);
+        ctx.translate(w / 2, panelTop + panelH / 2);
+        ctx.scale(pop, pop);
+        ctx.beginPath();
+        ctx.arc(0, 0, h * 0.05, 0, Math.PI * 2);
+        ctx.fillStyle = "#3a1400";
+        ctx.fill();
+        ctx.lineWidth = h * 0.006;
+        ctx.strokeStyle = "#fff";
+        ctx.stroke();
+        ctx.fillStyle = "#fff";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.font = `900 ${Math.round(h * 0.045)}px ${FX_FONT}`;
+        ctx.fillText("VS", 0, h * 0.002);
+        ctx.restore();
+      }
+
+      // timer
+      const timerStyleUHD = styles.timer ?? defaultStyle();
+      if (showTimer && timerStyleUHD.visible) {
+        const left = Math.max(0, Math.min(timerSecs, dur - local));
+        const timerAnim = computeAnim(anims.timer ?? defaultAnim(), local);
+        const rr = h * 0.05;
+        const tcx = w / 2;
+        const tcy = panelTop - h * 0.06;
+        ctx.save();
+        applyStyle(ctx, timerStyleUHD, tcx, tcy, w, h);
+        applyAnim(ctx, timerAnim, tcx, tcy);
+        drawTimer(ctx, timerStyle, tcx, tcy, rr, left, timerSecs, { primary: "#34d399", accent: "#ef4444", text: "#ffffff" }, local);
+        ctx.restore();
+      }
+
+      // green chevron time bar with a rider emoji, bottom of frame
+      const timebarStyleUHD = styles.timebar ?? defaultStyle();
+      const barW = w - M * 2.8;
+      const barH = h * 0.024;
+      const barY = h - M * 0.85;
+      const guessDurUHD = Math.min(timerSecs, dur);
+      const frac = Math.max(0, Math.min(1, 1 - local / Math.max(0.01, guessDurUHD)));
+      if (timebarStyleUHD.visible) {
+        const timebarAnim = computeAnim(anims.timebar ?? defaultAnim(), local);
+        ctx.save();
+        applyStyle(ctx, timebarStyleUHD, M * 1.4 + barW / 2, barY + barH / 2, w, h);
+        applyAnim(ctx, timebarAnim, M * 1.4 + barW / 2, barY + barH / 2);
+        drawTimeBar(ctx, timebarStyle, M * 1.4, barY, barW, barH, frac, { primary: "#22c55e", accent: "#16a34a", text: "#ffffff" }, local);
+        if (showUhdRider) {
+          const riderX = M * 1.4 + barW * frac;
+          ctx.save();
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.font = `${Math.round(barH * 3.2)}px ${FX_FONT}`;
+          ctx.translate(riderX, barY + barH / 2 - barH * 0.4);
+          ctx.rotate(Math.sin(local * 8) * 0.1);
+          ctx.fillText(uhdRiderEmoji, 0, 0);
+          ctx.restore();
+        }
+        ctx.restore();
+      }
+    },
+    [
+      anims,
+      colors,
+      heading,
+      showHeading,
+      showTimer,
+      showVs,
+      timerSecs,
+      uppercase,
+      zoom,
+      styles,
+      background,
+      bgIntensity,
+      timerStyle,
+      timebarStyle,
+      roundBadgeStyle,
+      channelLogo,
+      channelLogoImg,
+      sideLabel,
+      showSideLabel,
+      sideLabelColor,
+      uhdLogoMode,
+      uhdLogoEmoji,
+      uhdRiderEmoji,
+      showUhdRider,
     ],
   );
 
