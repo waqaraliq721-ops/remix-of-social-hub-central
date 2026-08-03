@@ -18,6 +18,7 @@ import { Route as ApiTtsRouteImport } from './routes/api/tts'
 import { Route as ApiTranscribeRouteImport } from './routes/api/transcribe'
 import { Route as ApiRepurposeRouteImport } from './routes/api/repurpose'
 import { Route as AuthenticatedVideosRouteImport } from './routes/_authenticated/videos'
+import { Route as AuthenticatedTierListVideosRouteImport } from './routes/_authenticated/tier-list-videos'
 import { Route as AuthenticatedRepurposeRouteImport } from './routes/_authenticated/repurpose'
 import { Route as AuthenticatedPresetsRouteImport } from './routes/_authenticated/presets'
 import { Route as AuthenticatedMotivationalVideosRouteImport } from './routes/_authenticated/motivational-videos'
@@ -86,6 +87,12 @@ const AuthenticatedVideosRoute = AuthenticatedVideosRouteImport.update({
   path: '/videos',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedTierListVideosRoute =
+  AuthenticatedTierListVideosRouteImport.update({
+    id: '/tier-list-videos',
+    path: '/tier-list-videos',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedRepurposeRoute = AuthenticatedRepurposeRouteImport.update({
   id: '/repurpose',
   path: '/repurpose',
@@ -233,6 +240,7 @@ export interface FileRoutesByFullPath {
   '/motivational-videos': typeof AuthenticatedMotivationalVideosRoute
   '/presets': typeof AuthenticatedPresetsRoute
   '/repurpose': typeof AuthenticatedRepurposeRoute
+  '/tier-list-videos': typeof AuthenticatedTierListVideosRoute
   '/videos': typeof AuthenticatedVideosRoute
   '/api/repurpose': typeof ApiRepurposeRoute
   '/api/transcribe': typeof ApiTranscribeRoute
@@ -264,6 +272,7 @@ export interface FileRoutesByTo {
   '/motivational-videos': typeof AuthenticatedMotivationalVideosRoute
   '/presets': typeof AuthenticatedPresetsRoute
   '/repurpose': typeof AuthenticatedRepurposeRoute
+  '/tier-list-videos': typeof AuthenticatedTierListVideosRoute
   '/videos': typeof AuthenticatedVideosRoute
   '/api/repurpose': typeof ApiRepurposeRoute
   '/api/transcribe': typeof ApiTranscribeRoute
@@ -299,6 +308,7 @@ export interface FileRoutesById {
   '/_authenticated/motivational-videos': typeof AuthenticatedMotivationalVideosRoute
   '/_authenticated/presets': typeof AuthenticatedPresetsRoute
   '/_authenticated/repurpose': typeof AuthenticatedRepurposeRoute
+  '/_authenticated/tier-list-videos': typeof AuthenticatedTierListVideosRoute
   '/_authenticated/videos': typeof AuthenticatedVideosRoute
   '/api/repurpose': typeof ApiRepurposeRoute
   '/api/transcribe': typeof ApiTranscribeRoute
@@ -334,6 +344,7 @@ export interface FileRouteTypes {
     | '/motivational-videos'
     | '/presets'
     | '/repurpose'
+    | '/tier-list-videos'
     | '/videos'
     | '/api/repurpose'
     | '/api/transcribe'
@@ -365,6 +376,7 @@ export interface FileRouteTypes {
     | '/motivational-videos'
     | '/presets'
     | '/repurpose'
+    | '/tier-list-videos'
     | '/videos'
     | '/api/repurpose'
     | '/api/transcribe'
@@ -399,6 +411,7 @@ export interface FileRouteTypes {
     | '/_authenticated/motivational-videos'
     | '/_authenticated/presets'
     | '/_authenticated/repurpose'
+    | '/_authenticated/tier-list-videos'
     | '/_authenticated/videos'
     | '/api/repurpose'
     | '/api/transcribe'
@@ -490,6 +503,13 @@ declare module '@tanstack/react-router' {
       path: '/videos'
       fullPath: '/videos'
       preLoaderRoute: typeof AuthenticatedVideosRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/tier-list-videos': {
+      id: '/_authenticated/tier-list-videos'
+      path: '/tier-list-videos'
+      fullPath: '/tier-list-videos'
+      preLoaderRoute: typeof AuthenticatedTierListVideosRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/repurpose': {
@@ -714,6 +734,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedMotivationalVideosRoute: typeof AuthenticatedMotivationalVideosRoute
   AuthenticatedPresetsRoute: typeof AuthenticatedPresetsRoute
   AuthenticatedRepurposeRoute: typeof AuthenticatedRepurposeRoute
+  AuthenticatedTierListVideosRoute: typeof AuthenticatedTierListVideosRoute
   AuthenticatedVideosRoute: typeof AuthenticatedVideosRoute
 }
 
@@ -732,6 +753,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedMotivationalVideosRoute: AuthenticatedMotivationalVideosRoute,
   AuthenticatedPresetsRoute: AuthenticatedPresetsRoute,
   AuthenticatedRepurposeRoute: AuthenticatedRepurposeRoute,
+  AuthenticatedTierListVideosRoute: AuthenticatedTierListVideosRoute,
   AuthenticatedVideosRoute: AuthenticatedVideosRoute,
 }
 
