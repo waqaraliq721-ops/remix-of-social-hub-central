@@ -238,7 +238,10 @@ export type BackgroundId =
   | "curtain"
   | "pulse-rings"
   | "zigzag"
-  | "solid";
+  | "solid"
+  | "spiral-sunburst"
+  | "sunburst-rays"
+  | "question-field";
 
 export const BACKGROUNDS: { id: BackgroundId; name: string }[] = [
   { id: "gradient", name: "Gradient" },
@@ -266,6 +269,9 @@ export const BACKGROUNDS: { id: BackgroundId; name: string }[] = [
   { id: "pulse-rings", name: "Pulse rings" },
   { id: "zigzag", name: "Zigzag" },
   { id: "solid", name: "Solid" },
+  { id: "spiral-sunburst", name: "Spiral sunburst" },
+  { id: "sunburst-rays", name: "Sunburst rays" },
+  { id: "question-field", name: "Question mark field" },
 ];
 
 
@@ -657,6 +663,99 @@ export function drawBackground(
       }
       break;
     }
+    case "spiral-sunburst": {
+      // Rotating swirl of alternating rays, hatched stripes on the darker rays.
+      const cx = w / 2;
+      const cy = h / 2;
+      const R = Math.hypot(w, h) * 0.75;
+      const rays = 18;
+      const rot = t * 0.18 * I;
+      ctx.save();
+      ctx.translate(cx, cy);
+      for (let i = 0; i < rays; i++) {
+        const a0 = (i / rays) * Math.PI * 2 + rot;
+        const a1 = ((i + 1) / rays) * Math.PI * 2 + rot;
+        const bend = 0.55;
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        for (let s2 = 0; s2 <= 1; s2 += 0.1) {
+          const a = a0 + (a1 - a0) * s2 + s2 * bend;
+          ctx.lineTo(Math.cos(a) * R, Math.sin(a) * R);
+        }
+        for (let s2 = 1; s2 >= 0; s2 -= 0.1) {
+          const a = a0 + (a1 - a0) * s2 + s2 * bend;
+          ctx.lineTo(Math.cos(a) * R * 1.001, Math.sin(a) * R * 1.001);
+        }
+        ctx.closePath();
+        const dark = i % 2 === 0;
+        ctx.fillStyle = dark ? hexToRgba(colors.primary, 0.9) : hexToRgba(colors.accent, 0.9);
+        ctx.fill();
+        if (dark) {
+          ctx.save();
+          ctx.clip();
+          ctx.strokeStyle = hexToRgba("#000000", 0.12);
+          ctx.lineWidth = 6;
+          for (let hx = -R; hx < R; hx += 22) {
+            ctx.beginPath();
+            ctx.moveTo(hx, -R);
+            ctx.lineTo(hx + R, R);
+            ctx.stroke();
+          }
+          ctx.restore();
+        }
+      }
+      ctx.restore();
+      break;
+    }
+    case "sunburst-rays": {
+      // Classic slow-rotating radial sunburst rays, no swirl bend.
+      const cx = w / 2;
+      const cy = h / 2;
+      const R = Math.hypot(w, h) * 0.75;
+      const rays = 20;
+      const rot = t * 0.08 * I;
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(rot);
+      for (let i = 0; i < rays; i++) {
+        const a0 = (i / rays) * Math.PI * 2;
+        const a1 = ((i + 1) / rays) * Math.PI * 2;
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(Math.cos(a0) * R, Math.sin(a0) * R);
+        ctx.lineTo(Math.cos(a1) * R, Math.sin(a1) * R);
+        ctx.closePath();
+        ctx.fillStyle = i % 2 === 0 ? hexToRgba(colors.primary, 0.85) : hexToRgba(colors.accent, 0.85);
+        ctx.fill();
+      }
+      ctx.restore();
+      break;
+    }
+    case "question-field": {
+      // Purple gradient field with tiled scrolling "?" marks and a centre glow.
+      const g = ctx.createLinearGradient(0, 0, w, h);
+      g.addColorStop(0, colors.primary);
+      g.addColorStop(1, colors.accent);
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, w, h);
+      const glow = ctx.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, Math.max(w, h) * 0.55);
+      glow.addColorStop(0, hexToRgba("#ffffff", 0.18));
+      glow.addColorStop(1, hexToRgba("#ffffff", 0));
+      ctx.fillStyle = glow;
+      ctx.fillRect(0, 0, w, h);
+      const step = 130;
+      const off = (t * 14 * I) % step;
+      ctx.font = `700 ${step * 0.55}px system-ui, sans-serif`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillStyle = "rgba(255,255,255,0.18)";
+      for (let y = -step + off; y < h + step; y += step) {
+        for (let x = -step; x < w + step; x += step) {
+          ctx.fillText("?", x, y);
+        }
+      }
+      break;
+    }
     default:
       break;
   }
@@ -993,6 +1092,9 @@ export type TimeBarStyleId =
   | "ring-dots"
   | "rainbow-sweep"
   | "shrinking-pill"
+  | "mascot-capsule"
+  | "chevron-mascot"
+  | "diagonal-thinker"
   | "none";
 
 export const TIMEBAR_STYLES: { id: TimeBarStyleId; name: string }[] = [
@@ -1018,10 +1120,24 @@ export const TIMEBAR_STYLES: { id: TimeBarStyleId; name: string }[] = [
   { id: "ring-dots", name: "Ring of dots" },
   { id: "rainbow-sweep", name: "Rainbow sweep" },
   { id: "shrinking-pill", name: "Shrinking pill" },
+  { id: "mascot-capsule", name: "Mascot capsule" },
+  { id: "chevron-mascot", name: "Chevron mascot" },
+  { id: "diagonal-thinker", name: "Diagonal thinker" },
   { id: "none", name: "Hidden" },
 ];
 
 /** Draws a horizontal progress/time bar. `p` is 1 → 0 remaining fraction. */
+export type TimeBarOptions = {
+  /** Rider/marker emoji shown at the leading edge of the fill (mascot styles). */
+  emoji?: string;
+  /** Overrides the fill colour (defaults to the palette-driven colour). */
+  fillColor?: string;
+  /** Overrides the track/background colour. */
+  trackColor?: string;
+  /** Overrides the outline colour. */
+  outlineColor?: string;
+};
+
 export function drawTimeBar(
   ctx: CanvasRenderingContext2D,
   id: TimeBarStyleId,
@@ -1032,10 +1148,11 @@ export function drawTimeBar(
   p: number,
   colors: { primary: string; accent: string; text: string },
   t = 0,
+  opts: TimeBarOptions = {},
 ) {
   if (id === "none") return;
   const k = Math.max(0, Math.min(1, p));
-  const col = k < 0.25 ? colors.accent : colors.primary;
+  const col = opts.fillColor ?? (k < 0.25 ? colors.accent : colors.primary);
   ctx.save();
 
   const track = () => {
@@ -1385,6 +1502,149 @@ export function drawTimeBar(
       ctx.fill();
       break;
     }
+    case "mascot-capsule": {
+      // Rounded capsule, purple → gold gradient fill, thick white outline, sparkles, mascot rider.
+      const trackCol = opts.trackColor ?? hexToRgba(colors.text, 0.18);
+      const outline = opts.outlineColor ?? "#ffffff";
+      const fillW = Math.max(h, w * k);
+      ctx.beginPath();
+      ctx.roundRect(x, y, w, h, h / 2);
+      ctx.fillStyle = trackCol;
+      ctx.fill();
+      ctx.save();
+      ctx.beginPath();
+      ctx.roundRect(x, y, w, h, h / 2);
+      ctx.clip();
+      const g = ctx.createLinearGradient(x, 0, x + fillW, 0);
+      g.addColorStop(0, opts.fillColor ?? colors.primary);
+      g.addColorStop(1, opts.fillColor ?? colors.accent);
+      ctx.fillStyle = g;
+      ctx.fillRect(x, y, fillW, h);
+      // sparkles
+      for (let i = 0; i < 6; i++) {
+        const sx = x + ((i * 53 + t * 30) % Math.max(1, fillW - h * 0.4)) + h * 0.2;
+        const sy = y + h * (0.3 + 0.4 * rnd(i * 3.1));
+        const sp = 0.5 + 0.5 * Math.sin(t * 4 + i);
+        ctx.beginPath();
+        ctx.arc(sx, sy, h * 0.06 * sp + h * 0.03, 0, Math.PI * 2);
+        ctx.fillStyle = "rgba(255,255,255,0.85)";
+        ctx.fill();
+      }
+      ctx.restore();
+      ctx.beginPath();
+      ctx.roundRect(x, y, w, h, h / 2);
+      ctx.strokeStyle = outline;
+      ctx.lineWidth = Math.max(3, h * 0.16);
+      ctx.stroke();
+      // mascot rider on the fill head
+      const headX = Math.min(x + w - h * 0.4, x + fillW);
+      ctx.save();
+      ctx.font = `${h * 1.7}px system-ui, sans-serif`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.translate(headX, y - h * 0.05 + Math.sin(t * 5) * h * 0.06);
+      ctx.fillText(opts.emoji ?? "🦖", 0, 0);
+      ctx.restore();
+      break;
+    }
+    case "chevron-mascot": {
+      // Green chevron-pattern fill, glossy white outline, propeller emoji head.
+      const trackCol = opts.trackColor ?? "#fff7cf";
+      const outline = opts.outlineColor ?? "#ffffff";
+      const fillW = Math.max(h, w * k);
+      ctx.beginPath();
+      ctx.roundRect(x, y, w, h, h / 2);
+      ctx.fillStyle = trackCol;
+      ctx.fill();
+      ctx.save();
+      ctx.beginPath();
+      ctx.roundRect(x, y, w, h, h / 2);
+      ctx.clip();
+      const fillCol = opts.fillColor ?? "#22c55e";
+      ctx.fillStyle = fillCol;
+      ctx.fillRect(x, y, fillW, h);
+      const step = h * 1.3;
+      const off = (t * 55) % step;
+      ctx.fillStyle = hexToRgba("#ffffff", 0.35);
+      for (let sx = x - step + off; sx < x + fillW + step; sx += step) {
+        ctx.beginPath();
+        ctx.moveTo(sx, y + h * 0.15);
+        ctx.lineTo(sx + h * 0.55, y + h / 2);
+        ctx.lineTo(sx, y + h * 0.85);
+        ctx.lineTo(sx + h * 0.25, y + h * 0.85);
+        ctx.lineTo(sx + h * 0.8, y + h / 2);
+        ctx.lineTo(sx + h * 0.25, y + h * 0.15);
+        ctx.closePath();
+        ctx.fill();
+      }
+      ctx.restore();
+      ctx.beginPath();
+      ctx.roundRect(x, y, w, h, h / 2);
+      ctx.strokeStyle = outline;
+      ctx.lineWidth = Math.max(3, h * 0.14);
+      ctx.stroke();
+      const headX = Math.min(x + w - h * 0.4, x + fillW);
+      ctx.save();
+      ctx.translate(headX, y + h / 2);
+      // spinning propeller behind the emoji
+      ctx.save();
+      ctx.rotate(t * 14);
+      ctx.strokeStyle = "rgba(120,120,120,0.9)";
+      ctx.lineWidth = Math.max(2, h * 0.08);
+      ctx.beginPath();
+      ctx.moveTo(-h * 0.55, -h * 0.7);
+      ctx.lineTo(h * 0.55, -h * 0.7);
+      ctx.stroke();
+      ctx.restore();
+      ctx.font = `${h * 1.5}px system-ui, sans-serif`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(opts.emoji ?? "😲", 0, 0);
+      ctx.restore();
+      break;
+    }
+    case "diagonal-thinker": {
+      // Green diagonal-stripe fill with a thinking-face emoji marker on the head.
+      const trackCol = opts.trackColor ?? "#e5e7eb";
+      const outline = opts.outlineColor ?? "#ffffff";
+      const fillW = Math.max(h, w * k);
+      ctx.beginPath();
+      ctx.roundRect(x, y, w, h, h / 2);
+      ctx.fillStyle = trackCol;
+      ctx.fill();
+      ctx.save();
+      ctx.beginPath();
+      ctx.roundRect(x, y, w, h, h / 2);
+      ctx.clip();
+      const fillCol = opts.fillColor ?? "#22c55e";
+      ctx.fillStyle = fillCol;
+      ctx.fillRect(x, y, fillW, h);
+      const step = h * 0.9;
+      const off = (t * 40) % (step * 2);
+      ctx.strokeStyle = hexToRgba("#ffffff", 0.25);
+      ctx.lineWidth = h * 0.32;
+      for (let sx = x - h * 2 + off; sx < x + fillW + h * 2; sx += step * 2) {
+        ctx.beginPath();
+        ctx.moveTo(sx, y + h);
+        ctx.lineTo(sx + h, y);
+        ctx.stroke();
+      }
+      ctx.restore();
+      ctx.beginPath();
+      ctx.roundRect(x, y, w, h, h / 2);
+      ctx.strokeStyle = outline;
+      ctx.lineWidth = Math.max(3, h * 0.14);
+      ctx.stroke();
+      const headX = Math.min(x + w - h * 0.4, x + fillW);
+      ctx.save();
+      ctx.font = `${h * 1.5}px system-ui, sans-serif`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.translate(headX, y + h / 2);
+      ctx.fillText(opts.emoji ?? "🤔", 0, 0);
+      ctx.restore();
+      break;
+    }
     default:
       break;
   }
@@ -1467,14 +1727,36 @@ export function TimerStylePicker({
   return <Picker label="Timer style" value={value} options={TIMER_STYLES} onChange={onChange} />;
 }
 
+const MASCOT_TIMEBAR_STYLES: TimeBarStyleId[] = ["mascot-capsule", "chevron-mascot", "diagonal-thinker"];
+
 export function TimeBarStylePicker({
   value,
   onChange,
+  options,
+  onOptionsChange,
 }: {
   value: TimeBarStyleId;
   onChange: (v: TimeBarStyleId) => void;
+  options?: TimeBarOptions;
+  onOptionsChange?: (next: TimeBarOptions) => void;
 }) {
-  return <Picker label="Time bar style" value={value} options={TIMEBAR_STYLES} onChange={onChange} />;
+  const showRider = MASCOT_TIMEBAR_STYLES.includes(value);
+  return (
+    <div className="space-y-2">
+      <Picker label="Time bar style" value={value} options={TIMEBAR_STYLES} onChange={onChange} />
+      {showRider && onOptionsChange && (
+        <div>
+          <Label className="text-[11px] text-muted-foreground">Rider / marker emoji</Label>
+          <input
+            className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs"
+            value={options?.emoji ?? ""}
+            placeholder="🦖"
+            onChange={(e) => onOptionsChange({ ...options, emoji: e.target.value })}
+          />
+        </div>
+      )}
+    </div>
+  );
 }
 
 /** Collapsible-free grouped layout controls for a set of named elements. */

@@ -6,7 +6,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ANIMATIONS, ANIMATION_CATEGORIES } from "@/lib/doc-hq-animations";
 import { TRANSITIONS } from "@/lib/doc-hq-transitions";
-import type { Clip, EasingKind, FitMode, GradePreset, MediaItem } from "@/lib/doc-hq-types";
+import type { Clip, EasingKind, FitMode, GradePreset, MediaItem, Track } from "@/lib/doc-hq-types";
 
 const EASINGS: { id: EasingKind; name: string }[] = [
   { id: "linear", name: "Linear" },
@@ -37,10 +37,12 @@ const FITS: { id: FitMode; name: string }[] = [
 export function ClipInspector({
   clip,
   media,
+  tracks,
   onUpdate,
 }: {
   clip: Clip;
   media: MediaItem[];
+  tracks: Track[];
   onUpdate: (patch: Partial<Clip>) => void;
 }) {
   const patchTransform = (p: Partial<Clip["transform"]>) => onUpdate({ transform: { ...clip.transform, ...p } });
@@ -55,6 +57,28 @@ export function ClipInspector({
         <CardDescription>Position, animation, transitions and effects for the selected clip.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+        <div>
+          <Label className="text-xs">Track</Label>
+          <Select value={clip.trackId} onValueChange={(v) => onUpdate({ trackId: v })}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {tracks
+                .filter((t) => {
+                  const compatible = clip.kind === "audio" ? t.kind === "audio" : t.kind === "visual";
+                  return compatible && (!t.locked || t.id === clip.trackId);
+                })
+                .map((t) => (
+                  <SelectItem key={t.id} value={t.id}>
+                    {t.name}
+                    {t.locked ? " (locked)" : ""}
+                  </SelectItem>
+                ))}
+            </SelectContent>
+          </Select>
+        </div>
+
         {clip.kind !== "text" && clip.kind !== "graphic" && (
           <div>
             <Label className="text-xs">Media</Label>

@@ -172,7 +172,7 @@ type Round = {
   voDur: number;
 };
 
-type StyleId = "bubble" | "arcade" | "chalk" | "confetti" | "clean" | "quizshow";
+type StyleId = "bubble" | "arcade" | "chalk" | "confetti" | "clean" | "quizshow" | "hq";
 const STYLES: { id: StyleId; name: string; desc: string }[] = [
   { id: "bubble", name: "Bubble Pop", desc: "Soft rounded card with bouncy emoji pop-in." },
   { id: "arcade", name: "Arcade", desc: "Pixel frame, scanlines and a chunky timer." },
@@ -180,6 +180,7 @@ const STYLES: { id: StyleId; name: string; desc: string }[] = [
   { id: "confetti", name: "Confetti Party", desc: "Falling confetti on the answer reveal." },
   { id: "clean", name: "Clean Studio", desc: "Minimal, big type, no distractions." },
   { id: "quizshow", name: "Quiz Show", desc: "Stage lights, spotlight glow and a bold banner." },
+  { id: "hq", name: "HQ Diamond", desc: "Blue diamond-tile backdrop, big cartoon title, side texts and a striped time bar." },
 ];
 
 type Pal = PaletteLike & { id: string; name: string };
@@ -298,6 +299,16 @@ function EmojiPage() {
   const [timebarStyle, setTimebarStyle] = useState<TimeBarStyleId>("thin");
   const [emojiGap, setEmojiGap] = useState(1);
   const [emojiLineHeight, setEmojiLineHeight] = useState(1);
+  const [highlightWord, setHighlightWord] = useState("Emoji");
+  const [emojiOutlineWidth, setEmojiOutlineWidth] = useState(0);
+  const [emojiOutlineColor, setEmojiOutlineColor] = useState("#ffffff");
+  const [sideText, setSideText] = useState({
+    left: "GUESS THE WORD • ",
+    right: "GUESS THE WORD • ",
+    leftVisible: false,
+    rightVisible: false,
+  });
+  const [channelLogoEmoji, setChannelLogoEmoji] = useState("");
 
   const [channelLogo, setChannelLogo] = useState<ChannelLogoSpec>(defaultChannelLogo());
   const [channelLogoUrl, setChannelLogoUrl] = useState<string | null>(null);
@@ -405,6 +416,27 @@ function EmojiPage() {
         ctx.fillStyle = "rgba(0,0,0,0.07)";
         for (let y = 0; y < h; y += 6) ctx.fillRect(0, y, w, 2);
       }
+      if (style === "hq") {
+        const cell = Math.min(w, h) * 0.09;
+        ctx.save();
+        ctx.strokeStyle = "rgba(255,255,255,0.10)";
+        ctx.lineWidth = Math.max(1, cell * 0.02);
+        for (let y = -cell * 2; y < h + cell * 2; y += cell) {
+          for (let x = -cell * 2; x < w + cell * 2; x += cell) {
+            ctx.save();
+            ctx.translate(x + ((y / cell) % 2) * (cell / 2), y);
+            ctx.beginPath();
+            ctx.moveTo(0, -cell / 2);
+            ctx.lineTo(cell / 2, 0);
+            ctx.lineTo(0, cell / 2);
+            ctx.lineTo(-cell / 2, 0);
+            ctx.closePath();
+            ctx.stroke();
+            ctx.restore();
+          }
+        }
+        ctx.restore();
+      }
       // subtle rotating ray-burst for a lively, non-static backdrop
       ctx.save();
       ctx.translate(w / 2, h / 2);
@@ -493,8 +525,25 @@ function EmojiPage() {
         ctx.strokeStyle = hexA(pal.primary, 0.7);
         ctx.lineWidth = Math.max(2, hs * 0.05);
         ctx.stroke();
-        ctx.fillStyle = pal.text;
-        ctx.fillText(title, w / 2, by, w - M * 2 - padX * 2);
+        const hw = highlightWord.trim() ? (uppercase ? highlightWord.toUpperCase() : highlightWord) : "";
+        if (hw && title.includes(hw)) {
+          const idx = title.indexOf(hw);
+          const before = title.slice(0, idx);
+          const after = title.slice(idx + hw.length);
+          ctx.textAlign = "left";
+          const beforeW = ctx.measureText(before).width;
+          const hwW = ctx.measureText(hw).width;
+          const startX = w / 2 - tw / 2;
+          ctx.fillStyle = pal.text;
+          ctx.fillText(before, startX, by);
+          ctx.fillStyle = pal.accent;
+          ctx.fillText(hw, startX + beforeW, by);
+          ctx.fillStyle = pal.text;
+          ctx.fillText(after, startX + beforeW + hwW, by);
+        } else {
+          ctx.fillStyle = pal.text;
+          ctx.fillText(title, w / 2, by, w - M * 2 - padX * 2);
+        }
         ctx.restore();
       }
 
@@ -608,6 +657,16 @@ function EmojiPage() {
             ctx.scale(pop * (1 + wobble), pop * (1 - wobble));
             ctx.rotate(Math.sin(absT * 1.1 + idx) * 0.02 * bounce);
             ctx.globalAlpha = Math.max(0, Math.min(1, pop));
+            if (emojiOutlineWidth > 0) {
+              ctx.lineJoin = "round";
+              ctx.miterLimit = 2;
+              ctx.strokeStyle = emojiOutlineColor;
+              ctx.lineWidth = emojiOutlineWidth;
+              ctx.strokeText(e, 0, 0);
+            }
+            ctx.shadowColor = "rgba(0,0,0,0.45)";
+            ctx.shadowBlur = size * 0.08;
+            ctx.shadowOffsetY = size * 0.02;
             ctx.fillText(e, 0, 0);
             ctx.restore();
           });
@@ -725,20 +784,69 @@ function EmojiPage() {
         ctx.restore();
       }
 
+      // ---- vertical side text ----
+      {
+        const items: { x: number; rot: number; text: string }[] = [];
+        if (sideText.leftVisible && sideText.left.trim()) {
+          items.push({ x: M * 0.4, rot: -Math.PI / 2, text: sideText.left });
+        }
+        if (sideText.rightVisible && sideText.right.trim()) {
+          items.push({ x: w - M * 0.4, rot: Math.PI / 2, text: sideText.right });
+        }
+        items.forEach(({ x, rot, text }) => {
+          ctx.save();
+          ctx.translate(x, h / 2);
+          ctx.rotate(rot);
+          ctx.font = `700 ${Math.round(Math.min(w, h) * 0.018)}px ${FX_FONT}`;
+          ctx.fillStyle = hexA(pal.text, 0.35);
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText(text.repeat(3), 0, 0);
+          ctx.restore();
+        });
+      }
+
       // ---- channel logo (always on top) ----
-      drawChannelLogo(ctx, channelLogoImgRef.current, channelLogo, w, h, absT);
+      if (channelLogo.visible && !channelLogoImgRef.current && channelLogoEmoji.trim()) {
+        const base = Math.min(w, h) * 0.11 * channelLogo.scale;
+        const pad = base * 0.9;
+        let ax = w - pad;
+        let ay = h - pad;
+        if (channelLogo.corner === "top-left") { ax = pad; ay = pad; }
+        else if (channelLogo.corner === "top-right") { ax = w - pad; ay = pad; }
+        else if (channelLogo.corner === "top-center") { ax = w / 2; ay = pad; }
+        else if (channelLogo.corner === "bottom-left") { ax = pad; ay = h - pad; }
+        else if (channelLogo.corner === "bottom-center") { ax = w / 2; ay = h - pad; }
+        ax += (channelLogo.dx / 100) * w;
+        ay += (channelLogo.dy / 100) * h;
+        ctx.save();
+        ctx.globalAlpha = channelLogo.opacity;
+        ctx.translate(ax, ay);
+        ctx.rotate((channelLogo.rotate * Math.PI) / 180);
+        ctx.font = `${Math.round(base * 1.4)}px ${EMOJI_FONT}`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(channelLogoEmoji, 0, 0);
+        ctx.restore();
+      } else {
+        drawChannelLogo(ctx, channelLogoImgRef.current, channelLogo, w, h, absT);
+      }
     },
     [
       anims,
       aspect,
       bounce,
       channelLogo,
+      channelLogoEmoji,
       drawBackground,
       drawConfetti,
       emojiGap,
       emojiLineHeight,
+      emojiOutlineColor,
+      emojiOutlineWidth,
       emojiScale,
       heading,
+      highlightWord,
       pal,
       revealSecs,
       roundBadgeId,
@@ -746,6 +854,7 @@ function EmojiPage() {
       showHint,
       showRoundNo,
       showTimer,
+      sideText,
       style,
       styles,
       timerStyle,
@@ -1170,6 +1279,14 @@ function EmojiPage() {
                 <Input value={heading} onChange={(e) => setHeading(e.target.value)} />
               </div>
               <div>
+                <Label className="text-xs text-muted-foreground">Highlighted word in heading</Label>
+                <Input
+                  value={highlightWord}
+                  placeholder="Word to colour with accent"
+                  onChange={(e) => setHighlightWord(e.target.value)}
+                />
+              </div>
+              <div>
                 <Label className="text-xs text-muted-foreground">Guess time · {timerSecs}s</Label>
                 <Slider
                   value={[timerSecs]}
@@ -1237,6 +1354,27 @@ function EmojiPage() {
                   max={1.8}
                   step={0.02}
                   onValueChange={([v]) => setEmojiLineHeight(v)}
+                />
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground">
+                  Emoji outline width · {emojiOutlineWidth}px
+                </Label>
+                <Slider
+                  value={[emojiOutlineWidth]}
+                  min={0}
+                  max={24}
+                  step={1}
+                  onValueChange={([v]) => setEmojiOutlineWidth(v)}
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <Label className="text-xs text-muted-foreground">Emoji outline colour</Label>
+                <input
+                  type="color"
+                  value={emojiOutlineColor}
+                  onChange={(e) => setEmojiOutlineColor(e.target.value)}
+                  className="h-7 w-10 cursor-pointer rounded border"
                 />
               </div>
               <div className="grid grid-cols-2 gap-3 text-sm">
@@ -1398,6 +1536,46 @@ function EmojiPage() {
                 )}
               </div>
               <ChannelLogoControls value={channelLogo} onChange={setChannelLogo} />
+              <div>
+                <Label className="text-xs text-muted-foreground">Or use an emoji as the logo</Label>
+                <Input
+                  value={channelLogoEmoji}
+                  placeholder="⚡"
+                  onChange={(e) => setChannelLogoEmoji(e.target.value)}
+                />
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  Used when no image is uploaded above.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Side text</CardTitle>
+              <CardDescription>Editable vertical text on the left/right edges.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="space-y-1">
+                <label className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                  Left text
+                  <Switch
+                    checked={sideText.leftVisible}
+                    onCheckedChange={(v) => setSideText((s) => ({ ...s, leftVisible: v }))}
+                  />
+                </label>
+                <Input value={sideText.left} onChange={(e) => setSideText((s) => ({ ...s, left: e.target.value }))} />
+              </div>
+              <div className="space-y-1">
+                <label className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                  Right text
+                  <Switch
+                    checked={sideText.rightVisible}
+                    onCheckedChange={(v) => setSideText((s) => ({ ...s, rightVisible: v }))}
+                  />
+                </label>
+                <Input value={sideText.right} onChange={(e) => setSideText((s) => ({ ...s, right: e.target.value }))} />
+              </div>
             </CardContent>
           </Card>
 

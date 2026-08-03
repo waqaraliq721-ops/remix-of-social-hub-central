@@ -3239,3 +3239,510 @@ for (const e of TEXTURE_ANIMATION_ENGINES) {
   EXTRA_MOTIVATIONAL_ENGINES.push(e);
   EXTRA_MOTIVATIONAL_MAP.set(e.id, e);
 }
+
+// -------------------- cinematic media-blend engines --------------------
+// These engines pull the user's own footage/photos into the *background*
+// itself — grain, drifting gradient mesh, light leaks and duotone colour
+// grading are layered over/under the media with soft blend modes and a
+// colour-matched feathered vignette so the shot reads as part of the
+// texture, not a plain photo behind text.
+
+function currentMediaFrame(r: RenderCtx): { img: CanvasImageSource; mw: number; mh: number } | null {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const bd = r.backdrop as any;
+  if (!bd || bd.kind === "none") return null;
+  if (bd.kind === "video") {
+    const v = bd.el as HTMLVideoElement;
+    if (!v || !v.videoWidth) return null;
+    return { img: v, mw: v.videoWidth, mh: v.videoHeight };
+  }
+  if (bd.kind === "images" && bd.imgs && bd.imgs.length) {
+    const per = bd.per || 4;
+    const i = Math.floor(r.t / per) % bd.imgs.length;
+    const img = bd.imgs[i];
+    if (!img || !img.naturalWidth) return null;
+    return { img, mw: img.naturalWidth, mh: img.naturalHeight };
+  }
+  return null;
+}
+
+function drawMediaCoverLocal(
+  ctx: C,
+  media: CanvasImageSource,
+  mw: number,
+  mh: number,
+  w: number,
+  h: number,
+  scale = 1,
+  dx = 0,
+  dy = 0,
+) {
+  if (!mw || !mh) return;
+  const ratio = Math.max(w / mw, h / mh) * scale;
+  const dw = mw * ratio;
+  const dh = mh * ratio;
+  ctx.drawImage(media, (w - dw) / 2 + dx, (h - dh) / 2 + dy, dw, dh);
+}
+
+function paintLightLeaks(ctx: C, w: number, h: number, t: number, kit: Kit, p: Palette) {
+  ctx.save();
+  ctx.globalCompositeOperation = "screen";
+  const spots: [number, number, number][] = [
+    [0.2 + Math.sin(t * 0.13) * 0.15, 0.15 + Math.cos(t * 0.1) * 0.1, 0.5],
+    [0.8 + Math.cos(t * 0.09) * 0.12, 0.75 + Math.sin(t * 0.12) * 0.1, 0.42],
+  ];
+  for (const [nx, ny, rad] of spots) {
+    const x = nx * w;
+    const y = ny * h;
+    const g = ctx.createRadialGradient(x, y, 0, x, y, Math.max(w, h) * rad);
+    g.addColorStop(0, kit.hexA(p.accent, 0.28));
+    g.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, w, h);
+  }
+  ctx.restore();
+}
+
+function paintDustParticles(ctx: C, w: number, h: number, t: number, kit: Kit, p: Palette, count = 70) {
+  ctx.save();
+  ctx.globalCompositeOperation = "screen";
+  for (let i = 0; i < count; i++) {
+    const seed = i * 9973;
+    const speed = 0.02 + ((i * 37) % 10) / 400;
+    const nx = ((seed % 10000) / 10000 + t * speed) % 1;
+    const ny = (((seed * 13) % 10000) / 10000 + Math.sin(t * 0.2 + i) * 0.02) % 1;
+    const r = 0.6 + ((i * 7) % 5) * 0.35;
+    const a = 0.12 + 0.1 * Math.abs(Math.sin(t * 0.5 + i));
+    ctx.fillStyle = kit.hexA(p.text, a);
+    ctx.beginPath();
+    ctx.arc(nx * w, ny * h, r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+function paintGradientMesh(ctx: C, w: number, h: number, t: number, kit: Kit, p: Palette) {
+  const cx = w * 0.5 + Math.sin(t * 0.09) * w * 0.18;
+  const cy = h * 0.5 + Math.cos(t * 0.07) * h * 0.18;
+  const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.max(w, h) * 0.85);
+  g.addColorStop(0, mix(p.primary, p.bg[0], 0.55));
+  g.addColorStop(0.55, mix(p.bg[1], p.bg[0], 0.3));
+  g.addColorStop(1, deepen(p.bg[0], 0.5));
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, w, h);
+  const cx2 = w * 0.5 - Math.cos(t * 0.06) * w * 0.22;
+  const cy2 = h * 0.5 - Math.sin(t * 0.08) * h * 0.2;
+  ctx.save();
+  ctx.globalCompositeOperation = "soft-light";
+  const g2 = ctx.createRadialGradient(cx2, cy2, 0, cx2, cy2, Math.max(w, h) * 0.6);
+  g2.addColorStop(0, kit.hexA(p.accent, 0.55));
+  g2.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.fillStyle = g2;
+  ctx.fillRect(0, 0, w, h);
+  ctx.restore();
+}
+
+/** Blend the user's footage/photo into a living, textured backdrop. */
+function paintMediaBlendBackdrop(
+  ctx: C,
+  r: RenderCtx,
+  kit: Kit,
+  opts: {
+    blend?: string;
+    grainAlpha?: number;
+    leaks?: boolean;
+    particles?: boolean;
+    duotone?: number;
+  } = {},
+) {
+  const { w, h, t, palette: p } = r;
+  paintGradientMesh(ctx, w, h, t, kit, p);
+  const frame = currentMediaFrame(r);
+  if (frame) {
+    const kb = 1.08 + Math.sin(t * 0.1) * 0.035;
+    const dx = Math.sin(t * 0.08) * w * 0.018;
+    const dy = Math.cos(t * 0.065) * h * 0.014;
+    ctx.save();
+    ctx.globalAlpha = 0.82;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ctx.globalCompositeOperation = (opts.blend ?? "soft-light") as any;
+    drawMediaCoverLocal(ctx, frame.img, frame.mw, frame.mh, w, h, kb, dx, dy);
+    ctx.restore();
+    // duotone grade matched to the accent colour so the shot reads as part
+    // of the palette rather than a raw photo.
+    ctx.save();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ctx.globalCompositeOperation = "color" as any;
+    ctx.fillStyle = kit.hexA(p.primary, opts.duotone ?? 0.55);
+    ctx.fillRect(0, 0, w, h);
+    ctx.restore();
+    ctx.save();
+    ctx.globalAlpha = 0.22;
+    ctx.globalCompositeOperation = "overlay";
+    drawMediaCoverLocal(ctx, frame.img, frame.mw, frame.mh, w, h, kb, dx, dy);
+    ctx.restore();
+  }
+  // feathered, colour-matched vignette so the edges melt into the texture
+  const vg = ctx.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.12, w / 2, h / 2, Math.max(w, h) * 0.78);
+  vg.addColorStop(0, "rgba(0,0,0,0)");
+  vg.addColorStop(0.7, kit.hexA(p.bg[1], 0.35));
+  vg.addColorStop(1, kit.hexA(p.bg[0], 0.9));
+  ctx.fillStyle = vg;
+  ctx.fillRect(0, 0, w, h);
+  paintGrain(ctx, w, h, t, opts.grainAlpha ?? 0.05, "#ffffff", 260);
+  if (opts.leaks !== false) paintLightLeaks(ctx, w, h, t, kit, p);
+  if (opts.particles) paintDustParticles(ctx, w, h, t, kit, p);
+}
+
+/** Per-word mask reveal: each word wipes in from a soft clip edge. */
+function drawWordMaskReveal(
+  ctx: C,
+  r: RenderCtx,
+  kit: Kit,
+  text: string,
+  cx: number,
+  cy: number,
+  maxW: number,
+  maxH: number,
+  startSize: number,
+  spec: string,
+  frac: number,
+  lineH = 1.2,
+) {
+  const { rows, size } = layout(ctx, kit, text, maxW, maxH, startSize, spec, lineH);
+  ctx.font = spec.replace("{s}", String(size));
+  ctx.textBaseline = "middle";
+  let y = cy - ((rows.length - 1) * size * lineH) / 2;
+  const flatWords = rows.map((row) => row.split(" "));
+  const totalWords = flatWords.reduce((a, ws) => a + ws.length, 0);
+  let seen = 0;
+  for (const words of flatWords) {
+    const widths = words.map((wd) => ctx.measureText(wd + " ").width);
+    const total = widths.reduce((a, b) => a + b, 0);
+    let x = cx - total / 2;
+    ctx.textAlign = "left";
+    words.forEach((wd, i) => {
+      const delay = (seen / Math.max(1, totalWords)) * 0.6;
+      const local = kit.easeOutCubic(Math.max(0, Math.min(1, (frac - delay) / 0.4)));
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(x, y - size * 0.9, widths[i] * local, size * 1.8);
+      ctx.clip();
+      ctx.globalAlpha = local;
+      ctx.fillText(wd, x, y);
+      ctx.restore();
+      x += widths[i];
+      seen++;
+    });
+    ctx.textAlign = "center";
+    y += size * lineH;
+  }
+  return y - size * lineH;
+}
+
+// 1 — drifting gradient mesh + soft-light media + per-word mask reveal
+const cineAuroraDrift: Engine = {
+  id: "cine-aurora-drift",
+  name: "Aurora Drift · Mediaglow",
+  desc: "Drifting gradient-mesh haze with your footage soft-lit into the texture and each word mask-revealed.",
+  draw: (ctx, r, kit) => {
+    const { w, h, palette: p } = r;
+    paintMediaBlendBackdrop(ctx, r, kit, { blend: "soft-light", grainAlpha: 0.045, leaks: true });
+    const { line, frac } = state(kit, r);
+    if (!line) return;
+    ctx.save();
+    ctx.fillStyle = p.text;
+    softShadow(ctx, h * 0.02);
+    const end = drawWordMaskReveal(
+      ctx,
+      r,
+      kit,
+      line.text,
+      w / 2,
+      h * 0.5,
+      w * 0.78,
+      h * 0.36,
+      baseSize(r, 0.06, 0.075),
+      `800 {s}px ${kit.FONT}`,
+      frac,
+      1.22,
+    );
+    ctx.restore();
+    kit.drawAuthor(ctx, r, end + h * 0.05);
+  },
+};
+
+// 2 — heavy film grain + light leaks + line slide-up clip mask
+const cineGrainHalo: Engine = {
+  id: "cine-grain-halo",
+  name: "Grain Halo · Ember Bloom",
+  desc: "Warm light leaks and dense analogue grain wash over the footage while lines slide up through a clip mask.",
+  draw: (ctx, r, kit) => {
+    const { w, h, palette: p } = r;
+    paintMediaBlendBackdrop(ctx, r, kit, { blend: "screen", grainAlpha: 0.07, leaks: true, duotone: 0.6 });
+    const { line, appear } = state(kit, r);
+    if (!line) return;
+    const { rows, size } = layout(
+      ctx,
+      kit,
+      line.text,
+      w * 0.76,
+      h * 0.34,
+      baseSize(r, 0.056, 0.07),
+      `700 {s}px ${kit.FONT}`,
+      1.24,
+    );
+    ctx.save();
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.font = `700 ${size}px ${kit.FONT}`;
+    let y = h * 0.5 - ((rows.length - 1) * size * 1.24) / 2;
+    rows.forEach((row, i) => {
+      const local = kit.easeOutCubic(Math.max(0, Math.min(1, appear * 1.4 - i * 0.18)));
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(0, y - size * 0.85 + (1 - local) * size * 0.9, w, size * 1.7);
+      ctx.clip();
+      ctx.globalAlpha = local;
+      ctx.fillStyle = p.text;
+      softShadow(ctx, size * 0.35);
+      ctx.fillText(row, w / 2, y);
+      ctx.restore();
+      y += size * 1.24;
+    });
+    ctx.restore();
+    kit.drawAuthor(ctx, r, y + size * 0.2);
+  },
+};
+
+// 3 — duotone media grade + kinetic scale-punch keyword
+const cineDuotonePulse: Engine = {
+  id: "cine-duotone-pulse",
+  name: "Duotone Pulse · Kinetic Punch",
+  desc: "Duotone-graded footage pulses behind the line while the spoken word punches in with a scale kick.",
+  draw: (ctx, r, kit) => {
+    const { w, h, palette: p } = r;
+    paintMediaBlendBackdrop(ctx, r, kit, { blend: "overlay", grainAlpha: 0.05, duotone: 0.68, leaks: false });
+    const { line } = state(kit, r);
+    if (!line) return;
+    const cur = kit.activeWord(line, r.t);
+    const size = baseSize(r, 0.058, 0.072);
+    ctx.font = `800 ${size}px ${kit.FONT}`;
+    ctx.textBaseline = "middle";
+    const words = line.words.length
+      ? line.words
+      : line.text.split(" ").map((tx) => ({ text: tx, start: line.time, end: line.end }));
+    const widths = words.map((wd) => ctx.measureText(wd.text + " ").width);
+    const total = widths.reduce((a, b) => a + b, 0);
+    let x = w / 2 - total / 2;
+    ctx.textAlign = "left";
+    const y = h * 0.5;
+    words.forEach((wd, i) => {
+      const isCur = cur && wd.start === cur.start && wd.text === cur.text;
+      const spoken = r.t >= wd.start;
+      ctx.save();
+      if (isCur) {
+        const k = kit.easeOutCubic(Math.min(1, (r.t - wd.start) / 0.18));
+        const pop = 1 + (1 - k) * 0.35;
+        ctx.translate(x + widths[i] / 2, y);
+        ctx.scale(pop, pop);
+        ctx.translate(-(x + widths[i] / 2), -y);
+        ctx.shadowColor = kit.hexA(p.primary, 0.9);
+        ctx.shadowBlur = size * 0.5;
+        ctx.fillStyle = p.primary;
+      } else {
+        ctx.fillStyle = spoken ? p.text : kit.hexA(p.text, 0.35);
+      }
+      ctx.fillText(wd.text, x, y);
+      ctx.restore();
+      x += widths[i];
+    });
+    ctx.textAlign = "center";
+    kit.drawAuthor(ctx, r, y + size * 1.4);
+  },
+};
+
+// 4 — drifting dust motes + letter-spacing bloom
+const cineDustDrift: Engine = {
+  id: "cine-dust-drift",
+  name: "Dust Drift · Letterspace Bloom",
+  desc: "Motes of dust drift across the textured footage as the headline blooms outward from tight to airy tracking.",
+  draw: (ctx, r, kit) => {
+    const { w, h, palette: p } = r;
+    paintMediaBlendBackdrop(ctx, r, kit, { blend: "soft-light", grainAlpha: 0.04, particles: true, leaks: false });
+    const { line, appear } = state(kit, r);
+    if (!line) return;
+    const text = line.text.toUpperCase();
+    let size = baseSize(r, 0.062, 0.078);
+    ctx.font = `800 ${size}px ${kit.COND}`;
+    while (ctx.measureText(text).width * 1.3 > w * 0.82 && size > 20) {
+      size -= 3;
+      ctx.font = `800 ${size}px ${kit.COND}`;
+    }
+    const bloom = (1 - kit.easeOutCubic(appear)) * size * 0.5;
+    const letters = text.split("");
+    const widths = letters.map((ch) => ctx.measureText(ch).width);
+    const gap = size * 0.06 + bloom;
+    const total = widths.reduce((a, b) => a + b, 0) + gap * (letters.length - 1);
+    ctx.save();
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+    softShadow(ctx, size * 0.3);
+    let x = w / 2 - total / 2;
+    ctx.filter = `blur(${(1 - appear) * 6}px)`;
+    letters.forEach((ch, i) => {
+      ctx.globalAlpha = appear;
+      ctx.fillStyle = p.text;
+      ctx.fillText(ch, x, h * 0.5);
+      x += widths[i] + gap;
+    });
+    ctx.filter = "none";
+    ctx.restore();
+    kit.drawAuthor(ctx, r, h * 0.5 + size * 1.1);
+  },
+};
+
+// 5 — light-leak sweeps + blur-to-sharp focus pull
+const cineLightLeakFocus: Engine = {
+  id: "cine-light-leak-focus",
+  name: "Light Leak Fade · Focus Pull",
+  desc: "Roaming light leaks sweep the graded footage while each line racks focus from a blur into sharp clarity.",
+  draw: (ctx, r, kit) => {
+    const { w, h, palette: p } = r;
+    paintMediaBlendBackdrop(ctx, r, kit, { blend: "screen", grainAlpha: 0.05, leaks: true, duotone: 0.5 });
+    const { line, appear } = state(kit, r);
+    if (!line) return;
+    const { rows, size } = layout(
+      ctx,
+      kit,
+      line.text,
+      w * 0.74,
+      h * 0.34,
+      baseSize(r, 0.054, 0.068),
+      `600 {s}px ${kit.FONT}`,
+      1.26,
+    );
+    ctx.save();
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.font = `600 ${size}px ${kit.FONT}`;
+    const focus = kit.easeOutCubic(appear);
+    ctx.filter = `blur(${(1 - focus) * 14}px)`;
+    let y = h * 0.5 - ((rows.length - 1) * size * 1.26) / 2;
+    ctx.globalAlpha = Math.max(0.25, focus);
+    ctx.fillStyle = p.text;
+    for (const row of rows) {
+      ctx.fillText(row, w / 2, y);
+      y += size * 1.26;
+    }
+    ctx.filter = "none";
+    ctx.restore();
+    kit.drawAuthor(ctx, r, y + size * 0.3);
+  },
+};
+
+// 6 — animated mesh + line slide-up through clip mask
+const cineMeshReveal: Engine = {
+  id: "cine-mesh-reveal",
+  name: "Mesh Glow · Slide Reveal",
+  desc: "A slow-turning colour mesh melts your footage into the frame as each line slides up from a clipped edge.",
+  draw: (ctx, r, kit) => {
+    const { w, h, palette: p } = r;
+    paintMediaBlendBackdrop(ctx, r, kit, { blend: "soft-light", grainAlpha: 0.045, leaks: true });
+    const { line, appear } = state(kit, r);
+    if (!line) return;
+    const { rows, size } = layout(
+      ctx,
+      kit,
+      line.text.toUpperCase(),
+      w * 0.78,
+      h * 0.36,
+      baseSize(r, 0.06, 0.075),
+      `800 {s}px ${kit.COND}`,
+      1.16,
+    );
+    ctx.save();
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.font = `800 ${size}px ${kit.COND}`;
+    let y = h * 0.5 - ((rows.length - 1) * size * 1.16) / 2;
+    rows.forEach((row, i) => {
+      const local = kit.easeOutCubic(Math.max(0, Math.min(1, appear * 1.5 - i * 0.2)));
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(0, y - size * 0.8, w, size * 1.6 * local);
+      ctx.clip();
+      ctx.translate(0, (1 - local) * size * 0.7);
+      ctx.globalAlpha = local;
+      ctx.fillStyle = p.text;
+      softShadow(ctx, size * 0.3);
+      ctx.fillText(row, w / 2, y);
+      ctx.restore();
+      y += size * 1.16;
+    });
+    ctx.restore();
+    kit.drawAuthor(ctx, r, y + size * 0.25);
+  },
+};
+
+// 7 — vapour particles + line clip-mask slide with accent rule
+const cineVaporTrail: Engine = {
+  id: "cine-vapor-trail",
+  name: "Vapor Trail · Clip Slide",
+  desc: "Soft vapour motes hang over the blended footage while the quote slides in behind an accent rule.",
+  draw: (ctx, r, kit) => {
+    const { w, h, palette: p } = r;
+    paintMediaBlendBackdrop(ctx, r, kit, { blend: "overlay", grainAlpha: 0.045, particles: true, leaks: true, duotone: 0.45 });
+    const { line, appear } = state(kit, r);
+    if (!line) return;
+    const { rows, size } = layout(
+      ctx,
+      kit,
+      line.text,
+      w * 0.72,
+      h * 0.34,
+      baseSize(r, 0.05, 0.064),
+      `500 italic {s}px ${kit.SERIF}`,
+      1.3,
+    );
+    ctx.save();
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.font = `500 italic ${size}px ${kit.SERIF}`;
+    let y = h * 0.5 - ((rows.length - 1) * size * 1.3) / 2;
+    rows.forEach((row, i) => {
+      const local = kit.easeOutCubic(Math.max(0, Math.min(1, appear * 1.3 - i * 0.15)));
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect((1 - local) * w * -0.5 + w * (1 - local) * 0, 0, w, h);
+      ctx.rect(0, y - size * 0.85, w, size * 1.7);
+      ctx.clip();
+      ctx.globalAlpha = local;
+      ctx.translate((1 - local) * w * 0.12, 0);
+      ctx.fillStyle = p.text;
+      softShadow(ctx, size * 0.35);
+      ctx.fillText(row, w / 2, y);
+      ctx.restore();
+      y += size * 1.3;
+    });
+    ctx.restore();
+    ctx.fillStyle = p.primary;
+    ctx.fillRect(w / 2 - w * 0.05, y + size * 0.15, w * 0.1, Math.max(3, h * 0.004));
+    kit.drawAuthor(ctx, r, y + size * 0.55);
+  },
+};
+
+export const CINEMATIC_MEDIA_ENGINES: Engine[] = [
+  cineAuroraDrift,
+  cineGrainHalo,
+  cineDuotonePulse,
+  cineDustDrift,
+  cineLightLeakFocus,
+  cineMeshReveal,
+  cineVaporTrail,
+];
+
+for (const e of CINEMATIC_MEDIA_ENGINES) {
+  EXTRA_MOTIVATIONAL_ENGINES.push(e);
+  EXTRA_MOTIVATIONAL_MAP.set(e.id, e);
+}

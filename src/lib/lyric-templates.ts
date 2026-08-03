@@ -1671,6 +1671,458 @@ const npSpotlight: Engine = {
   },
 };
 
+
+const waveBars: Engine = {
+  id: "wave-bars",
+  name: "Waveform · Bar Grid",
+  desc: "Full-width reactive bar grid with a huge centred hero lyric.",
+  draw: (ctx, r, kit) => {
+    const { w, h, t, palette: p } = r;
+    kit.drawBg(ctx, w, h, p, t);
+    const vertical = r.aspect === "9:16";
+    const rows = vertical ? 28 : 40;
+    const gap = w / rows;
+    const baseY = h * (vertical ? 0.86 : 0.9);
+    const maxH = h * (vertical ? 0.16 : 0.14);
+    ctx.save();
+    for (let i = 0; i < rows; i++) {
+      const seed = i * 12.9898;
+      const k =
+        0.25 +
+        0.75 * Math.abs(Math.sin(t * (2.4 + (i % 5) * 0.35) + seed) * Math.cos(t * 0.6 + i));
+      const bh = maxH * k;
+      const x = i * gap + gap * 0.18;
+      const bw = gap * 0.64;
+      ctx.fillStyle = kit.hexA(i % 3 === 0 ? p.accent : p.primary, 0.85);
+      kit.roundRect(ctx, x, baseY - bh, bw, bh, bw * 0.4);
+      ctx.fill();
+      // mirrored reflection, faint
+      ctx.globalAlpha = 0.22;
+      kit.roundRect(ctx, x, baseY, bw, bh * 0.35, bw * 0.4);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+    ctx.restore();
+    kit.drawHeader(ctx, r, h * (vertical ? 0.07 : 0.09), h * (vertical ? 0.03 : 0.036));
+    heroLyric(ctx, kit, r, h * (vertical ? 0.46 : 0.44), h * (vertical ? 0.058 : 0.07), {
+      weight: 900,
+      glow: true,
+    });
+    kit.drawFooterBar(ctx, r, h * (vertical ? 0.955 : 0.965));
+  },
+};
+
+const stageSpotlight: Engine = {
+  id: "stage-spotlight",
+  name: "Stage · Spotlight Curtain",
+  desc: "Velvet curtain backdrop with a sweeping spotlight and centred marquee lyric.",
+  draw: (ctx, r, kit) => {
+    const { w, h, t, palette: p } = r;
+    kit.drawBg(ctx, w, h, p, t);
+    // curtain folds
+    ctx.save();
+    const folds = 14;
+    for (let i = 0; i < folds; i++) {
+      const x = (i / folds) * w;
+      const g = ctx.createLinearGradient(x, 0, x + w / folds, 0);
+      g.addColorStop(0, "rgba(0,0,0,0.28)");
+      g.addColorStop(0.5, "rgba(255,255,255,0.03)");
+      g.addColorStop(1, "rgba(0,0,0,0.28)");
+      ctx.fillStyle = g;
+      ctx.fillRect(x, 0, w / folds + 1, h);
+    }
+    ctx.restore();
+    // sweeping spotlight cones
+    const swayScale = Math.max(0, Math.min(2, r.motion));
+    for (let i = 0; i < 2; i++) {
+      const sway = Math.sin(t * 0.35 * swayScale + i * Math.PI) * w * 0.22;
+      const cx = w * (0.5 + (i ? 0.001 : -0.001)) + sway;
+      ctx.save();
+      ctx.globalCompositeOperation = "lighter";
+      const beam = ctx.createLinearGradient(cx, 0, w / 2, h);
+      beam.addColorStop(0, kit.hexA(i ? p.accent : p.primary, 0.28));
+      beam.addColorStop(1, kit.hexA(p.primary, 0));
+      ctx.fillStyle = beam;
+      ctx.beginPath();
+      ctx.moveTo(cx - w * 0.05, 0);
+      ctx.lineTo(cx + w * 0.05, 0);
+      ctx.lineTo(w * 0.85, h);
+      ctx.lineTo(w * 0.15, h);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    }
+    const vertical = r.aspect === "9:16";
+    coverCard(
+      ctx,
+      kit,
+      r,
+      w / 2 - h * (vertical ? 0.09 : 0.075),
+      h * (vertical ? 0.09 : 0.09),
+      h * (vertical ? 0.18 : 0.15),
+      h * 0.02,
+    );
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = p.text;
+    kit.trackedFit(
+      ctx,
+      (r.title || "Untitled").toUpperCase(),
+      w / 2,
+      h * (vertical ? 0.34 : 0.32),
+      w * 0.8,
+      800,
+      h * 0.028,
+      0.06,
+    );
+    ctx.fillStyle = kit.hexA(p.muted, 1);
+    kit.trackedFit(
+      ctx,
+      (r.artist || "").toUpperCase(),
+      w / 2,
+      h * (vertical ? 0.375 : 0.36),
+      w * 0.6,
+      500,
+      h * 0.015,
+      0.24,
+    );
+    kit.drawLyricRoll(ctx, r, {
+      top: h * (vertical ? 0.42 : 0.42),
+      bottom: h * 0.92,
+      focusY: h * (vertical ? 0.68 : 0.7),
+      size: h * (vertical ? 0.034 : 0.044),
+      glow: true,
+      showRule: true,
+    });
+    kit.drawFooterBar(ctx, r, h * 0.955);
+  },
+};
+
+const filmStrip: Engine = {
+  id: "film-strip",
+  name: "Film · Strip Reel",
+  desc: "Sprocket-holed film strip framing the cover, subtitle-style lyric captions.",
+  draw: (ctx, r, kit) => {
+    const { w, h, t, palette: p } = r;
+    kit.drawBg(ctx, w, h, p, t);
+    const vertical = r.aspect === "9:16";
+    const railH = h * (vertical ? 0.032 : 0.045);
+    const holeGap = railH * 1.4;
+    const drift = (t * (vertical ? 26 : 34)) % holeGap;
+    const drawRail = (y: number) => {
+      ctx.fillStyle = "rgba(6,6,8,0.92)";
+      ctx.fillRect(0, y, w, railH);
+      ctx.fillStyle = kit.hexA(p.text, 0.85);
+      for (let x = -holeGap + drift; x < w + holeGap; x += holeGap) {
+        kit.roundRect(ctx, x, y + railH * 0.24, railH * 0.5, railH * 0.52, railH * 0.1);
+        ctx.fill();
+      }
+    };
+    drawRail(0);
+    drawRail(h - railH);
+    const frameW = vertical ? w * 0.7 : h * 0.62;
+    const frameH = frameW;
+    const fx = w / 2 - frameW / 2;
+    const fy = vertical ? h * 0.15 : h * 0.14;
+    ctx.save();
+    ctx.filter = "grayscale(0.15) contrast(1.05) sepia(0.08)";
+    coverCard(ctx, kit, r, fx, fy, frameW, frameW * 0.02, true);
+    ctx.restore();
+    ctx.strokeStyle = kit.hexA(p.primary, 0.7);
+    ctx.lineWidth = Math.max(2, frameW * 0.012);
+    kit.roundRect(ctx, fx, fy, frameW, frameH, frameW * 0.02);
+    ctx.stroke();
+    metaBlock(
+      ctx,
+      kit,
+      r,
+      w / 2,
+      fy + frameH + h * (vertical ? 0.06 : 0.05),
+      h * (vertical ? 0.028 : 0.032),
+      w * 0.8,
+      "center",
+    );
+    kit.drawLyricRoll(ctx, r, {
+      top: fy + frameH + h * (vertical ? 0.1 : 0.09),
+      bottom: h - railH - h * 0.02,
+      focusY: h * (vertical ? 0.82 : 0.83),
+      size: h * (vertical ? 0.03 : 0.04),
+      showRule: false,
+    });
+  },
+};
+
+const swissCard: Engine = {
+  id: "swiss-lyric-card",
+  name: "Swiss · Minimal Lyric Card",
+  desc: "Grid-driven editorial layout: bold flush type, hairline rules, one accent block.",
+  draw: (ctx, r, kit) => {
+    const { w, h, t, palette: p } = r;
+    kit.drawBg(ctx, w, h, p, t);
+    const vertical = r.aspect === "9:16";
+    const pad = w * 0.08;
+    // accent block, top-right
+    const blockW = w * (vertical ? 0.24 : 0.16);
+    const blockH = blockW;
+    ctx.fillStyle = p.primary;
+    ctx.fillRect(w - pad - blockW, pad * 0.6, blockW, blockH);
+    if (r.coverImg?.naturalWidth) {
+      coverCard(ctx, kit, r, w - pad - blockW, pad * 0.6, blockW, 0, false);
+    }
+    // hairline rule under header
+    ctx.strokeStyle = kit.hexA(p.text, 0.35);
+    ctx.lineWidth = Math.max(1, h * 0.0012);
+    ctx.beginPath();
+    ctx.moveTo(pad, pad * 0.6 + blockH + h * 0.03);
+    ctx.lineTo(w - pad, pad * 0.6 + blockH + h * 0.03);
+    ctx.stroke();
+    ctx.textAlign = "left";
+    ctx.textBaseline = "alphabetic";
+    ctx.fillStyle = p.text;
+    let ts = h * (vertical ? 0.032 : 0.04);
+    ctx.font = `800 ${Math.round(ts)}px ${COND}`;
+    const title = (r.title || "Untitled").toUpperCase();
+    while (ctx.measureText(title).width > w - pad * 2 && ts > 12) {
+      ts *= 0.94;
+      ctx.font = `800 ${Math.round(ts)}px ${COND}`;
+    }
+    ctx.fillText(title, pad, pad * 0.55);
+    ctx.font = `600 ${Math.round(h * 0.017)}px ${kit.FONT}`;
+    ctx.fillStyle = kit.hexA(p.muted, 1);
+    ctx.fillText((r.artist || "Unknown artist").toUpperCase(), pad, pad * 0.55 + h * 0.03);
+    // big index number, ghosted
+    const idx = kit.findLineIndex(r.lyrics, r.t);
+    ctx.save();
+    ctx.globalAlpha = 0.14;
+    ctx.font = `900 ${Math.round(h * 0.22)}px ${COND}`;
+    ctx.textAlign = "right";
+    ctx.fillStyle = p.primary;
+    ctx.fillText(String(Math.max(0, idx + 1)).padStart(2, "0"), w - pad, h * (vertical ? 0.72 : 0.85));
+    ctx.restore();
+    ctx.textAlign = "left";
+    kit.drawLyricRoll(ctx, r, {
+      top: pad * 0.6 + blockH + h * 0.06,
+      bottom: h * 0.92,
+      focusY: h * (vertical ? 0.62 : 0.6),
+      size: h * (vertical ? 0.036 : 0.05),
+      showRule: false,
+    });
+    ctx.strokeStyle = kit.hexA(p.text, 0.25);
+    ctx.beginPath();
+    ctx.moveTo(pad, h * 0.93);
+    ctx.lineTo(w - pad, h * 0.93);
+    ctx.stroke();
+    kit.drawFooterBar(ctx, r, h * 0.965);
+  },
+};
+
+const neonMarquee: Engine = {
+  id: "neon-marquee-sign",
+  name: "Neon · Marquee Sign",
+  desc: "Chasing marquee bulbs ring the frame around a glowing hero lyric.",
+  draw: (ctx, r, kit) => {
+    const { w, h, t, palette: p } = r;
+    kit.drawBg(ctx, w, h, p, t);
+    const inset = Math.min(w, h) * 0.035;
+    ctx.save();
+    ctx.shadowColor = kit.hexA(p.primary, 0.9);
+    ctx.shadowBlur = inset * 0.9;
+    ctx.strokeStyle = kit.hexA(p.primary, 0.8);
+    ctx.lineWidth = Math.max(2, inset * 0.16);
+    kit.roundRect(ctx, inset, inset, w - inset * 2, h - inset * 2, inset * 0.8);
+    ctx.stroke();
+    ctx.restore();
+    // chasing bulbs
+    const perim = 2 * (w - inset * 2) + 2 * (h - inset * 2);
+    const bulbGap = Math.min(w, h) * 0.045;
+    const count = Math.floor(perim / bulbGap);
+    const chase = (t * (0.5 + Math.max(0, Math.min(2, r.motion)) * 0.5)) % 1;
+    const rectW = w - inset * 2;
+    const rectH = h - inset * 2;
+    for (let i = 0; i < count; i++) {
+      const frac = ((i / count + chase) % 1) * perim;
+      let x = inset;
+      let y = inset;
+      if (frac < rectW) {
+        x = inset + frac;
+        y = inset;
+      } else if (frac < rectW + rectH) {
+        x = inset + rectW;
+        y = inset + (frac - rectW);
+      } else if (frac < rectW * 2 + rectH) {
+        x = inset + rectW - (frac - rectW - rectH);
+        y = inset + rectH;
+      } else {
+        x = inset;
+        y = inset + rectH - (frac - rectW * 2 - rectH);
+      }
+      const lit = i % 2 === 0;
+      ctx.beginPath();
+      ctx.arc(x, y, inset * 0.14, 0, Math.PI * 2);
+      ctx.fillStyle = lit ? kit.hexA(p.accent, 0.95) : kit.hexA(p.text, 0.25);
+      if (lit) {
+        ctx.shadowColor = kit.hexA(p.accent, 0.9);
+        ctx.shadowBlur = inset * 0.5;
+      } else {
+        ctx.shadowBlur = 0;
+      }
+      ctx.fill();
+    }
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = kit.hexA(p.muted, 1);
+    ctx.font = `700 ${Math.round(h * 0.02)}px ${kit.FONT}`;
+    kit.tracked(ctx, (r.artist || "").toUpperCase(), w / 2, h * 0.14, h * 0.006);
+    heroLyric(ctx, kit, r, h * 0.5, h * (r.aspect === "9:16" ? 0.06 : 0.075), {
+      weight: 900,
+      uppercase: true,
+      glow: true,
+    });
+    kit.drawFooterBar(ctx, r, h * 0.955);
+  },
+};
+
+const retroCrt: Engine = {
+  id: "retro-crt",
+  name: "Retro · CRT Broadcast",
+  desc: "Scanlines, glow and channel-tuner chrome for a retro TV lyric feed.",
+  draw: (ctx, r, kit) => {
+    const { w, h, t, palette: p } = r;
+    kit.drawBg(ctx, w, h, p, t);
+    // scanlines
+    ctx.save();
+    ctx.globalAlpha = 0.16;
+    ctx.fillStyle = "#000";
+    const lineH = Math.max(2, h * 0.0035);
+    for (let y = 0; y < h; y += lineH * 2) {
+      ctx.fillRect(0, y, w, lineH);
+    }
+    ctx.restore();
+    // subtle rolling flicker band
+    const bandY = ((t * h * 0.12) % (h * 1.4)) - h * 0.2;
+    ctx.save();
+    ctx.globalAlpha = 0.05;
+    ctx.fillStyle = "#fff";
+    ctx.fillRect(0, bandY, w, h * 0.06);
+    ctx.restore();
+    // channel chrome top bar
+    ctx.fillStyle = "rgba(0,0,0,0.55)";
+    ctx.fillRect(0, 0, w, h * 0.09);
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+    ctx.font = `700 ${Math.round(h * 0.024)}px "Courier New", monospace`;
+    ctx.fillStyle = kit.hexA(p.accent, 0.95);
+    ctx.fillText("● REC", w * 0.05, h * 0.045);
+    ctx.textAlign = "right";
+    ctx.fillStyle = kit.hexA(p.text, 0.85);
+    ctx.fillText(kit.fmtTime(r.t), w * 0.95, h * 0.045);
+    ctx.textAlign = "center";
+    ctx.font = `800 ${Math.round(h * 0.028)}px "Courier New", monospace`;
+    ctx.fillStyle = p.text;
+    ctx.fillText((r.title || "Untitled").toUpperCase(), w / 2, h * 0.17);
+    ctx.font = `500 ${Math.round(h * 0.016)}px "Courier New", monospace`;
+    ctx.fillStyle = kit.hexA(p.muted, 1);
+    ctx.fillText((r.artist || "").toUpperCase(), w / 2, h * 0.2);
+    // chromatic-aberration style hero lyric
+    const { cur } = currentLine(kit, r);
+    if (cur) {
+      const appear = kit.easeOutCubic(Math.min(1, (r.t - cur.time) / 0.3));
+      const size = h * (r.aspect === "9:16" ? 0.05 : 0.065);
+      ctx.font = `900 ${Math.round(size)}px "Courier New", monospace`;
+      const rows = kit.wrapText(ctx, cur.text.toUpperCase(), w * 0.82);
+      let yy = h * 0.55 - ((rows.length - 1) * size * 1.1) / 2;
+      ctx.save();
+      ctx.globalAlpha = appear;
+      const off = Math.max(1, size * 0.02);
+      for (const row of rows) {
+        ctx.fillStyle = "rgba(255,0,90,0.55)";
+        ctx.fillText(row, w / 2 - off, yy);
+        ctx.fillStyle = "rgba(0,220,255,0.55)";
+        ctx.fillText(row, w / 2 + off, yy);
+        ctx.fillStyle = p.text;
+        ctx.fillText(row, w / 2, yy);
+        yy += size * 1.1;
+      }
+      ctx.restore();
+    }
+    kit.drawFooterBar(ctx, r, h * 0.955);
+  },
+};
+
+const gradientMesh: Engine = {
+  id: "gradient-mesh",
+  name: "Gradient · Mesh Glass",
+  desc: "Soft organic mesh gradient behind a frosted-glass lyric panel.",
+  draw: (ctx, r, kit) => {
+    const { w, h, t, palette: p } = r;
+    kit.drawBg(ctx, w, h, p, t);
+    const drift = Math.max(0, Math.min(2, r.motion));
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    const blobs: [number, number, number, string, number][] = [
+      [
+        w * (0.3 + Math.sin(t * 0.18 * drift) * 0.12),
+        h * (0.25 + Math.cos(t * 0.15 * drift) * 0.08),
+        Math.max(w, h) * 0.42,
+        p.primary,
+        0.35,
+      ],
+      [
+        w * (0.72 + Math.cos(t * 0.14 * drift) * 0.1),
+        h * (0.35 + Math.sin(t * 0.2 * drift) * 0.1),
+        Math.max(w, h) * 0.38,
+        p.accent,
+        0.3,
+      ],
+      [
+        w * (0.5 + Math.sin(t * 0.11 * drift + 1) * 0.14),
+        h * (0.75 + Math.cos(t * 0.13 * drift) * 0.08),
+        Math.max(w, h) * 0.4,
+        p.bg[1],
+        0.4,
+      ],
+    ];
+    for (const [cx, cy, rad, color, a] of blobs) {
+      const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, rad);
+      g.addColorStop(0, kit.hexA(color, a));
+      g.addColorStop(1, kit.hexA(color, 0));
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, w, h);
+    }
+    ctx.restore();
+    const vertical = r.aspect === "9:16";
+    const panelW = vertical ? w * 0.86 : w * 0.62;
+    const panelH = vertical ? h * 0.42 : h * 0.5;
+    const px = (w - panelW) / 2;
+    const py = vertical ? h * 0.5 : h * 0.28;
+    ctx.save();
+    ctx.fillStyle = "rgba(255,255,255,0.08)";
+    kit.roundRect(ctx, px, py, panelW, panelH, panelH * 0.08);
+    ctx.fill();
+    ctx.strokeStyle = "rgba(255,255,255,0.18)";
+    ctx.lineWidth = Math.max(1, h * 0.0012);
+    ctx.stroke();
+    ctx.restore();
+    metaBlock(
+      ctx,
+      kit,
+      r,
+      w / 2,
+      py + panelH * 0.16,
+      h * (vertical ? 0.026 : 0.03),
+      panelW * 0.85,
+      "center",
+    );
+    kit.drawLyricRoll(ctx, r, {
+      top: py + panelH * 0.24,
+      bottom: py + panelH - panelH * 0.06,
+      focusY: py + panelH * 0.62,
+      size: h * (vertical ? 0.032 : 0.042),
+      showRule: false,
+    });
+  },
+};
+
 export const EXTRA_LYRIC_ENGINES: Engine[] = [
   vinylTonearm,
   vinyl45,
@@ -1696,6 +2148,13 @@ export const EXTRA_LYRIC_ENGINES: Engine[] = [
   npStudio,
   npCassetteJ,
   npSpotlight,
+  waveBars,
+  stageSpotlight,
+  filmStrip,
+  swissCard,
+  neonMarquee,
+  retroCrt,
+  gradientMesh,
 ];
 
 export const EXTRA_LYRIC_MAP = new Map(EXTRA_LYRIC_ENGINES.map((e) => [e.id, e]));

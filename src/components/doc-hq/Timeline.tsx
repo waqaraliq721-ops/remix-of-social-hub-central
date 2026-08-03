@@ -10,10 +10,12 @@ type TimelineProps = {
   tracks: Track[];
   media: MediaItem[];
   selectedClipId: string | null;
+  selectedTrackId: string | null;
   currentTime: number;
   totalDuration: number;
   onSeek: (t: number) => void;
   onSelectClip: (id: string | null) => void;
+  onSelectTrack: (id: string | null) => void;
   onUpdateClip: (id: string, patch: Partial<Clip>) => void;
   onDuplicateClip: (id: string) => void;
   onDeleteClip: (id: string) => void;
@@ -28,10 +30,12 @@ export function Timeline({
   tracks,
   media,
   selectedClipId,
+  selectedTrackId,
   currentTime,
   totalDuration,
   onSeek,
   onSelectClip,
+  onSelectTrack,
   onUpdateClip,
   onDuplicateClip,
   onDeleteClip,
@@ -75,12 +79,17 @@ export function Timeline({
     startX: number;
     origStart: number;
     origDur: number;
+    trackId: string;
+    kind: Clip["kind"];
   } | null>(null);
+
+  const isTrackCompatible = (clipKind: Clip["kind"], trackKind: Track["kind"]) =>
+    clipKind === "audio" ? trackKind === "audio" : trackKind === "visual";
 
   const beginDrag = (e: React.PointerEvent, clip: Clip, mode: "move" | "left" | "right") => {
     e.stopPropagation();
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
-    dragState.current = { id: clip.id, mode, startX: e.clientX, origStart: clip.start, origDur: clip.duration };
+    dragState.current = { id: clip.id, mode, startX: e.clientX, origStart: clip.start, origDur: clip.duration, trackId: clip.trackId, kind: clip.kind };
     onSelectClip(clip.id);
   };
 
@@ -91,7 +100,18 @@ export function Timeline({
     if (d.mode === "move") {
       let next = Math.max(0, d.origStart + deltaT);
       next = snap(next, [d.origStart, d.origStart + d.origDur]);
-      onUpdateClip(d.id, { start: next });
+      const patch: Partial<Clip> = { start: next };
+      const el = document.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null;
+      const laneEl = el?.closest("[data-track-id]") as HTMLElement | null;
+      const targetTrackId = laneEl?.dataset.trackId;
+      if (targetTrackId && targetTrackId !== d.trackId) {
+        const targetTrack = tracks.find((t) => t.id === targetTrackId);
+        if (targetTrack && !targetTrack.locked && isTrackCompatible(d.kind, targetTrack.kind)) {
+          patch.trackId = targetTrackId;
+          d.trackId = targetTrackId;
+        }
+      }
+      onUpdateClip(d.id, patch);
     } else if (d.mode === "left") {
       let next = Math.max(0, d.origStart + deltaT);
       next = snap(next, [d.origStart, d.origStart + d.origDur]);
@@ -162,8 +182,11 @@ export function Timeline({
           </div>
 
           {tracks.map((track, ti) => (
-            <div key={track.id} className="flex border-b">
-              <div className="flex w-40 shrink-0 flex-col justify-center gap-1 border-r p-2 text-xs">
+            <div key={track.id} className={`flex border-b ${track.id === selectedTrackId ? "bg-primary/5" : ""}`}>
+              <div
+                className={`flex w-40 shrink-0 cursor-pointer flex-col justify-center gap-1 border-r p-2 text-xs ${track.id === selectedTrackId ? "ring-1 ring-inset ring-primary/50" : ""}`}
+                onClick={() => onSelectTrack(track.id === selectedTrackId ? null : track.id)}
+              >
                 <div className="flex items-center justify-between">
                   <span className="truncate font-medium">{track.name}</span>
                   <div className="flex gap-0.5">
@@ -195,6 +218,7 @@ export function Timeline({
               </div>
               <div
                 className="relative flex-1"
+                data-track-id={track.id}
                 style={{ height: TRACK_H }}
                 onClick={() => onSelectClip(null)}
               >

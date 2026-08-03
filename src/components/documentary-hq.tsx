@@ -147,6 +147,7 @@ export function DocumentaryHQ() {
   const [media, setMedia] = useState<MediaItem[]>([]);
   const [tracks, setTracks] = useState<Track[]>(() => [newTrack("Visuals", "visual")]);
   const [selectedClipId, setSelectedClipId] = useState<string | null>(null);
+  const [selectedTrackId, setSelectedTrackId] = useState<string | null>(null);
   const [background, setBackground] = useState<BackgroundKind>("none");
 
   // voiceover
@@ -263,8 +264,38 @@ export function DocumentaryHQ() {
     setSelectedClipId(c.id);
   };
 
+  const isTrackCompatible = (clipKind: Clip["kind"], trackKind: Track["kind"]) =>
+    clipKind === "audio" ? trackKind === "audio" : trackKind === "visual";
+
   const updateClip = useCallback((id: string, patch: Partial<Clip>) => {
-    setTracks((prev) => prev.map((t) => ({ ...t, clips: t.clips.map((c) => (c.id === id ? { ...c, ...patch } : c)) })));
+    setTracks((prev) => {
+      if (patch.trackId) {
+        let clip: Clip | null = null;
+        let srcTrack: Track | null = null;
+        for (const t of prev) {
+          const c = t.clips.find((c) => c.id === id);
+          if (c) {
+            clip = c;
+            srcTrack = t;
+            break;
+          }
+        }
+        if (!clip || !srcTrack) return prev;
+        const destTrack = prev.find((t) => t.id === patch.trackId);
+        if (!destTrack || (destTrack.locked && destTrack.id !== srcTrack.id)) return prev;
+        if (!isTrackCompatible(clip.kind, destTrack.kind)) return prev;
+        if (destTrack.id === srcTrack.id) {
+          return prev.map((t) => (t.id === srcTrack!.id ? { ...t, clips: t.clips.map((c) => (c.id === id ? { ...c, ...patch } : c)) } : t));
+        }
+        const updatedClip: Clip = { ...clip, ...patch };
+        return prev.map((t) => {
+          if (t.id === srcTrack!.id) return { ...t, clips: t.clips.filter((c) => c.id !== id) };
+          if (t.id === destTrack.id) return { ...t, clips: [...t.clips, updatedClip] };
+          return t;
+        });
+      }
+      return prev.map((t) => ({ ...t, clips: t.clips.map((c) => (c.id === id ? { ...c, ...patch } : c)) }));
+    });
   }, []);
 
   const duplicateClip = (id: string) => {
@@ -670,7 +701,12 @@ export function DocumentaryHQ() {
                       </div>
                     )}
                     <button
-                      onClick={() => addClip(tracks.find((t) => t.kind === (m.kind === "audio" ? "audio" : "visual"))?.id ?? tracks[0]?.id, m.id)}
+                      onClick={() => {
+                        const wantKind = m.kind === "audio" ? "audio" : "visual";
+                        const preferred = selectedTrackId ? tracks.find((t) => t.id === selectedTrackId && t.kind === wantKind && !t.locked) : null;
+                        const target = preferred ?? tracks.find((t) => t.kind === wantKind && !t.locked) ?? tracks[0];
+                        if (target) addClip(target.id, m.id);
+                      }}
                       className="absolute inset-x-0 bottom-0 flex h-6 items-center justify-center bg-black/60 text-[10px] text-white opacity-0 group-hover:opacity-100"
                     >
                       <Plus className="mr-1 h-3 w-3" /> Add clip
@@ -742,10 +778,12 @@ export function DocumentaryHQ() {
           tracks={tracks}
           media={media}
           selectedClipId={selectedClipId}
+          selectedTrackId={selectedTrackId}
           currentTime={currentTime}
           totalDuration={totalDuration}
           onSeek={seek}
           onSelectClip={setSelectedClipId}
+          onSelectTrack={setSelectedTrackId}
           onUpdateClip={updateClip}
           onDuplicateClip={duplicateClip}
           onDeleteClip={deleteClip}
@@ -756,7 +794,7 @@ export function DocumentaryHQ() {
           onReorderTrack={reorderTrack}
         />
 
-        {selectedClip && <ClipInspector clip={selectedClip} media={media} onUpdate={(patch) => updateClip(selectedClip.id, patch)} />}
+        {selectedClip && <ClipInspector clip={selectedClip} media={media} tracks={tracks} onUpdate={(patch) => updateClip(selectedClip.id, patch)} />}
       </div>
 
       {/* Right: audio + tips */}
