@@ -1279,6 +1279,14 @@ function EmojiPage() {
                 <Input value={heading} onChange={(e) => setHeading(e.target.value)} />
               </div>
               <div>
+                <Label className="text-xs text-muted-foreground">Highlighted word in heading</Label>
+                <Input
+                  value={highlightWord}
+                  placeholder="Word to colour with accent"
+                  onChange={(e) => setHighlightWord(e.target.value)}
+                />
+              </div>
+              <div>
                 <Label className="text-xs text-muted-foreground">Guess time · {timerSecs}s</Label>
                 <Slider
                   value={[timerSecs]}
@@ -1346,6 +1354,27 @@ function EmojiPage() {
                   max={1.8}
                   step={0.02}
                   onValueChange={([v]) => setEmojiLineHeight(v)}
+                />
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground">
+                  Emoji outline width · {emojiOutlineWidth}px
+                </Label>
+                <Slider
+                  value={[emojiOutlineWidth]}
+                  min={0}
+                  max={24}
+                  step={1}
+                  onValueChange={([v]) => setEmojiOutlineWidth(v)}
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <Label className="text-xs text-muted-foreground">Emoji outline colour</Label>
+                <input
+                  type="color"
+                  value={emojiOutlineColor}
+                  onChange={(e) => setEmojiOutlineColor(e.target.value)}
+                  className="h-7 w-10 cursor-pointer rounded border"
                 />
               </div>
               <div className="grid grid-cols-2 gap-3 text-sm">
