@@ -1727,14 +1727,36 @@ export function TimerStylePicker({
   return <Picker label="Timer style" value={value} options={TIMER_STYLES} onChange={onChange} />;
 }
 
+const MASCOT_TIMEBAR_STYLES: TimeBarStyleId[] = ["mascot-capsule", "chevron-mascot", "diagonal-thinker"];
+
 export function TimeBarStylePicker({
   value,
   onChange,
+  options,
+  onOptionsChange,
 }: {
   value: TimeBarStyleId;
   onChange: (v: TimeBarStyleId) => void;
+  options?: TimeBarOptions;
+  onOptionsChange?: (next: TimeBarOptions) => void;
 }) {
-  return <Picker label="Time bar style" value={value} options={TIMEBAR_STYLES} onChange={onChange} />;
+  const showRider = MASCOT_TIMEBAR_STYLES.includes(value);
+  return (
+    <div className="space-y-2">
+      <Picker label="Time bar style" value={value} options={TIMEBAR_STYLES} onChange={onChange} />
+      {showRider && onOptionsChange && (
+        <div>
+          <Label className="text-[11px] text-muted-foreground">Rider / marker emoji</Label>
+          <input
+            className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs"
+            value={options?.emoji ?? ""}
+            placeholder="🦖"
+            onChange={(e) => onOptionsChange({ ...options, emoji: e.target.value })}
+          />
+        </div>
+      )}
+    </div>
+  );
 }
 
 /** Collapsible-free grouped layout controls for a set of named elements. */

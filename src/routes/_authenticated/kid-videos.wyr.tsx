@@ -1189,6 +1189,8 @@ function WyrPage() {
 
       if (aspect === "16:9-hq") {
         drawRoundHQ(ctx, w, h, renderSeg.round, localT, renderSeg.dur, t, renderSeg.index);
+      } else if (aspect === "16:9-uhd") {
+        drawRoundUHD(ctx, w, h, renderSeg.round, localT, renderSeg.dur, t, renderSeg.index);
       } else {
         drawRound(ctx, w, h, renderSeg.round, localT, renderSeg.dur, renderSeg.index);
       }
@@ -1196,7 +1198,7 @@ function WyrPage() {
         drawRoundTransition(ctx, roundTransition, transProgress, w, h);
       }
     },
-    [aspect, dims, drawRound, drawRoundHQ, intro, outro, timeline, roundTransition],
+    [aspect, dims, drawRound, drawRoundHQ, drawRoundUHD, intro, outro, timeline, roundTransition],
   );
 
   // preview loop
@@ -1555,11 +1557,55 @@ function WyrPage() {
               </div>
               <div>
                 <div className="flex items-center justify-between">
-                  <Label className="text-xs text-muted-foreground">Side label (16:9 HQ)</Label>
+                  <Label className="text-xs text-muted-foreground">Side label (16:9 HQ / ULTRA HD)</Label>
                   <Switch checked={showSideLabel} onCheckedChange={setShowSideLabel} />
                 </div>
                 <Input value={sideLabel} onChange={(e) => setSideLabel(e.target.value)} disabled={!showSideLabel} />
+                {aspect === "16:9-uhd" && (
+                  <Input
+                    type="color"
+                    className="mt-2 h-8 w-16 p-1"
+                    value={sideLabelColor}
+                    onChange={(e) => setSideLabelColor(e.target.value)}
+                    disabled={!showSideLabel}
+                  />
+                )}
               </div>
+              {aspect === "16:9-uhd" && (
+                <div className="space-y-3 rounded-lg border p-3">
+                  <Label className="text-xs font-medium">ULTRA HD Vid extras</Label>
+                  <div>
+                    <Label className="text-[11px] text-muted-foreground">Top-right logo</Label>
+                    <Select value={uhdLogoMode} onValueChange={(v) => setUhdLogoMode(v as "image" | "emoji")}>
+                      <SelectTrigger className="h-8 text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="emoji">Emoji / text</SelectItem>
+                        <SelectItem value="image">Uploaded image</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {uhdLogoMode === "emoji" && (
+                    <Input value={uhdLogoEmoji} onChange={(e) => setUhdLogoEmoji(e.target.value)} placeholder="⚡" />
+                  )}
+                  {uhdLogoMode === "image" && (
+                    <p className="text-[11px] text-muted-foreground">
+                      Uses the logo uploaded in the “Channel logo” card below.
+                    </p>
+                  )}
+                  <div className="flex items-center justify-between">
+                    <Label className="text-[11px] text-muted-foreground">Time bar rider</Label>
+                    <Switch checked={showUhdRider} onCheckedChange={setShowUhdRider} />
+                  </div>
+                  <Input
+                    value={uhdRiderEmoji}
+                    onChange={(e) => setUhdRiderEmoji(e.target.value)}
+                    disabled={!showUhdRider}
+                    placeholder="🏃"
+                  />
+                </div>
+              )}
               <div>
                 <Label className="text-xs text-muted-foreground">Countdown · {timerSecs}s</Label>
                 <Slider value={[timerSecs]} min={2} max={12} step={1} onValueChange={([v]) => setTimerSecs(v)} />

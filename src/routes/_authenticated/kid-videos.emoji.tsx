@@ -657,6 +657,16 @@ function EmojiPage() {
             ctx.scale(pop * (1 + wobble), pop * (1 - wobble));
             ctx.rotate(Math.sin(absT * 1.1 + idx) * 0.02 * bounce);
             ctx.globalAlpha = Math.max(0, Math.min(1, pop));
+            if (emojiOutlineWidth > 0) {
+              ctx.lineJoin = "round";
+              ctx.miterLimit = 2;
+              ctx.strokeStyle = emojiOutlineColor;
+              ctx.lineWidth = emojiOutlineWidth;
+              ctx.strokeText(e, 0, 0);
+            }
+            ctx.shadowColor = "rgba(0,0,0,0.45)";
+            ctx.shadowBlur = size * 0.08;
+            ctx.shadowOffsetY = size * 0.02;
             ctx.fillText(e, 0, 0);
             ctx.restore();
           });
@@ -774,20 +784,69 @@ function EmojiPage() {
         ctx.restore();
       }
 
+      // ---- vertical side text ----
+      {
+        const items: { x: number; rot: number; text: string }[] = [];
+        if (sideText.leftVisible && sideText.left.trim()) {
+          items.push({ x: M * 0.4, rot: -Math.PI / 2, text: sideText.left });
+        }
+        if (sideText.rightVisible && sideText.right.trim()) {
+          items.push({ x: w - M * 0.4, rot: Math.PI / 2, text: sideText.right });
+        }
+        items.forEach(({ x, rot, text }) => {
+          ctx.save();
+          ctx.translate(x, h / 2);
+          ctx.rotate(rot);
+          ctx.font = `700 ${Math.round(Math.min(w, h) * 0.018)}px ${FX_FONT}`;
+          ctx.fillStyle = hexA(pal.text, 0.35);
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText(text.repeat(3), 0, 0);
+          ctx.restore();
+        });
+      }
+
       // ---- channel logo (always on top) ----
-      drawChannelLogo(ctx, channelLogoImgRef.current, channelLogo, w, h, absT);
+      if (channelLogo.visible && !channelLogoImgRef.current && channelLogoEmoji.trim()) {
+        const base = Math.min(w, h) * 0.11 * channelLogo.scale;
+        const pad = base * 0.9;
+        let ax = w - pad;
+        let ay = h - pad;
+        if (channelLogo.corner === "top-left") { ax = pad; ay = pad; }
+        else if (channelLogo.corner === "top-right") { ax = w - pad; ay = pad; }
+        else if (channelLogo.corner === "top-center") { ax = w / 2; ay = pad; }
+        else if (channelLogo.corner === "bottom-left") { ax = pad; ay = h - pad; }
+        else if (channelLogo.corner === "bottom-center") { ax = w / 2; ay = h - pad; }
+        ax += (channelLogo.dx / 100) * w;
+        ay += (channelLogo.dy / 100) * h;
+        ctx.save();
+        ctx.globalAlpha = channelLogo.opacity;
+        ctx.translate(ax, ay);
+        ctx.rotate((channelLogo.rotate * Math.PI) / 180);
+        ctx.font = `${Math.round(base * 1.4)}px ${EMOJI_FONT}`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(channelLogoEmoji, 0, 0);
+        ctx.restore();
+      } else {
+        drawChannelLogo(ctx, channelLogoImgRef.current, channelLogo, w, h, absT);
+      }
     },
     [
       anims,
       aspect,
       bounce,
       channelLogo,
+      channelLogoEmoji,
       drawBackground,
       drawConfetti,
       emojiGap,
       emojiLineHeight,
+      emojiOutlineColor,
+      emojiOutlineWidth,
       emojiScale,
       heading,
+      highlightWord,
       pal,
       revealSecs,
       roundBadgeId,
@@ -795,6 +854,7 @@ function EmojiPage() {
       showHint,
       showRoundNo,
       showTimer,
+      sideText,
       style,
       styles,
       timerStyle,
