@@ -1039,7 +1039,7 @@ function renderEngine(
 
 // -------------------- component --------------------
 
-function MotivationalVideosPage() {
+function MotivationalClassicStudio() {
   const [aspect, setAspect] = useState<AspectKey>("9:16");
   const [templateId, setTemplateId] = useState(TEMPLATES[0].id);
   const [engineFilter, setEngineFilter] = useState("all");
