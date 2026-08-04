@@ -51,6 +51,7 @@ import {
   type Kit as MotivationalKit,
 } from "@/lib/motivational-templates";
 import { ColorCustomiser, applyOverrides, type ColorOverrides } from "@/components/color-customiser";
+import MotivHqStudio from "@/components/motiv-hq-studio";
 
 export const Route = createFileRoute("/_authenticated/motivational-videos")({
   head: () => ({
@@ -1039,7 +1040,7 @@ function renderEngine(
 
 // -------------------- component --------------------
 
-function MotivationalVideosPage() {
+function MotivationalClassicStudio() {
   const [aspect, setAspect] = useState<AspectKey>("9:16");
   const [templateId, setTemplateId] = useState(TEMPLATES[0].id);
   const [engineFilter, setEngineFilter] = useState("all");
@@ -1934,6 +1935,24 @@ function MotivationalVideosPage() {
             </CardContent>
           </Card>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// Top-level page: the original template studio plus the HQ cut-out studio.
+function MotivationalVideosPage() {
+  const [tab, setTab] = useState<"classic" | "hq">("classic");
+  return (
+    <div className="flex h-full min-h-0 flex-col gap-4">
+      <Tabs value={tab} onValueChange={(v) => setTab(v as "classic" | "hq")}>
+        <TabsList>
+          <TabsTrigger value="classic">Templates</TabsTrigger>
+          <TabsTrigger value="hq">HQ Videos</TabsTrigger>
+        </TabsList>
+      </Tabs>
+      <div className="min-h-0 flex-1">
+        {tab === "classic" ? <MotivationalClassicStudio /> : <MotivHqStudio />}
       </div>
     </div>
   );
