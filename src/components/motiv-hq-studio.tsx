@@ -739,13 +739,44 @@ export default function MotivHqStudio() {
           </CardContent>
         </Card>}
 
-        <Card>
+        {has("headline") && <Card>
           <CardHeader>
-            <CardTitle className="text-base">Extras</CardTitle>
-            <CardDescription>Falling props and card copy.</CardDescription>
+            <CardTitle className="text-base">Headline</CardTitle>
+            <CardDescription>The big static text this template composes around.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            <Row label="Animated elements">
+            <Row label="Heading">
+              <Textarea
+                rows={3}
+                value={cfg.heading}
+                onChange={(e) => set("heading", e.target.value)}
+                className="text-sm"
+              />
+            </Row>
+            {has("signature") && (
+              <>
+                <Row label="Sub-heading">
+                  <Input value={cfg.subheading} onChange={(e) => set("subheading", e.target.value)} />
+                </Row>
+                <Row label="Attribution / signature">
+                  <Input
+                    value={cfg.author}
+                    onChange={(e) => set("author", e.target.value)}
+                    placeholder="e.g. Marcus Aurelius"
+                  />
+                </Row>
+              </>
+            )}
+          </CardContent>
+        </Card>}
+
+        {has("particles") && <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Animated elements</CardTitle>
+            <CardDescription>Falling props layered over the frame.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <Row label="Element type">
               <Select value={cfg.particles} onValueChange={(v) => set("particles", v as ParticleId)}>
                 <SelectTrigger>
                   <SelectValue />
@@ -783,21 +814,8 @@ export default function MotivHqStudio() {
                 className="h-9 p-1"
               />
             </Row>
-            <Row label="Heading (definition card)">
-              <Input value={cfg.heading} onChange={(e) => set("heading", e.target.value)} />
-            </Row>
-            <Row label="Sub-heading">
-              <Input value={cfg.subheading} onChange={(e) => set("subheading", e.target.value)} />
-            </Row>
-            <Row label="Attribution">
-              <Input
-                value={cfg.author}
-                onChange={(e) => set("author", e.target.value)}
-                placeholder="e.g. Marcus Aurelius"
-              />
-            </Row>
           </CardContent>
-        </Card>
+        </Card>}
       </div>
 
       {/* Right: typography + subject */}
