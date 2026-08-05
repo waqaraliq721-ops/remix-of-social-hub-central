@@ -43,6 +43,8 @@ export type ElementStyleSpec = {
   visible: boolean;
   /** Visual style variant (1..5) for the element's plate/chrome. */
   variant: number;
+  /** Draw order — higher layers are painted on top of lower ones. */
+  layer: number;
 };
 
 export const ELEMENT_VARIANTS: { id: number; name: string }[] = [
@@ -54,7 +56,15 @@ export const ELEMENT_VARIANTS: { id: number; name: string }[] = [
 ];
 
 export function defaultStyle(partial?: Partial<ElementStyleSpec>): ElementStyleSpec {
-  return { dx: 0, dy: 0, scale: 1, rotate: 0, opacity: 1, visible: true, variant: 1, ...partial };
+  return { dx: 0, dy: 0, scale: 1, rotate: 0, opacity: 1, visible: true, variant: 1, layer: 0, ...partial };
+}
+
+/** Sorts {layer,...} entries stably by layer (ties keep insertion order) and runs their draw callback. */
+export function runLayered<T extends { layer?: number; draw: () => void }>(entries: T[]) {
+  entries
+    .map((e, i) => ({ e, i }))
+    .sort((a, b) => (a.e.layer ?? 0) - (b.e.layer ?? 0) || a.i - b.i)
+    .forEach(({ e }) => e.draw());
 }
 
 export const IDENTITY_STYLE = defaultStyle();
@@ -186,24 +196,34 @@ export function ElementStyleControls({
         </Select>
       </div>
       <div>
-        <Label className="text-[11px] text-muted-foreground">X · {value.dx.toFixed(0)}%</Label>
-        <Slider value={[value.dx]} min={-50} max={50} step={1} onValueChange={([v]) => set({ dx: v })} />
+        <Label className="text-[11px] text-muted-foreground">X · {value.dx.toFixed(1)}%</Label>
+        <Slider value={[value.dx]} min={-110} max={110} step={0.5} onValueChange={([v]) => set({ dx: v })} />
       </div>
       <div>
-        <Label className="text-[11px] text-muted-foreground">Y · {value.dy.toFixed(0)}%</Label>
-        <Slider value={[value.dy]} min={-50} max={50} step={1} onValueChange={([v]) => set({ dy: v })} />
+        <Label className="text-[11px] text-muted-foreground">Y · {value.dy.toFixed(1)}%</Label>
+        <Slider value={[value.dy]} min={-110} max={110} step={0.5} onValueChange={([v]) => set({ dy: v })} />
       </div>
       <div>
         <Label className="text-[11px] text-muted-foreground">Scale · {value.scale.toFixed(2)}x</Label>
-        <Slider value={[value.scale]} min={0.2} max={2.5} step={0.05} onValueChange={([v]) => set({ scale: v })} />
+        <Slider value={[value.scale]} min={0.1} max={3} step={0.02} onValueChange={([v]) => set({ scale: v })} />
       </div>
       <div>
         <Label className="text-[11px] text-muted-foreground">Rotation · {value.rotate.toFixed(0)}°</Label>
-        <Slider value={[value.rotate]} min={-45} max={45} step={1} onValueChange={([v]) => set({ rotate: v })} />
+        <Slider value={[value.rotate]} min={-180} max={180} step={1} onValueChange={([v]) => set({ rotate: v })} />
       </div>
       <div>
         <Label className="text-[11px] text-muted-foreground">Opacity · {Math.round(value.opacity * 100)}%</Label>
-        <Slider value={[value.opacity]} min={0} max={1} step={0.05} onValueChange={([v]) => set({ opacity: v })} />
+        <Slider value={[value.opacity]} min={0} max={1} step={0.02} onValueChange={([v]) => set({ opacity: v })} />
+      </div>
+      <div>
+        <Label className="text-[11px] text-muted-foreground">Layer (draw order) · {Math.round(value.layer ?? 0)}</Label>
+        <Slider
+          value={[value.layer ?? 0]}
+          min={-20}
+          max={20}
+          step={1}
+          onValueChange={([v]) => set({ layer: Math.round(v) })}
+        />
       </div>
     </div>
   );
@@ -1806,6 +1826,8 @@ export type ChannelLogoSpec = {
   ring: boolean;
   ringColor?: string;
   anim: ElementAnimSpec;
+  /** Draw order — higher layers are painted on top of lower ones. */
+  layer: number;
 };
 
 export function defaultChannelLogo(partial?: Partial<ChannelLogoSpec>): ChannelLogoSpec {
@@ -1820,6 +1842,7 @@ export function defaultChannelLogo(partial?: Partial<ChannelLogoSpec>): ChannelL
     shape: "circle",
     ring: true,
     anim: defaultAnim({ preset: "pop", loop: "none" }),
+    layer: 0,
     ...partial,
   };
 }
@@ -1940,20 +1963,30 @@ export function ChannelLogoControls({
         <Picker label="Shape" value={value.shape} options={CHANNEL_LOGO_SHAPES} onChange={(v) => set({ shape: v })} />
       </div>
       <div>
-        <Label className="text-[11px] text-muted-foreground">X offset · {value.dx.toFixed(0)}%</Label>
-        <Slider value={[value.dx]} min={-20} max={20} step={1} onValueChange={([v]) => set({ dx: v })} />
+        <Label className="text-[11px] text-muted-foreground">X offset · {value.dx.toFixed(1)}%</Label>
+        <Slider value={[value.dx]} min={-110} max={110} step={0.5} onValueChange={([v]) => set({ dx: v })} />
       </div>
       <div>
-        <Label className="text-[11px] text-muted-foreground">Y offset · {value.dy.toFixed(0)}%</Label>
-        <Slider value={[value.dy]} min={-20} max={20} step={1} onValueChange={([v]) => set({ dy: v })} />
+        <Label className="text-[11px] text-muted-foreground">Y offset · {value.dy.toFixed(1)}%</Label>
+        <Slider value={[value.dy]} min={-110} max={110} step={0.5} onValueChange={([v]) => set({ dy: v })} />
       </div>
       <div>
         <Label className="text-[11px] text-muted-foreground">Scale · {value.scale.toFixed(2)}x</Label>
-        <Slider value={[value.scale]} min={0.4} max={2} step={0.05} onValueChange={([v]) => set({ scale: v })} />
+        <Slider value={[value.scale]} min={0.1} max={3} step={0.02} onValueChange={([v]) => set({ scale: v })} />
       </div>
       <div>
         <Label className="text-[11px] text-muted-foreground">Rotation · {value.rotate.toFixed(0)}°</Label>
-        <Slider value={[value.rotate]} min={-45} max={45} step={1} onValueChange={([v]) => set({ rotate: v })} />
+        <Slider value={[value.rotate]} min={-180} max={180} step={1} onValueChange={([v]) => set({ rotate: v })} />
+      </div>
+      <div>
+        <Label className="text-[11px] text-muted-foreground">Layer (draw order) · {Math.round(value.layer ?? 0)}</Label>
+        <Slider
+          value={[value.layer ?? 0]}
+          min={-20}
+          max={20}
+          step={1}
+          onValueChange={([v]) => set({ layer: Math.round(v) })}
+        />
       </div>
       <div>
         <Label className="text-[11px] text-muted-foreground">Opacity · {Math.round(value.opacity * 100)}%</Label>

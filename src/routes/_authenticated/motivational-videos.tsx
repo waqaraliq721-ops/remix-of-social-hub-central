@@ -222,6 +222,20 @@ function hexA(hex: string, a: number) {
 function easeOutCubic(x: number) {
   return 1 - Math.pow(1 - x, 3);
 }
+/** Smooth accelerate-decelerate curve — used for camera motion and reveals. */
+function easeInOutCubic(x: number) {
+  return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+}
+/** Slightly slower ease-in/out with a longer settle, good for line crossfades. */
+function easeInOutQuint(x: number) {
+  return x < 0.5 ? 16 * x * x * x * x * x : 1 - Math.pow(-2 * x + 2, 5) / 2;
+}
+/** Gentle overshoot-and-settle, used for word/line pop-ins so nothing "pops" abruptly. */
+function easeOutBack(x: number) {
+  const c1 = 1.70158;
+  const c3 = c1 + 1;
+  return 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2);
+}
 function fmtTime(s: number) {
   if (!isFinite(s) || s < 0) s = 0;
   return `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
@@ -438,8 +452,8 @@ function renderWordPop(ctx: CanvasRenderingContext2D, r: RenderCtx) {
   const word = activeWord(line, t);
   if (!word) return;
   const life = Math.max(0.12, word.end - word.start);
-  const k = Math.max(0, Math.min(1, (t - word.start) / Math.min(0.22, life)));
-  const pop = 0.86 + easeOutCubic(k) * 0.14;
+  const k = Math.max(0, Math.min(1, (t - word.start) / Math.min(0.26, life)));
+  const pop = 0.88 + easeOutBack(k) * 0.12;
   ctx.save();
   ctx.translate(w / 2, h * 0.5);
   ctx.scale(pop, pop);
@@ -644,7 +658,13 @@ function typoState(r: RenderCtx) {
   const text = line?.text ?? "";
   const span = line ? Math.max(0.4, line.end - line.time) : 1;
   const frac = line ? Math.max(0, Math.min(1, (r.t - line.time) / span)) : 0;
-  const appear = line ? easeOutCubic(Math.min(1, (r.t - line.time) / 0.3)) : 0;
+  // Cross-fade in *and* out around the transcript window instead of a hard
+  // cut at line.end, with a smooth in/out curve so nothing pops.
+  const inDur = Math.min(0.34, span * 0.4);
+  const outDur = Math.min(0.26, span * 0.35);
+  const tIn = line ? Math.min(1, (r.t - line.time) / inDur) : 0;
+  const tOut = line ? Math.min(1, Math.max(0, (line.end - r.t) / outDur)) : 0;
+  const appear = line ? easeInOutCubic(tIn) * easeInOutCubic(tOut) : 0;
   return { line, text, frac, appear };
 }
 
@@ -936,6 +956,29 @@ function renderTypoSplit(ctx: CanvasRenderingContext2D, r: RenderCtx) {
 }
 
 /** Per-project typography + layout controls applied to every template. */
+export type CameraMotionId =
+  | "none"
+  | "zoom-in"
+  | "zoom-out"
+  | "drift"
+  | "parallax"
+  | "breathe"
+  | "handheld"
+  | "pan-left"
+  | "pan-right";
+
+export const CAMERA_MOTIONS: { id: CameraMotionId; name: string; desc: string }[] = [
+  { id: "none", name: "None", desc: "Locked-off frame — no camera motion." },
+  { id: "zoom-in", name: "Slow zoom in", desc: "Gentle continuous push-in." },
+  { id: "zoom-out", name: "Slow zoom out", desc: "Gentle continuous pull-back." },
+  { id: "drift", name: "Float / drift", desc: "Slow, organic floating motion." },
+  { id: "parallax", name: "Parallax sway", desc: "Subtle side-to-side sway with tilt." },
+  { id: "breathe", name: "Breathe", desc: "Rhythmic soft in/out pulse." },
+  { id: "handheld", name: "Handheld shake", desc: "Fine, cinematic micro-jitter." },
+  { id: "pan-left", name: "Slow pan left", desc: "Continuous drift to the left." },
+  { id: "pan-right", name: "Slow pan right", desc: "Continuous drift to the right." },
+];
+
 export type TemplateStyle = {
   /** 0.6 – 1.6 multiplier on the whole text layer. */
   scale: number;
@@ -946,6 +989,12 @@ export type TemplateStyle = {
   safeWidth: number;
   fontId: string;
   rotate: number;
+  /** Whole-frame continuous camera motion applied under every template. */
+  cameraMotion: CameraMotionId;
+  /** 0.4 – 2 multiplier on how fast the camera motion evolves. */
+  cameraSpeed: number;
+  /** 0 – 1 multiplier on how strong the camera motion is. */
+  cameraIntensity: number;
 };
 
 export const DEFAULT_STYLE: TemplateStyle = {
@@ -955,7 +1004,86 @@ export const DEFAULT_STYLE: TemplateStyle = {
   safeWidth: 1,
   fontId: "inter",
   rotate: 0,
+  cameraMotion: "drift",
+  cameraSpeed: 1,
+  cameraIntensity: 0.35,
 };
+
+/**
+ * Whole-frame camera motion, applied once around backdrop + text so an
+ * exported video is never perfectly static. Every curve is a deterministic
+ * function of time (no randomness) so preview and export match frame for
+ * frame, and every motion keeps a safety zoom margin so pans/drift/shake
+ * never reveal the canvas edge.
+ */
+function applyCameraMotion(
+  ctx: CanvasRenderingContext2D,
+  w: number,
+  h: number,
+  t: number,
+  style: TemplateStyle,
+) {
+  const motion = style.cameraMotion ?? "none";
+  const k = Math.max(0, Math.min(1, style.cameraIntensity ?? 0));
+  const s = Math.max(0.1, style.cameraSpeed ?? 1);
+  if (motion === "none" || k <= 0) return;
+
+  let zoom = 1 + k * 0.08;
+  let tx = 0;
+  let ty = 0;
+  let rot = 0;
+
+  switch (motion) {
+    case "zoom-in":
+      zoom = 1 + k * 0.18 * (1 - Math.exp(-t * 0.14 * s));
+      break;
+    case "zoom-out":
+      zoom = 1 + k * 0.2 - k * 0.16 * (1 - Math.exp(-t * 0.12 * s));
+      break;
+    case "drift":
+      zoom = 1 + k * 0.07;
+      tx = Math.sin(t * 0.16 * s) * w * 0.022 * k;
+      ty = Math.cos(t * 0.12 * s) * h * 0.02 * k;
+      break;
+    case "parallax":
+      zoom = 1 + k * 0.08;
+      tx = Math.sin(t * 0.22 * s) * w * 0.028 * k;
+      rot = Math.sin(t * 0.22 * s) * 0.012 * k;
+      break;
+    case "breathe":
+      zoom = 1 + k * 0.05 + Math.sin(t * 0.55 * s) * k * 0.035;
+      break;
+    case "handheld":
+      zoom = 1 + k * 0.06;
+      tx =
+        (Math.sin(t * 2.3 * s) * 0.4 + Math.sin(t * 5.1 * s) * 0.25 + Math.sin(t * 1.7 * s) * 0.35) *
+        w *
+        0.006 *
+        k;
+      ty =
+        (Math.cos(t * 2.7 * s) * 0.4 + Math.cos(t * 4.3 * s) * 0.25 + Math.cos(t * 1.3 * s) * 0.35) *
+        h *
+        0.006 *
+        k;
+      rot = Math.sin(t * 3.1 * s) * 0.006 * k;
+      break;
+    case "pan-left":
+      zoom = 1 + k * 0.12;
+      tx = -k * w * 0.055 * (1 - Math.exp(-t * 0.09 * s));
+      break;
+    case "pan-right":
+      zoom = 1 + k * 0.12;
+      tx = k * w * 0.055 * (1 - Math.exp(-t * 0.09 * s));
+      break;
+    default:
+      break;
+  }
+
+  ctx.translate(w / 2 + tx, h / 2 + ty);
+  ctx.rotate(rot);
+  ctx.scale(zoom, zoom);
+  ctx.translate(-w / 2, -h / 2);
+}
 
 const MOTIVATIONAL_KIT: MotivationalKit = {
   get FONT() {
@@ -966,6 +1094,8 @@ const MOTIVATIONAL_KIT: MotivationalKit = {
   COND,
   hexA,
   easeOutCubic,
+  easeInOutCubic,
+  easeOutBack,
   wrapText,
   roundRect,
   fitFont,
@@ -1017,8 +1147,11 @@ function renderEngine(
   r: RenderCtx,
   style: TemplateStyle = DEFAULT_STYLE,
 ) {
-  // Backdrop is painted untransformed so scaling/moving type never moves the
-  // footage behind it.
+  // A single whole-frame camera transform wraps backdrop + text so
+  // background, media and captions all move together and no export is ever
+  // perfectly static. Preview and export both go through this same wrapper.
+  ctx.save();
+  applyCameraMotion(ctx, r.w, r.h, r.t, style);
   SKIP_BG = false;
   drawBackdrop(ctx, r);
   SKIP_BG = true;
@@ -1036,6 +1169,7 @@ function renderEngine(
     SKIP_BG = false;
     SAFE_W = 1;
   }
+  ctx.restore();
 }
 
 // -------------------- component --------------------
@@ -1862,6 +1996,56 @@ function MotivationalClassicStudio() {
                   onValueChange={(v) => setStyleKey("rotate", v[0])}
                 />
               </div>
+              <div className="space-y-3 rounded-md border p-3">
+                <div>
+                  <Label className="text-sm">Camera motion</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Whole-frame motion so no export ever sits perfectly still.
+                  </p>
+                </div>
+                <Select
+                  value={style.cameraMotion}
+                  onValueChange={(v) => setStyleKey("cameraMotion", v as CameraMotionId)}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CAMERA_MOTIONS.map((m) => (
+                      <SelectItem key={m.id} value={m.id}>
+                        {m.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <div>
+                  <Label className="text-xs">
+                    Speed · {style.cameraSpeed.toFixed(2)}x
+                  </Label>
+                  <Slider
+                    min={0.4}
+                    max={2}
+                    step={0.05}
+                    value={[style.cameraSpeed]}
+                    onValueChange={(v) => setStyleKey("cameraSpeed", v[0])}
+                    disabled={style.cameraMotion === "none"}
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs">
+                    Intensity · {Math.round(style.cameraIntensity * 100)}%
+                  </Label>
+                  <Slider
+                    min={0}
+                    max={1}
+                    step={0.02}
+                    value={[style.cameraIntensity]}
+                    onValueChange={(v) => setStyleKey("cameraIntensity", v[0])}
+                    disabled={style.cameraMotion === "none"}
+                  />
+                </div>
+              </div>
+
               <Button
                 variant="outline"
                 size="sm"

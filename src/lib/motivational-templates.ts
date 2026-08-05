@@ -43,6 +43,10 @@ export type Kit = {
   COND: string;
   hexA: (hex: string, a: number) => string;
   easeOutCubic: (x: number) => number;
+  /** Smooth accelerate/decelerate curve, used for camera moves and line crossfades. */
+  easeInOutCubic: (x: number) => number;
+  /** Gentle overshoot-and-settle curve for word/line pop-ins. */
+  easeOutBack: (x: number) => number;
   wrapText: (ctx: C, text: string, maxWidth: number) => string[];
   roundRect: (ctx: C, x: number, y: number, w: number, h: number, r: number) => void;
   fitFont: (ctx: C, text: string, maxW: number, start: number, spec: string) => number;
@@ -64,7 +68,14 @@ function state(kit: Kit, r: RenderCtx) {
   const { line, index } = kit.activeLine(r.lines, r.t);
   const span = line ? Math.max(0.4, line.end - line.time) : 1;
   const frac = line ? Math.max(0, Math.min(1, (r.t - line.time) / span)) : 0;
-  const appear = line ? kit.easeOutCubic(Math.min(1, (r.t - line.time) / 0.32)) : 0;
+  // Cross-fade in *and* out around each line's transcript window (instead of
+  // a hard cut right at line.end) using a professional ease-in/out curve, so
+  // captions never pop at the start or end of their window.
+  const inDur = Math.min(0.34, span * 0.4);
+  const outDur = Math.min(0.26, span * 0.35);
+  const tIn = line ? Math.min(1, (r.t - line.time) / inDur) : 0;
+  const tOut = line ? Math.min(1, Math.max(0, (line.end - r.t) / outDur)) : 0;
+  const appear = line ? kit.easeInOutCubic(tIn) * kit.easeInOutCubic(tOut) : 0;
   return { line, index, frac, appear };
 }
 
@@ -427,7 +438,7 @@ const focusWord: Engine = {
         const spoken = r.t >= word.start;
         ctx.save();
         if (isCur) {
-          const pop = 1 + kit.easeOutCubic(Math.min(1, (r.t - word.start) / 0.16)) * 0.06;
+          const pop = 1 + kit.easeOutBack(Math.min(1, (r.t - word.start) / 0.22)) * 0.05;
           ctx.translate(x + widths[i] / 2, y);
           ctx.scale(pop, pop);
           ctx.translate(-(x + widths[i] / 2), -y);
