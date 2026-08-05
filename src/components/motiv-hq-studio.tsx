@@ -38,19 +38,23 @@ import {
 import {
   HQ_ASPECTS,
   HQ_BACKDROPS,
+  HQ_CAMERA_MOTIONS,
   HQ_CAPTION_ANIMS,
   HQ_PARTICLES,
   HQ_TEMPLATES,
   SUBJECT_ANIMS,
   configForTemplate,
   groupHqLines,
+  hqWordKey,
   markImportant,
   renderHqFrame,
   textToHqLines,
   type HqAnimId,
   type HqAspect,
+  type HqCameraMotionId,
   type HqConfig,
   type HqLine,
+  type HqWordStyle,
   type ParticleId,
   type SubjectAnimId,
 } from "@/lib/motiv-hq";
@@ -101,9 +105,7 @@ export default function MotivHqStudio() {
     [templateId],
   );
   const has = useCallback(
-    (key: string) =>
-      !Array.isArray((template as { controls?: string[] }).controls) ||
-      ((template as { controls?: string[] }).controls as string[]).includes(key),
+    (key: string) => template.controls.includes(key as (typeof template.controls)[number]),
     [template],
   );
   const [cfg, setCfg] = useState<HqConfig>(() => configForTemplate(HQ_TEMPLATES[0]));
@@ -111,6 +113,21 @@ export default function MotivHqStudio() {
     <K extends keyof HqConfig>(k: K, v: HqConfig[K]) => setCfg((c) => ({ ...c, [k]: v })),
     [],
   );
+
+  const [selectedWord, setSelectedWord] = useState<{ lineIndex: number; wordIndex: number } | null>(null);
+  const setWordStyle = useCallback((key: string, patch: Partial<HqWordStyle>) => {
+    setCfg((c) => ({
+      ...c,
+      wordStyles: { ...c.wordStyles, [key]: { ...c.wordStyles[key], ...patch } },
+    }));
+  }, []);
+  const clearWordStyle = useCallback((key: string) => {
+    setCfg((c) => {
+      const next = { ...c.wordStyles };
+      delete next[key];
+      return { ...c, wordStyles: next };
+    });
+  }, []);
 
   // Swapping template resets the look but keeps the writing/transcript.
   useEffect(() => {
