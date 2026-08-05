@@ -100,6 +100,12 @@ export default function MotivHqStudio() {
     () => HQ_TEMPLATES.find((t) => t.id === templateId) ?? HQ_TEMPLATES[0],
     [templateId],
   );
+  const has = useCallback(
+    (key: string) =>
+      !Array.isArray((template as { controls?: string[] }).controls) ||
+      ((template as { controls?: string[] }).controls as string[]).includes(key),
+    [template],
+  );
   const [cfg, setCfg] = useState<HqConfig>(() => configForTemplate(HQ_TEMPLATES[0]));
   const set = useCallback(
     <K extends keyof HqConfig>(k: K, v: HqConfig[K]) => setCfg((c) => ({ ...c, [k]: v })),
