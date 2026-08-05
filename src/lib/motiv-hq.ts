@@ -79,6 +79,25 @@ export function textToHqLines(text: string, duration: number, perLine: number): 
   return groupHqLines(words, perLine, Infinity);
 }
 
+/** Stable identity for a transcript word, used to key per-word style overrides. */
+export function hqWordKey(lineIndex: number, wordIndex: number): string {
+  return `${lineIndex}:${wordIndex}`;
+}
+
+/* --------------------------------------------------------- per-word styles */
+
+export type HqWordStyle = {
+  color?: string;
+  scale?: number;
+  weight?: string;
+  italic?: boolean;
+  dx?: number;
+  dy?: number;
+  anim?: HqAnimId;
+  delay?: number;
+  emphasis?: boolean;
+};
+
 /* ------------------------------------------------------------- backgrounds */
 
 export type HqBackdrop = {
@@ -323,7 +342,75 @@ export const HQ_BACKDROPS: HqBackdrop[] = [
       grain(ctx, w, h, t, 0.05);
     },
   },
+  {
+    id: "gradientsun",
+    name: "Warm Gradient",
+    base: "#e0703a",
+    paint: (ctx, w, h, t, c) => {
+      const g = ctx.createLinearGradient(0, 0, w * 0.3, h);
+      g.addColorStop(0, shade(c, 0.28));
+      g.addColorStop(0.55 + Math.sin(t * 0.2) * 0.04, shade(c, 0.02));
+      g.addColorStop(1, shade(c, -0.22));
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, w, h);
+      grain(ctx, w, h, t, 0.04);
+    },
+  },
+  {
+    id: "cream",
+    name: "Cream Sky",
+    base: "#efe6d3",
+    paint: (ctx, w, h, t, c) => {
+      const g = ctx.createLinearGradient(0, 0, 0, h);
+      g.addColorStop(0, shade(c, 0.12));
+      g.addColorStop(0.55, c);
+      g.addColorStop(1, shade(c, -0.14));
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, w, h);
+      grain(ctx, w, h, t, 0.03);
+    },
+  },
+  {
+    id: "graytex",
+    name: "Slate Texture",
+    base: "#26282b",
+    paint: (ctx, w, h, t, c) => {
+      ctx.fillStyle = shade(c, -0.04);
+      ctx.fillRect(0, 0, w, h);
+      ctx.save();
+      ctx.globalAlpha = 0.06;
+      for (let i = 0; i < 40; i++) {
+        ctx.strokeStyle = i % 2 ? "#fff" : "#000";
+        const x = (i * 173 + t * 6) % (w + 80) - 40;
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x - 120, h);
+        ctx.stroke();
+      }
+      ctx.restore();
+      grain(ctx, w, h, t, 0.09);
+    },
+  },
 ];
+
+/* ------------------------------------------------------------- easing */
+
+export const easeInOutCubic = (p: number) => (p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2);
+export const easeOutQuint = (p: number) => 1 - Math.pow(1 - p, 5);
+export const easeOutBack = (p: number) => {
+  const c1 = 1.70158;
+  const c3 = c1 + 1;
+  return 1 + c3 * Math.pow(p - 1, 3) + c1 * Math.pow(p - 1, 2);
+};
+/** Critically-damped spring-ish settle, good for punchy but smooth pops. */
+export const springOut = (p: number, damping = 0.62) => {
+  if (p >= 1) return 1;
+  if (p <= 0) return 0;
+  const decay = Math.exp(-p * 6 * damping);
+  return 1 - decay * Math.cos(p * 9 * (1 - damping * 0.5));
+};
+
+const ease = easeInOutCubic;
 
 /* ------------------------------------------------------------- animations */
 
@@ -365,33 +452,33 @@ export type WordMotion = {
   clip: number; // 0..1 horizontal reveal
 };
 
-const ease = (p: number) => 1 - Math.pow(1 - p, 3);
-
 export function wordMotion(anim: HqAnimId, p: number, intensity: number): WordMotion {
   const k = Math.max(0, Math.min(1, p));
   const e = ease(k);
   const s = intensity;
   const base: WordMotion = { alpha: 1, dx: 0, dy: 0, scale: 1, rot: 0, clip: 1 };
   switch (anim) {
-    case "pop":
-      return { ...base, alpha: e, scale: 0.6 + 0.4 * e + (1 - e) * 0 * s };
+    case "pop": {
+      const o = easeOutBack(k);
+      return { ...base, alpha: Math.min(1, k * 2.4), scale: 0.55 + 0.45 * o };
+    }
     case "rise":
-      return { ...base, alpha: e, dy: (1 - e) * 70 * s };
+      return { ...base, alpha: easeOutQuint(k), dy: (1 - easeOutQuint(k)) * 70 * s };
     case "drop":
-      return { ...base, alpha: e, dy: -(1 - e) * 70 * s };
+      return { ...base, alpha: easeOutQuint(k), dy: -(1 - easeOutQuint(k)) * 70 * s };
     case "slide":
-      return { ...base, alpha: e, dx: (1 - e) * 120 * s };
+      return { ...base, alpha: easeOutQuint(k), dx: (1 - easeOutQuint(k)) * 120 * s };
     case "typewriter":
-      return { ...base, alpha: k > 0 ? 1 : 0, clip: Math.min(1, k * 1.6) };
+      return { ...base, alpha: k > 0 ? 1 : 0, clip: Math.min(1, k * 1.8) };
     case "blur":
       return { ...base, alpha: e, scale: 1 + (1 - e) * 0.14 * s };
     case "flip":
-      return { ...base, alpha: e, scale: 0.3 + 0.7 * e, rot: (1 - e) * 0.5 * s };
+      return { ...base, alpha: e, scale: 0.3 + 0.7 * easeOutBack(k), rot: (1 - e) * 0.5 * s };
     case "wipe":
-      return { ...base, clip: e };
+      return { ...base, clip: easeInOutCubic(k) };
     case "spring": {
-      const o = 1 + Math.sin(k * Math.PI * 2.2) * (1 - k) * 0.28 * s;
-      return { ...base, alpha: Math.min(1, k * 3), scale: o };
+      const o = springOut(k);
+      return { ...base, alpha: Math.min(1, k * 3), scale: 0.7 + 0.3 * o + Math.sin(k * Math.PI * 2) * (1 - k) * 0.06 * s };
     }
     case "shake": {
       const a = (1 - e) * 18 * s;
@@ -426,10 +513,10 @@ export type SubjectAnimId = (typeof SUBJECT_ANIMS)[number]["id"];
 
 export function subjectMotion(anim: SubjectAnimId, t: number, dur: number, amount: number) {
   const p = Math.max(0, Math.min(1, t / Math.max(0.2, dur)));
-  const e = ease(p);
+  const e = easeOutQuint(p);
   switch (anim) {
     case "riseIn":
-      return { dx: 0, dy: (1 - e) * 220 * amount, scale: 1, alpha: e };
+      return { dx: 0, dy: (1 - e) * 220 * amount, scale: 0.97 + 0.03 * easeOutBack(p), alpha: e };
     case "zoomIn":
       return { dx: 0, dy: 0, scale: 0.82 + 0.18 * e, alpha: e };
     case "zoomOut":
@@ -446,6 +533,69 @@ export function subjectMotion(anim: SubjectAnimId, t: number, dur: number, amoun
       return { dx: Math.sin(t * 0.6) * 18 * amount, dy: Math.cos(t * 0.5) * 10 * amount, scale: 1, alpha: 1 };
     default:
       return { dx: 0, dy: 0, scale: 1, alpha: 1 };
+  }
+}
+
+/* ---------------------------------------------------------- camera motion */
+
+export const HQ_CAMERA_MOTIONS = [
+  { id: "none", name: "Locked off" },
+  { id: "zoomIn", name: "Slow zoom in" },
+  { id: "zoomOut", name: "Slow zoom out" },
+  { id: "drift", name: "Float / drift" },
+  { id: "parallax", name: "Parallax sway" },
+  { id: "handheld", name: "Handheld micro-shake" },
+  { id: "panL", name: "Pan left" },
+  { id: "panR", name: "Pan right" },
+  { id: "breathe", name: "Breathe" },
+] as const;
+export type HqCameraMotionId = (typeof HQ_CAMERA_MOTIONS)[number]["id"];
+
+/** A continuous transform applied to the whole composed frame so no export is ever static. */
+export function cameraTransform(
+  id: HqCameraMotionId,
+  t: number,
+  speed: number,
+  intensity: number,
+  w: number,
+  h: number,
+): { dx: number; dy: number; scale: number; rot: number } {
+  const s = speed;
+  const k = intensity;
+  switch (id) {
+    case "zoomIn":
+      return { dx: 0, dy: 0, scale: 1 + Math.min(0.4, t * 0.012 * s) * k, rot: 0 };
+    case "zoomOut":
+      return { dx: 0, dy: 0, scale: 1.22 - Math.min(0.2, t * 0.01 * s) * k, rot: 0 };
+    case "drift":
+      return {
+        dx: Math.sin(t * 0.22 * s) * w * 0.012 * k,
+        dy: Math.cos(t * 0.17 * s) * h * 0.01 * k,
+        scale: 1.05,
+        rot: 0,
+      };
+    case "parallax":
+      return {
+        dx: Math.sin(t * 0.35 * s) * w * 0.018 * k,
+        dy: Math.sin(t * 0.2 * s) * h * 0.006 * k,
+        scale: 1.06,
+        rot: Math.sin(t * 0.2 * s) * 0.006 * k,
+      };
+    case "handheld":
+      return {
+        dx: (Math.sin(t * 7.1 * s) + Math.sin(t * 3.3 * s)) * 1.4 * k,
+        dy: (Math.cos(t * 6.3 * s) + Math.sin(t * 2.6 * s)) * 1.2 * k,
+        scale: 1.03,
+        rot: Math.sin(t * 5 * s) * 0.0016 * k,
+      };
+    case "panL":
+      return { dx: -Math.min(w * 0.08, t * 4 * s) * k, dy: 0, scale: 1.12, rot: 0 };
+    case "panR":
+      return { dx: Math.min(w * 0.08, t * 4 * s) * k, dy: 0, scale: 1.12, rot: 0 };
+    case "breathe":
+      return { dx: 0, dy: 0, scale: 1 + Math.sin(t * 0.8 * s) * 0.015 * k, rot: 0 };
+    default:
+      return { dx: 0, dy: 0, scale: 1, rot: 0 };
   }
 }
 
@@ -522,7 +672,24 @@ export function drawParticles(
 
 /* --------------------------------------------------------------- templates */
 
-export type HqLayout = "behind" | "over" | "column" | "depth" | "spot" | "wiki" | "poster" | "news";
+export type HqLayout =
+  | "layered"
+  | "leadEmphasis"
+  | "serifCentered"
+  | "grungeRight"
+  | "skySplit"
+  | "tallStack";
+
+export type HqControlKey =
+  | "headline"
+  | "typography"
+  | "wordAnimation"
+  | "wordEditor"
+  | "subject"
+  | "backdrop"
+  | "particles"
+  | "camera"
+  | "signature";
 
 export type HqTemplate = {
   id: string;
@@ -543,208 +710,149 @@ export type HqTemplate = {
   cutout: boolean;
   keepOriginalBg: boolean;
   particles: ParticleId;
+  controls: HqControlKey[];
+  cameraMotion: HqCameraMotionId;
+  duotone: boolean;
 };
 
 export const HQ_TEMPLATES: HqTemplate[] = [
   {
-    id: "hq-cutout-bold",
-    name: "Bold Cutout",
-    desc: "Subject cut out over a textured sweep with heavy sans text tucked behind them.",
-    layout: "behind",
-    backdrop: "studio",
-    backdropColor: "#123a8a",
-    textColor: "#ffffff",
-    highlightColor: "#ffffff",
-    font: "'Archivo Black', Impact, sans-serif",
-    weight: "900",
-    italic: false,
-    uppercase: false,
-    size: 0.075,
-    align: "center",
-    textY: 0.22,
-    cutout: true,
-    keepOriginalBg: false,
-    particles: "none",
-  },
-  {
-    id: "hq-poster-overlay",
-    name: "Poster Overlay",
-    desc: "Full-bleed photo or video with condensed captions locked to the upper third.",
-    layout: "poster",
-    backdrop: "voidsolid",
-    backdropColor: "#050505",
+    id: "hq-headline-sandwich",
+    name: "Headline Sandwich",
+    desc: "Giant staggered condensed caps with the desaturated subject layered between the lines.",
+    layout: "layered",
+    backdrop: "concrete",
+    backdropColor: "#232323",
     textColor: "#f2f2f2",
-    highlightColor: "#ffd166",
-    font: "'Archivo Black', Impact, sans-serif",
-    weight: "900",
-    italic: false,
-    uppercase: true,
-    size: 0.078,
-    align: "center",
-    textY: 0.26,
-    cutout: false,
-    keepOriginalBg: true,
-    particles: "none",
-  },
-  {
-    id: "hq-mono-cutout",
-    name: "Mono Cutout",
-    desc: "Grayscale subject on pressed paper with oversized black lowercase type.",
-    layout: "behind",
-    backdrop: "paper",
-    backdropColor: "#efece4",
-    textColor: "#0b0b0b",
-    highlightColor: "#0b0b0b",
-    font: "'Helvetica Neue', Arial, sans-serif",
-    weight: "800",
-    italic: false,
-    uppercase: false,
-    size: 0.09,
-    align: "center",
-    textY: 0.3,
-    cutout: true,
-    keepOriginalBg: false,
-    particles: "none",
-  },
-  {
-    id: "hq-depth-split",
-    name: "Depth Split",
-    desc: "Keeps the original photo background and floats the caption between it and the subject.",
-    layout: "depth",
-    backdrop: "duotone",
-    backdropColor: "#0d5c63",
-    textColor: "#101418",
-    highlightColor: "#ffffff",
-    font: "'Archivo Black', Impact, sans-serif",
-    weight: "900",
-    italic: false,
-    uppercase: false,
-    size: 0.08,
-    align: "center",
-    textY: 0.18,
-    cutout: true,
-    keepOriginalBg: true,
-    particles: "none",
-  },
-  {
-    id: "hq-oil-paint",
-    name: "Oil Paint",
-    desc: "Painterly canvas texture with a stacked left column of gold and bone type.",
-    layout: "column",
-    backdrop: "canvasoil",
-    backdropColor: "#1a1408",
-    textColor: "#efe6d4",
-    highlightColor: "#e8a63a",
-    font: "'Archivo Black', Impact, sans-serif",
-    weight: "900",
-    italic: false,
-    uppercase: true,
-    size: 0.072,
-    align: "left",
-    textY: 0.3,
-    cutout: true,
-    keepOriginalBg: true,
-    particles: "dust",
-  },
-  {
-    id: "hq-spotlight",
-    name: "Spotlight",
-    desc: "Cut-out subject on a solid void with a soft rim light and glowing stacked type.",
-    layout: "spot",
-    backdrop: "voidsolid",
-    backdropColor: "#050505",
-    textColor: "#ffffff",
-    highlightColor: "#ffffff",
+    highlightColor: "#e5352b",
     font: "'Archivo Black', Impact, sans-serif",
     weight: "900",
     italic: false,
     uppercase: true,
     size: 0.1,
     align: "center",
-    textY: 0.16,
+    textY: 0.82,
+    cutout: true,
+    keepOriginalBg: true,
+    particles: "none",
+    controls: ["headline", "typography", "wordAnimation", "wordEditor", "subject", "backdrop", "camera"],
+    cameraMotion: "handheld",
+    duotone: true,
+  },
+  {
+    id: "hq-lead-emphasis",
+    name: "Watch Me",
+    desc: "Warm gradient, small lead-in line above a huge emphasis line, script signature watermarks.",
+    layout: "leadEmphasis",
+    backdrop: "gradientsun",
+    backdropColor: "#e0703a",
+    textColor: "#fff6ea",
+    highlightColor: "#ffd166",
+    font: "'Archivo Black', Impact, sans-serif",
+    weight: "900",
+    italic: false,
+    uppercase: false,
+    size: 0.09,
+    align: "left",
+    textY: 0.86,
     cutout: true,
     keepOriginalBg: false,
     particles: "none",
+    controls: ["headline", "typography", "wordAnimation", "wordEditor", "subject", "backdrop", "signature", "camera"],
+    cameraMotion: "drift",
+    duotone: false,
   },
   {
-    id: "hq-editorial-serif",
-    name: "Editorial Serif",
-    desc: "Cinematic still with a mixed roman/italic serif quote block and attribution.",
-    layout: "over",
-    backdrop: "duotone",
-    backdropColor: "#12403c",
+    id: "hq-serif-cinema",
+    name: "Cinema Serif",
+    desc: "Centered elegant serif caps over a dark cinematic still with heavy vignette.",
+    layout: "serifCentered",
+    backdrop: "voidsolid",
+    backdropColor: "#060606",
     textColor: "#f6f3ec",
     highlightColor: "#f6f3ec",
     font: "Georgia, 'Times New Roman', serif",
     weight: "700",
     italic: false,
     uppercase: true,
-    size: 0.052,
-    align: "left",
-    textY: 0.16,
+    size: 0.062,
+    align: "center",
+    textY: 0.46,
     cutout: false,
     keepOriginalBg: true,
     particles: "none",
+    controls: ["headline", "typography", "wordAnimation", "wordEditor", "backdrop", "camera"],
+    cameraMotion: "zoomIn",
+    duotone: false,
   },
   {
-    id: "hq-wiki-card",
-    name: "Definition Card",
-    desc: "Dictionary-style heading with a typing definition, subject bottom-left, props falling right.",
-    layout: "wiki",
-    backdrop: "voidsolid",
-    backdropColor: "#050505",
-    textColor: "#f4f2ec",
-    highlightColor: "#cfe3c4",
-    font: "Georgia, 'Times New Roman', serif",
-    weight: "500",
-    italic: false,
-    uppercase: false,
-    size: 0.03,
-    align: "left",
-    textY: 0.48,
-    cutout: true,
-    keepOriginalBg: false,
-    particles: "money",
-  },
-  {
-    id: "hq-depth-glow",
-    name: "Depth Glow",
-    desc: "Original backdrop dimmed and lit, with glowing type sandwiched behind the subject.",
-    layout: "depth",
-    backdrop: "spotlight",
-    backdropColor: "#080808",
-    textColor: "#ffffff",
-    highlightColor: "#ffd166",
+    id: "hq-grunge-right",
+    name: "Grunge Right",
+    desc: "Right-aligned distressed stacked caps, one gold accent word, subject filling the left half.",
+    layout: "grungeRight",
+    backdrop: "graytex",
+    backdropColor: "#151515",
+    textColor: "#eceae4",
+    highlightColor: "#c9a24b",
     font: "'Archivo Black', Impact, sans-serif",
     weight: "900",
     italic: false,
     uppercase: true,
     size: 0.086,
+    align: "right",
+    textY: 0.32,
+    cutout: true,
+    keepOriginalBg: false,
+    particles: "sparks",
+    controls: ["headline", "typography", "wordAnimation", "wordEditor", "subject", "backdrop", "particles", "signature", "camera"],
+    cameraMotion: "parallax",
+    duotone: true,
+  },
+  {
+    id: "hq-sky-split",
+    name: "Sky Split",
+    desc: "Cream sky upper field, navy heavy sans in two weights, subject bottom-centered.",
+    layout: "skySplit",
+    backdrop: "cream",
+    backdropColor: "#efe6d3",
+    textColor: "#132043",
+    highlightColor: "#c0392b",
+    font: "'Helvetica Neue', Arial, sans-serif",
+    weight: "800",
+    italic: false,
+    uppercase: false,
+    size: 0.048,
     align: "center",
     textY: 0.14,
     cutout: true,
-    keepOriginalBg: true,
-    particles: "dust",
+    keepOriginalBg: false,
+    particles: "none",
+    controls: ["headline", "typography", "wordAnimation", "wordEditor", "subject", "backdrop", "camera"],
+    cameraMotion: "breathe",
+    duotone: false,
   },
   {
-    id: "hq-newsprint",
-    name: "Newsprint Impact",
-    desc: "Halftone press texture with alternating red/grey words down the right rail.",
-    layout: "news",
-    backdrop: "newsprint",
-    backdropColor: "#c9c6bd",
-    textColor: "#d7d7d7",
-    highlightColor: "#e01f26",
-    font: "'Archivo Black', Impact, sans-serif",
-    weight: "900",
+    id: "hq-tall-stack",
+    name: "Tall Stack",
+    desc: "Full-bleed dark grey texture, tall thin condensed caps stacked vertically, subject small at the base.",
+    layout: "tallStack",
+    backdrop: "graytex",
+    backdropColor: "#26282b",
+    textColor: "#e7e5df",
+    highlightColor: "#ffffff",
+    font: "'Helvetica Neue', Arial, sans-serif",
+    weight: "300",
     italic: false,
     uppercase: true,
-    size: 0.075,
-    align: "right",
-    textY: 0.1,
-    cutout: false,
-    keepOriginalBg: true,
+    size: 0.05,
+    align: "center",
+    textY: 0.08,
+    cutout: true,
+    keepOriginalBg: false,
     particles: "none",
+    controls: ["headline", "typography", "wordAnimation", "wordEditor", "subject", "backdrop", "signature", "camera"],
+    cameraMotion: "zoomOut",
+    duotone: true,
   },
 ];
 
@@ -780,6 +888,8 @@ export type HqConfig = {
   autoImportant: boolean;
   importantMinLength: number;
   keywords: string;
+  // per-word overrides, keyed by hqWordKey(lineIndex, wordIndex)
+  wordStyles: Record<string, HqWordStyle>;
   // subject
   subjectScale: number;
   subjectX: number;
@@ -795,6 +905,10 @@ export type HqConfig = {
   bgZoom: number;
   lightIntensity: number;
   lightColor: string;
+  // camera (applies to the whole composed frame)
+  cameraMotion: HqCameraMotionId;
+  cameraSpeed: number;
+  cameraIntensity: number;
   // extras
   particles: ParticleId;
   particleCount: number;
@@ -806,6 +920,15 @@ export type HqConfig = {
 };
 
 export function configForTemplate(tpl: HqTemplate, prev?: Partial<HqConfig>): HqConfig {
+  const headingDefaults: Record<string, { heading: string; subheading: string; author: string }> = {
+    "hq-headline-sandwich": { heading: "NO RISK\nNO STORY", subheading: "", author: "" },
+    "hq-lead-emphasis": { heading: "I can and I will,\nwatch me.", subheading: "@yourname", author: "stay hard" },
+    "hq-serif-cinema": { heading: "DISCIPLINE\nIS DESTINY", subheading: "the quiet work before the loud result", author: "" },
+    "hq-grunge-right": { heading: "EARN\nIT", subheading: "no shortcuts, no excuses", author: "" },
+    "hq-sky-split": { heading: "keep going\nEVEN WHEN IT'S HARD", subheading: "", author: "" },
+    "hq-tall-stack": { heading: "P\nA\nT\nI\nE\nN\nC\nE", subheading: "trust the process", author: "" },
+  };
+  const d = headingDefaults[tpl.id] ?? { heading: "Winner.", subheading: "", author: "" };
   return {
     templateId: tpl.id,
     backdropId: tpl.backdrop,
@@ -835,6 +958,7 @@ export function configForTemplate(tpl: HqTemplate, prev?: Partial<HqConfig>): Hq
     autoImportant: true,
     importantMinLength: 6,
     keywords: "",
+    wordStyles: {},
     subjectScale: 1,
     subjectX: 0.5,
     subjectY: 0.62,
@@ -846,15 +970,18 @@ export function configForTemplate(tpl: HqTemplate, prev?: Partial<HqConfig>): Hq
     bgDim: 0.3,
     bgBlur: 0,
     bgZoom: 1.04,
-    lightIntensity: tpl.layout === "spot" ? 0.7 : 0.25,
+    lightIntensity: 0.25,
     lightColor: "#ffe6b0",
+    cameraMotion: tpl.cameraMotion,
+    cameraSpeed: 1,
+    cameraIntensity: 1,
     particles: tpl.particles,
     particleCount: 18,
     particleSpeed: 1,
     particleColor: "#e8a63a",
-    heading: "Winner.",
-    subheading: "/'wɪnər/ noun",
-    author: "",
+    heading: d.heading,
+    subheading: d.subheading,
+    author: d.author,
     ...prev,
   };
 }
@@ -877,6 +1004,8 @@ export type HqFrameInput = {
   /** Optional looping background video. */
   bgVideo: HTMLVideoElement | null;
   line: HqLine | null;
+  /** Index of `line` inside the full lines array, used for word-style keys. */
+  lineIndex?: number;
 };
 
 function drawCover(
@@ -896,7 +1025,7 @@ function drawCover(
   ctx.drawImage(src, (w - dw) / 2, (h - dh) / 2, dw, dh);
 }
 
-function drawSubject(ctx: CanvasRenderingContext2D, i: HqFrameInput, src: Drawable) {
+function drawSubject(ctx: CanvasRenderingContext2D, i: HqFrameInput, src: Drawable, opts?: { desaturate?: boolean }) {
   const { w, h, cfg, t } = i;
   const sw = "videoWidth" in src ? src.videoWidth : (src as HTMLImageElement).naturalWidth || src.width;
   const sh =
@@ -911,6 +1040,7 @@ function drawSubject(ctx: CanvasRenderingContext2D, i: HqFrameInput, src: Drawab
   const cy = h * cfg.subjectY + m.dy;
   ctx.save();
   ctx.globalAlpha = m.alpha;
+  if (opts?.desaturate) ctx.filter = "grayscale(0.75) contrast(1.08)";
   if (cfg.subjectShadow > 0) {
     ctx.shadowColor = `rgba(0,0,0,${cfg.subjectShadow})`;
     ctx.shadowBlur = 60;
@@ -920,11 +1050,25 @@ function drawSubject(ctx: CanvasRenderingContext2D, i: HqFrameInput, src: Drawab
   ctx.restore();
 }
 
-function fontString(cfg: HqConfig, size: number, bold: boolean, italic: boolean) {
-  return `${italic ? "italic " : ""}${bold ? "900" : cfg.fontWeight} ${size}px ${cfg.font}`;
+function fontString(cfg: HqConfig, size: number, weight: string, italic: boolean, font?: string) {
+  return `${italic ? "italic " : ""}${weight} ${size}px ${font ?? cfg.font}`;
 }
 
-type LaidWord = { w: HqWord; x: number; y: number; size: number; bold: boolean; italic: boolean; width: number };
+type LaidWord = {
+  w: HqWord;
+  key: string;
+  x: number;
+  y: number;
+  size: number;
+  weight: string;
+  italic: boolean;
+  color: string;
+  width: number;
+  anim: HqAnimId;
+  delay: number;
+  dx: number;
+  dy: number;
+};
 
 function layoutCaption(
   ctx: CanvasRenderingContext2D,
@@ -938,12 +1082,16 @@ function layoutCaption(
   let row: LaidWord[] = [];
   let x = 0;
   const space = base * 0.28;
-  for (const word of line.words) {
-    const big = word.important;
-    const size = big ? base * cfg.highlightScale : base;
-    const bold = big ? cfg.highlightBold : false;
-    const italic = cfg.italic || (big && cfg.highlightItalic);
-    ctx.font = fontString(cfg, size, bold, italic);
+  const li = i.lineIndex ?? 0;
+  line.words.forEach((word, wi) => {
+    const key = hqWordKey(li, wi);
+    const ov = cfg.wordStyles[key];
+    const big = ov?.emphasis ?? word.important;
+    const scaleMul = ov?.scale ?? (big ? cfg.highlightScale : 1);
+    const size = base * scaleMul;
+    const weight = ov?.weight ?? (big ? "900" : cfg.fontWeight);
+    const italic = ov?.italic ?? (cfg.italic || (big && cfg.highlightItalic));
+    ctx.font = fontString(cfg, size, weight, italic);
     const text = cfg.uppercase ? word.text.toUpperCase() : word.text;
     const width = ctx.measureText(text).width;
     if (row.length && x + width > boxW) {
@@ -951,9 +1099,23 @@ function layoutCaption(
       row = [];
       x = 0;
     }
-    row.push({ w: word, x, y: 0, size, bold, italic, width });
+    row.push({
+      w: word,
+      key,
+      x,
+      y: 0,
+      size,
+      weight,
+      italic,
+      color: ov?.color ?? (big ? cfg.highlightColor : cfg.textColor),
+      width,
+      anim: ov?.anim ?? cfg.anim,
+      delay: ov?.delay ?? 0,
+      dx: ov?.dx ?? 0,
+      dy: ov?.dy ?? 0,
+    });
     x += width + space;
-  }
+  });
   if (row.length) rows.push(row);
   return { rows, lineH: base * 1.15 * cfg.lineGap, base };
 }
@@ -970,11 +1132,10 @@ function paintCaption(ctx: CanvasRenderingContext2D, i: HqFrameInput, boxW: numb
       cfg.align === "left" ? originX - boxW / 2 : cfg.align === "right" ? originX + boxW / 2 - rowW : originX - rowW / 2;
     const y = topY + r * lineH;
     for (const lw of row) {
-      const appear = lw.w.start + idx * 0 + 0;
-      const p = (t - appear) / 0.34 + idx * 0;
-      const stag = idx * cfg.animStagger;
-      const m = wordMotion(cfg.anim, (t - lw.w.start - stag * 0) / 0.34, cfg.animIntensity);
-      const visible = t >= lw.w.start - 0.001;
+      const stag = idx * cfg.animStagger + lw.delay;
+      const p = (t - lw.w.start - stag) / 0.34;
+      const m = wordMotion(lw.anim, p, cfg.animIntensity);
+      const visible = t >= lw.w.start + stag - 0.001;
       idx++;
       if (!visible) {
         startX += lw.width + i.h * cfg.textSize * 0.28;
@@ -983,9 +1144,9 @@ function paintCaption(ctx: CanvasRenderingContext2D, i: HqFrameInput, boxW: numb
       const text = cfg.uppercase ? lw.w.text.toUpperCase() : lw.w.text;
       ctx.save();
       ctx.globalAlpha = Math.max(0, Math.min(1, m.alpha));
-      ctx.font = fontString(cfg, lw.size, lw.bold, lw.italic);
+      ctx.font = fontString(cfg, lw.size, lw.weight, lw.italic);
       ctx.textBaseline = "alphabetic";
-      ctx.translate(startX + lw.width / 2 + m.dx, y + m.dy);
+      ctx.translate(startX + lw.width / 2 + m.dx + lw.dx, y + m.dy + lw.dy);
       ctx.rotate(m.rot);
       ctx.scale(m.scale, m.scale);
       if (m.clip < 1) {
@@ -998,7 +1159,7 @@ function paintCaption(ctx: CanvasRenderingContext2D, i: HqFrameInput, boxW: numb
         ctx.shadowBlur = lw.size * 0.35;
         ctx.shadowOffsetY = lw.size * 0.06;
       }
-      ctx.fillStyle = lw.w.important ? cfg.highlightColor : cfg.textColor;
+      ctx.fillStyle = lw.color;
       if (cfg.stroke > 0) {
         ctx.lineWidth = cfg.stroke;
         ctx.strokeStyle = cfg.strokeColor;
@@ -1007,7 +1168,6 @@ function paintCaption(ctx: CanvasRenderingContext2D, i: HqFrameInput, boxW: numb
       ctx.fillText(text, -lw.width / 2, 0);
       ctx.restore();
       startX += lw.width + i.h * cfg.textSize * 0.28;
-      void p;
     }
   });
 }
@@ -1018,19 +1178,29 @@ function paintBackdrop(i: HqFrameInput) {
   bd.paint(ctx, w, h, t, cfg.backdropColor);
 }
 
-function paintMediaBackground(i: HqFrameInput) {
+function paintMediaBackground(i: HqFrameInput, opts?: { vignette?: number; grayscale?: boolean }) {
   const { ctx, w, h, cfg } = i;
   const src = i.bgVideo ?? i.original;
   if (!src) {
     paintBackdrop(i);
-    return;
+  } else {
+    ctx.save();
+    let filter = "";
+    if (cfg.bgBlur > 0) filter += `blur(${cfg.bgBlur}px) `;
+    if (opts?.grayscale) filter += "grayscale(0.6) contrast(1.1) ";
+    if (filter) ctx.filter = filter.trim();
+    drawCover(ctx, src, w, h, cfg.bgZoom);
+    ctx.restore();
+    if (cfg.bgDim > 0) {
+      ctx.fillStyle = `rgba(0,0,0,${cfg.bgDim})`;
+      ctx.fillRect(0, 0, w, h);
+    }
   }
-  ctx.save();
-  if (cfg.bgBlur > 0) ctx.filter = `blur(${cfg.bgBlur}px)`;
-  drawCover(ctx, src, w, h, cfg.bgZoom);
-  ctx.restore();
-  if (cfg.bgDim > 0) {
-    ctx.fillStyle = `rgba(0,0,0,${cfg.bgDim})`;
+  if (opts?.vignette) {
+    const g = ctx.createRadialGradient(w * 0.5, h * 0.5, h * 0.2, w * 0.5, h * 0.5, h * 0.75);
+    g.addColorStop(0, "rgba(0,0,0,0)");
+    g.addColorStop(1, `rgba(0,0,0,${opts.vignette})`);
+    ctx.fillStyle = g;
     ctx.fillRect(0, 0, w, h);
   }
 }
@@ -1065,118 +1235,201 @@ function hexA(hex: string, a: number) {
   return `rgba(${r},${g},${b},${Math.max(0, Math.min(1, a))})`;
 }
 
+/** Draws multi-line static headline text (cfg.heading, split on \n) with a soft rise-in per line. */
+function drawHeadingLines(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  x: number,
+  y: number,
+  lineHeight: number,
+  size: number,
+  weight: string,
+  font: string,
+  color: string,
+  align: CanvasTextAlign,
+  t: number,
+  uppercase: boolean,
+  italic: boolean,
+) {
+  const lines = text.split("\n");
+  ctx.save();
+  ctx.textAlign = align;
+  ctx.textBaseline = "alphabetic";
+  lines.forEach((ln, idx) => {
+    const p = Math.max(0, Math.min(1, (t - idx * 0.12) / 0.6));
+    const e = easeOutQuint(p);
+    ctx.save();
+    ctx.globalAlpha = e;
+    ctx.font = `${italic ? "italic " : ""}${weight} ${size}px ${font}`;
+    ctx.fillStyle = color;
+    const dy = (1 - e) * 26;
+    ctx.fillText(uppercase ? ln.toUpperCase() : ln, x, y + idx * lineHeight + dy);
+    ctx.restore();
+  });
+  ctx.restore();
+}
+
 /** Draws one full HQ frame. */
 export function renderHqFrame(i: HqFrameInput) {
-  const { ctx, w, h, cfg, template } = i;
+  const { ctx, w, h, cfg, template, t } = i;
   ctx.clearRect(0, 0, w, h);
+
+  ctx.save();
+  const cam = cameraTransform(cfg.cameraMotion, t, cfg.cameraSpeed, cfg.cameraIntensity, w, h);
+  ctx.translate(w / 2 + cam.dx, h / 2 + cam.dy);
+  ctx.rotate(cam.rot);
+  ctx.scale(cam.scale, cam.scale);
+  ctx.translate(-w / 2, -h / 2);
+
   const boxW = w * cfg.textWidth;
   const topY = h * cfg.textY;
   const subject = i.subject ?? i.original;
 
   switch (template.layout) {
-    case "behind": {
-      paintBackdrop(i);
-      paintLight(i);
-      paintCaption(ctx, i, boxW, topY);
-      if (subject) drawSubject(ctx, i, subject);
-      drawParticles(
-        ctx, w, h, i.t, cfg.particles, cfg.particleCount, cfg.particleSpeed,
-        { x: 0, y: 0, w, h }, cfg.particleColor,
-      );
-      break;
-    }
-    case "poster": {
-      paintMediaBackground(i);
-      paintCaption(ctx, i, boxW, topY);
-      drawParticles(ctx, w, h, i.t, cfg.particles, cfg.particleCount, cfg.particleSpeed, { x: 0, y: 0, w, h }, cfg.particleColor);
-      break;
-    }
-    case "depth": {
-      // original photo stays as the plate, caption sits between it and the cut-out.
-      paintMediaBackground(i);
-      paintLight(i);
-      paintCaption(ctx, i, boxW, topY);
-      if (i.subject) drawSubject(ctx, i, i.subject);
-      drawParticles(ctx, w, h, i.t, cfg.particles, cfg.particleCount, cfg.particleSpeed, { x: 0, y: 0, w, h }, cfg.particleColor);
-      break;
-    }
-    case "column": {
-      paintBackdrop(i);
-      if (i.original && !i.subject) {
-        ctx.save();
-        ctx.globalAlpha = 0.9;
-        drawCover(ctx, i.original, w, h, cfg.bgZoom);
-        ctx.restore();
-        ctx.fillStyle = `rgba(0,0,0,${cfg.bgDim})`;
-        ctx.fillRect(0, 0, w, h);
-      } else if (i.subject) {
-        drawSubject(ctx, i, i.subject);
+    case "layered": {
+      paintMediaBackground(i, { grayscale: true, vignette: 0.35 });
+      const lines = cfg.heading.split("\n");
+      const size = h * 0.13;
+      const lh = size * 1.02;
+      const midY = h * 0.5;
+      const startY = midY - ((lines.length - 1) / 2) * lh;
+      // lines before the last: drawn behind the subject
+      lines.slice(0, -1).forEach((ln, idx) => {
+        drawHeadingLines(ctx, ln, w / 2, startY + idx * lh, lh, size, "900", cfg.font, cfg.textColor, "center", t, cfg.uppercase, cfg.italic);
+      });
+      if (subject) drawSubject(ctx, i, subject, { desaturate: true });
+      // accent bar
+      ctx.save();
+      ctx.fillStyle = cfg.highlightColor;
+      ctx.fillRect(w * 0.5 - w * 0.09, h * 0.5 - h * 0.006, w * 0.18, h * 0.012);
+      ctx.restore();
+      const lastLn = lines[lines.length - 1];
+      if (lastLn) {
+        drawHeadingLines(ctx, lastLn, w / 2, startY + (lines.length - 1) * lh, lh, size, "900", cfg.font, cfg.textColor, "center", t, cfg.uppercase, cfg.italic);
       }
       paintCaption(ctx, i, boxW, topY);
-      drawParticles(ctx, w, h, i.t, cfg.particles, cfg.particleCount, cfg.particleSpeed, { x: 0, y: 0, w, h }, cfg.particleColor);
       break;
     }
-    case "spot": {
+    case "leadEmphasis": {
       paintBackdrop(i);
       if (subject) drawSubject(ctx, i, subject);
-      paintLight(i);
+      const lines = cfg.heading.split("\n");
+      const leadSize = h * 0.032;
+      const bigSize = h * 0.082;
+      const x = w * 0.08;
+      let y = h * 0.12;
+      if (lines[0]) {
+        drawHeadingLines(ctx, lines[0], x, y, leadSize * 1.3, leadSize, "600", cfg.font, cfg.textColor, "left", t, false, false);
+        y += leadSize * 1.6;
+      }
+      drawHeadingLines(ctx, lines.slice(1).join("\n") || "", x, y, bigSize * 1.06, bigSize, "900", cfg.font, cfg.highlightColor, "left", t - 0.15, cfg.uppercase, cfg.italic);
+      // script signature watermarks
+      ctx.save();
+      ctx.globalAlpha = 0.55;
+      ctx.font = `italic 400 ${h * 0.028}px Georgia, serif`;
+      ctx.fillStyle = cfg.textColor;
+      ctx.textAlign = "left";
+      if (cfg.subheading) ctx.fillText(cfg.subheading, w * 0.06, h * 0.96);
+      ctx.textAlign = "right";
+      if (cfg.author) ctx.fillText(cfg.author, w * 0.94, h * 0.96);
+      ctx.restore();
       paintCaption(ctx, i, boxW, topY);
       break;
     }
-    case "over": {
-      paintMediaBackground(i);
-      paintCaption(ctx, i, boxW, topY);
-      if (cfg.author) {
+    case "serifCentered": {
+      paintMediaBackground(i, { vignette: 0.55 });
+      const lines = cfg.heading.split("\n");
+      const size = h * 0.058;
+      const lh = size * 1.35;
+      const midY = h * 0.42;
+      const startY = midY - ((lines.length - 1) / 2) * lh;
+      lines.forEach((ln, idx) => {
+        drawHeadingLines(ctx, ln, w / 2, startY + idx * lh, lh, size, "700", cfg.font, cfg.textColor, "center", t, cfg.uppercase, cfg.italic);
+      });
+      if (cfg.subheading) {
         ctx.save();
-        ctx.font = `italic 600 ${h * cfg.textSize * 0.5}px ${cfg.font}`;
+        ctx.globalAlpha = 0.8;
+        ctx.textAlign = "center";
+        ctx.font = `300 ${h * 0.026}px 'Helvetica Neue', Arial, sans-serif`;
         ctx.fillStyle = cfg.textColor;
-        ctx.globalAlpha = 0.85;
-        const ax = cfg.align === "left" ? w * cfg.textX - boxW / 2 : w * cfg.textX;
-        ctx.textAlign = cfg.align === "left" ? "left" : "center";
-        ctx.fillText(`— ${cfg.author}`, ax, topY + h * cfg.textSize * 3.4);
+        ctx.fillText(cfg.subheading, w / 2, startY + lines.length * lh + h * 0.01);
         ctx.restore();
       }
+      paintCaption(ctx, i, boxW, topY);
       break;
     }
-    case "wiki": {
+    case "grungeRight": {
       paintBackdrop(i);
-      drawParticles(
-        ctx, w, h, i.t, cfg.particles, cfg.particleCount, cfg.particleSpeed,
-        { x: w * 0.5, y: 0, w: w * 0.5, h }, cfg.particleColor,
-      );
       if (subject) {
         ctx.save();
-        ctx.globalAlpha = 0.95;
-        drawSubject(ctx, i, subject);
+        ctx.beginPath();
+        ctx.rect(0, 0, w * 0.58, h);
+        ctx.clip();
+        drawSubject(ctx, i, subject, { desaturate: true });
         ctx.restore();
       }
-      const hx = w * cfg.textX - boxW / 2;
-      const hy = h * cfg.textY;
-      ctx.save();
-      ctx.textAlign = "left";
-      ctx.fillStyle = cfg.textColor;
-      ctx.font = `${cfg.italic ? "italic " : ""}${cfg.fontWeight} ${h * cfg.textSize * 2.2}px ${cfg.font}`;
-      ctx.fillText(cfg.heading, hx, hy);
-      ctx.globalAlpha = 0.75;
-      ctx.font = `${h * cfg.textSize * 0.95}px ${cfg.font}`;
-      ctx.fillText(cfg.subheading, hx, hy + h * cfg.textSize * 1.25);
-      ctx.restore();
-      paintCaption(ctx, i, boxW, hy + h * cfg.textSize * 3.1);
+      drawParticles(ctx, w, h, t, cfg.particles, cfg.particleCount, cfg.particleSpeed, { x: w * 0.55, y: 0, w: w * 0.45, h }, cfg.particleColor);
+      const lines = cfg.heading.split("\n");
+      const size = h * 0.09;
+      const lh = size * 0.98;
+      const x = w * 0.94;
+      let y = h * 0.32;
+      lines.forEach((ln, idx) => {
+        const isAccent = idx === lines.length - 1 && lines.length > 1;
+        drawHeadingLines(ctx, ln, x, y, lh, size, "900", cfg.font, isAccent ? cfg.highlightColor : cfg.textColor, "right", t + idx * 0.05, cfg.uppercase, cfg.italic);
+        y += lh;
+      });
+      if (cfg.subheading) {
+        ctx.save();
+        ctx.textAlign = "right";
+        ctx.globalAlpha = 0.75;
+        ctx.font = `500 ${h * 0.02}px ${cfg.font}`;
+        ctx.fillStyle = cfg.textColor;
+        ctx.fillText(cfg.subheading.toUpperCase(), x, y + h * 0.02);
+        ctx.restore();
+      }
+      paintCaption(ctx, i, boxW, topY);
       break;
     }
-    case "news": {
+    case "skySplit": {
       paintBackdrop(i);
-      if (i.original) {
+      const lines = cfg.heading.split("\n");
+      const smallSize = h * 0.036;
+      const bigSize = h * 0.072;
+      let y = h * 0.16;
+      if (lines[0]) {
+        drawHeadingLines(ctx, lines[0], w / 2, y, smallSize * 1.2, smallSize, "500", cfg.font, cfg.textColor, "center", t, false, true);
+        y += smallSize * 1.5;
+      }
+      drawHeadingLines(ctx, lines.slice(1).join("\n") || "", w / 2, y, bigSize * 1.05, bigSize, "800", cfg.font, cfg.textColor, "center", t - 0.12, cfg.uppercase, false);
+      if (subject) drawSubject(ctx, i, subject);
+      paintCaption(ctx, i, boxW, topY);
+      break;
+    }
+    case "tallStack": {
+      paintBackdrop(i);
+      const glyphs = cfg.heading.replace(/\n/g, "").split("");
+      const size = h * 0.052;
+      const lh = size * 0.92;
+      let y = h * 0.1;
+      glyphs.forEach((g, idx) => {
+        drawHeadingLines(ctx, g, w / 2, y, lh, size, "300", cfg.font, cfg.textColor, "center", t + idx * 0.02, true, false);
+        y += lh;
+      });
+      if (cfg.subheading) {
         ctx.save();
-        ctx.globalAlpha = 0.85;
-        ctx.filter = "grayscale(1) contrast(1.2)";
-        drawCover(ctx, i.subject ?? i.original, w, h, cfg.bgZoom);
+        ctx.textAlign = "center";
+        ctx.font = `700 ${h * 0.022}px ${cfg.font}`;
+        ctx.fillStyle = cfg.highlightColor;
+        ctx.globalAlpha = 0.9;
+        ctx.fillText(cfg.subheading.toUpperCase(), w / 2, h * 0.94);
         ctx.restore();
       }
-      ctx.fillStyle = `rgba(20,20,20,${cfg.bgDim * 0.6})`;
-      ctx.fillRect(0, 0, w, h);
+      if (subject) drawSubject(ctx, i, subject, { desaturate: true });
       paintCaption(ctx, i, boxW, topY);
       break;
     }
   }
+
+  ctx.restore();
 }

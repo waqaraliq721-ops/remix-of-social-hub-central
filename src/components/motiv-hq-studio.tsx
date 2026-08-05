@@ -242,14 +242,15 @@ export default function MotivHqStudio() {
 
   const total = duration || (lines.length ? lines[lines.length - 1].end + 0.6 : 8);
 
-  const lineAt = useCallback(
+  const lineIndexAt = useCallback(
     (t: number) => {
       for (let i = 0; i < lines.length; i++) {
         const l = lines[i];
         const next = lines[i + 1];
-        if (t >= l.start && (t < (next ? next.start : l.end + 1.2))) return l;
+        if (t >= l.start && (t < (next ? next.start : l.end + 1.2))) return i;
       }
-      return lines.length && t < lines[0].start ? null : (lines[lines.length - 1] ?? null);
+      if (lines.length && t < lines[0].start) return -1;
+      return lines.length ? lines.length - 1 : -1;
     },
     [lines],
   );
@@ -261,6 +262,7 @@ export default function MotivHqStudio() {
       if (!cv) return;
       const ctx = cv.getContext("2d");
       if (!ctx) return;
+      const li = lineIndexAt(t);
       renderHqFrame({
         ctx,
         w: dims.w,
@@ -271,10 +273,11 @@ export default function MotivHqStudio() {
         subject: cfg.removeBg ? cutoutImg.current : null,
         original: originalImg.current,
         bgVideo: bgVideoRef.current,
-        line: lineAt(t),
+        line: li >= 0 ? lines[li] : null,
+        lineIndex: li >= 0 ? li : undefined,
       });
     },
-    [cfg, dims.h, dims.w, template, lineAt],
+    [cfg, dims.h, dims.w, template, lineIndexAt, lines],
   );
 
   useEffect(() => {
@@ -381,6 +384,7 @@ export default function MotivHqStudio() {
           src?.stop();
           return;
         }
+        const li = lineIndexAt(t);
         renderHqFrame({
           ctx: octx,
           w: dims.w,
@@ -391,7 +395,8 @@ export default function MotivHqStudio() {
           subject: cfg.removeBg ? cutoutImg.current : null,
           original: originalImg.current,
           bgVideo: bgVideoRef.current,
-          line: lineAt(t),
+          line: li >= 0 ? lines[li] : null,
+          lineIndex: li >= 0 ? li : undefined,
         });
         setExportProgress(Math.min(100, (t / total) * 100));
         requestAnimationFrame(loop);
