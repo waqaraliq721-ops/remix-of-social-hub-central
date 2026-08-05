@@ -826,7 +826,7 @@ export default function MotivHqStudio() {
 
       {/* Right: typography + subject */}
       <div className="min-w-0 space-y-4 lg:min-h-0 lg:overflow-y-auto lg:pr-1">
-        <Card>
+        {has("typography") && <Card>
           <CardHeader>
             <CardTitle className="text-base">Typography</CardTitle>
           </CardHeader>
@@ -923,9 +923,9 @@ export default function MotivHqStudio() {
             </Row>
             <NumSlider label="Shadow" min={0} max={1} value={cfg.shadow} onChange={(v) => set("shadow", v)} />
           </CardContent>
-        </Card>
+        </Card>}
 
-        <Card>
+        {has("wordAnimation") && <Card>
           <CardHeader>
             <CardTitle className="text-base">Text animation</CardTitle>
           </CardHeader>
@@ -960,9 +960,9 @@ export default function MotivHqStudio() {
               fmt={(v) => `${v.toFixed(2)}s`}
             />
           </CardContent>
-        </Card>
+        </Card>}
 
-        <Card>
+        {has("subject") && <Card>
           <CardHeader>
             <CardTitle className="text-base">Subject</CardTitle>
           </CardHeader>
@@ -1021,7 +1021,197 @@ export default function MotivHqStudio() {
               </p>
             )}
           </CardContent>
-        </Card>
+        </Card>}
+
+        {has("camera") && <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Camera motion</CardTitle>
+            <CardDescription>A continuous move applied to the whole composed frame.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <Row label="Motion">
+              <Select
+                value={cfg.cameraMotion}
+                onValueChange={(v) => set("cameraMotion", v as HqCameraMotionId)}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {HQ_CAMERA_MOTIONS.map((m) => (
+                    <SelectItem key={m.id} value={m.id}>
+                      {m.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Row>
+            <NumSlider
+              label="Speed"
+              min={0.1}
+              max={3}
+              value={cfg.cameraSpeed}
+              onChange={(v) => set("cameraSpeed", v)}
+            />
+            <NumSlider
+              label="Intensity"
+              min={0}
+              max={2}
+              value={cfg.cameraIntensity}
+              onChange={(v) => set("cameraIntensity", v)}
+            />
+          </CardContent>
+        </Card>}
+
+        {has("wordEditor") && <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Per-word styling</CardTitle>
+            <CardDescription>Click a word to override its look and motion.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="max-h-40 space-y-1.5 overflow-y-auto rounded-md border p-2">
+              {lines.length === 0 && (
+                <p className="text-xs text-muted-foreground">Transcribe or type captions first.</p>
+              )}
+              {lines.map((ln, li) => (
+                <div key={li} className="flex flex-wrap gap-1">
+                  {ln.words.map((w, wi) => {
+                    const key = hqWordKey(li, wi);
+                    const active =
+                      selectedWord?.lineIndex === li && selectedWord?.wordIndex === wi;
+                    const overridden = Boolean(cfg.wordStyles[key]);
+                    return (
+                      <button
+                        key={wi}
+                        type="button"
+                        onClick={() => setSelectedWord({ lineIndex: li, wordIndex: wi })}
+                        className={`rounded px-1.5 py-0.5 text-xs ${
+                          active
+                            ? "bg-primary text-primary-foreground"
+                            : overridden
+                              ? "bg-accent text-accent-foreground"
+                              : "bg-muted text-muted-foreground"
+                        }`}
+                      >
+                        {w.text}
+                      </button>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+            {selectedWord && (() => {
+              const key = hqWordKey(selectedWord.lineIndex, selectedWord.wordIndex);
+              const ov = cfg.wordStyles[key] ?? {};
+              const word = lines[selectedWord.lineIndex]?.words[selectedWord.wordIndex];
+              if (!word) return null;
+              return (
+                <div className="space-y-3 rounded-md border p-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-medium">"{word.text}"</p>
+                    <Button size="sm" variant="ghost" onClick={() => clearWordStyle(key)}>
+                      Reset
+                    </Button>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs">Emphasise</Label>
+                    <Switch
+                      checked={ov.emphasis ?? word.important}
+                      onCheckedChange={(v) => setWordStyle(key, { emphasis: v })}
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Row label="Colour">
+                      <Input
+                        type="color"
+                        value={ov.color ?? cfg.textColor}
+                        onChange={(e) => setWordStyle(key, { color: e.target.value })}
+                        className="h-9 p-1"
+                      />
+                    </Row>
+                    <Row label="Weight">
+                      <Select
+                        value={ov.weight ?? cfg.fontWeight}
+                        onValueChange={(v) => setWordStyle(key, { weight: v })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {["300", "400", "500", "600", "700", "800", "900"].map((w) => (
+                            <SelectItem key={w} value={w}>
+                              {w}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </Row>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs">Italic</Label>
+                    <Switch
+                      checked={ov.italic ?? false}
+                      onCheckedChange={(v) => setWordStyle(key, { italic: v })}
+                    />
+                  </div>
+                  <NumSlider
+                    label="Scale"
+                    min={0.4}
+                    max={2.5}
+                    value={ov.scale ?? 1}
+                    onChange={(v) => setWordStyle(key, { scale: v })}
+                    fmt={(v) => `${v.toFixed(2)}×`}
+                  />
+                  <div className="grid grid-cols-2 gap-2">
+                    <NumSlider
+                      label="Nudge X"
+                      min={-200}
+                      max={200}
+                      step={1}
+                      value={ov.dx ?? 0}
+                      onChange={(v) => setWordStyle(key, { dx: v })}
+                      fmt={(v) => `${v}px`}
+                    />
+                    <NumSlider
+                      label="Nudge Y"
+                      min={-200}
+                      max={200}
+                      step={1}
+                      value={ov.dy ?? 0}
+                      onChange={(v) => setWordStyle(key, { dy: v })}
+                      fmt={(v) => `${v}px`}
+                    />
+                  </div>
+                  <Row label="Animation override">
+                    <Select
+                      value={ov.anim ?? cfg.anim}
+                      onValueChange={(v) => setWordStyle(key, { anim: v as HqAnimId })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {HQ_CAPTION_ANIMS.map((a) => (
+                          <SelectItem key={a.id} value={a.id}>
+                            {a.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </Row>
+                  <NumSlider
+                    label="Extra delay"
+                    min={0}
+                    max={1}
+                    value={ov.delay ?? 0}
+                    onChange={(v) => setWordStyle(key, { delay: v })}
+                    fmt={(v) => `${v.toFixed(2)}s`}
+                  />
+                </div>
+              );
+            })()}
+          </CardContent>
+        </Card>}
 
         <Card>
           <CardContent className="pt-6">
