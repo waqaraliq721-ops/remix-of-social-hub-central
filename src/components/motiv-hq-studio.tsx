@@ -679,7 +679,7 @@ export default function MotivHqStudio() {
           </CardContent>
         </Card>
 
-        <Card>
+        {has("backdrop") && <Card>
           <CardHeader>
             <CardTitle className="text-base">Backdrop</CardTitle>
             <CardDescription>Textured, gently animated plates.</CardDescription>
@@ -737,7 +737,7 @@ export default function MotivHqStudio() {
             />
             <NumSlider label="Photo zoom" min={1} max={1.6} value={cfg.bgZoom} onChange={(v) => set("bgZoom", v)} />
           </CardContent>
-        </Card>
+        </Card>}
 
         <Card>
           <CardHeader>
