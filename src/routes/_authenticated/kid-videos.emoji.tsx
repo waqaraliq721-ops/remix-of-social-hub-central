@@ -947,18 +947,33 @@ function EmojiPage() {
           playedRef.current.clear();
         }
         for (const seg of timeline.segs) {
-          if (
-            seg.round.voUrl &&
-            !playedRef.current.has(seg.round.id) &&
-            timeRef.current >= seg.start &&
-            timeRef.current < seg.start + 0.35
-          ) {
-            playedRef.current.add(seg.round.id);
-            const el = new Audio(seg.round.voUrl);
+          const local = timeRef.current - seg.start;
+          const guessDur = timerSecs;
+          const guessOffset = 0.1; // small offset to avoid multiple triggers
+          
+          // Question VO at start
+          if (seg.round.voStartUrl && !playedRef.current.has(seg.round.id + "-start") && local >= 0 && local < 0.4) {
+            playedRef.current.add(seg.round.id + "-start");
+            const el = new Audio(seg.round.voStartUrl);
+            audioElRef.current = el;
+            void el.play().catch(() => {});
+          }
+          // Middle VO at halfway point
+          if (seg.round.voMiddleUrl && !playedRef.current.has(seg.round.id + "-middle") && local >= guessDur / 2 && local < guessDur / 2 + 0.4) {
+            playedRef.current.add(seg.round.id + "-middle");
+            const el = new Audio(seg.round.voMiddleUrl);
+            audioElRef.current = el;
+            void el.play().catch(() => {});
+          }
+          // Answer VO at reveal
+          if (seg.round.voAnswerUrl && !playedRef.current.has(seg.round.id + "-answer") && local >= guessDur && local < guessDur + 0.4) {
+            playedRef.current.add(seg.round.id + "-answer");
+            const el = new Audio(seg.round.voAnswerUrl);
             audioElRef.current = el;
             void el.play().catch(() => {});
           }
         }
+
         setTime(timeRef.current);
       }
       lastRef.current = now;
