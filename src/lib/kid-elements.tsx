@@ -261,7 +261,12 @@ export type BackgroundId =
   | "solid"
   | "spiral-sunburst"
   | "sunburst-rays"
-  | "question-field";
+  | "question-field"
+  | "paper-texture"
+  | "comic-dots"
+  | "retro-grid"
+  | "soft-gradient-swirl";
+
 
 export const BACKGROUNDS: { id: BackgroundId; name: string }[] = [
   { id: "gradient", name: "Gradient" },
@@ -292,6 +297,10 @@ export const BACKGROUNDS: { id: BackgroundId; name: string }[] = [
   { id: "spiral-sunburst", name: "Spiral sunburst" },
   { id: "sunburst-rays", name: "Sunburst rays" },
   { id: "question-field", name: "Question mark field" },
+  { id: "paper-texture", name: "Paper Texture" },
+  { id: "comic-dots", name: "Comic Dots" },
+  { id: "retro-grid", name: "Retro Grid" },
+  { id: "soft-gradient-swirl", name: "Soft Gradient Swirl" },
 ];
 
 
@@ -776,8 +785,119 @@ export function drawBackground(
       }
       break;
     }
+    case "paper-texture": {
+
+      // Light cream/grey background with procedural paper fiber noise and subtle crinkles.
+      ctx.fillStyle = "#f5f2e9";
+      ctx.fillRect(0, 0, w, h);
+      ctx.save();
+      ctx.globalAlpha = 0.08 * I;
+      for (let i = 0; i < 2000; i++) {
+        const px = rnd(i * 1.1) * w;
+        const py = rnd(i * 2.2) * h;
+        const len = 2 + rnd(i * 3.3) * 5;
+        const ang = rnd(i * 4.4) * Math.PI * 2;
+        ctx.beginPath();
+        ctx.moveTo(px, py);
+        ctx.lineTo(px + Math.cos(ang) * len, py + Math.sin(ang) * len);
+        ctx.strokeStyle = "#4a4538";
+        ctx.lineWidth = 0.5;
+        ctx.stroke();
+      }
+      ctx.globalAlpha = 0.05 * I;
+      ctx.lineWidth = 2;
+      for (let i = 0; i < 6; i++) {
+        ctx.beginPath();
+        ctx.moveTo(rnd(i) * w, 0);
+        ctx.bezierCurveTo(rnd(i + 1) * w, h * 0.3, rnd(i + 2) * w, h * 0.7, rnd(i + 3) * w, h);
+        ctx.strokeStyle = "#000";
+        ctx.stroke();
+      }
+      ctx.restore();
+      break;
+    }
+    case "comic-dots": {
+      // Halftone dot pattern on a vibrant background.
+      const g = ctx.createLinearGradient(0, 0, w, h);
+      g.addColorStop(0, colors.primary);
+      g.addColorStop(1, colors.accent);
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, w, h);
+      const step = 32;
+      ctx.fillStyle = "rgba(0,0,0,0.12)";
+      for (let y = 0; y < h + step; y += step) {
+        for (let x = 0; x < w + step; x += step) {
+          const off = (Math.floor(y / step) % 2) * (step / 2);
+          const phase = Math.sin(t * 1.5 + (x + y) / 100) * 0.5 + 0.5;
+          const r = (4 + phase * 6) * I;
+          ctx.beginPath();
+          ctx.arc(x + off, y, r, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+      break;
+    }
+    case "retro-grid": {
+      // 80s synthwave style grid receding into the distance.
+      ctx.fillStyle = colors.bg[0];
+      ctx.fillRect(0, 0, w, h);
+      const horizon = h * 0.45;
+      const step = 80;
+      const off = (t * 60) % step;
+      ctx.strokeStyle = hexToRgba(colors.primary, 0.4 * I);
+      ctx.lineWidth = 2;
+      // Vertical receding lines
+      for (let i = -12; i <= 12; i++) {
+        const x0 = w / 2 + i * step * 0.2;
+        const x1 = w / 2 + i * step * 10;
+        ctx.beginPath();
+        ctx.moveTo(x0, horizon);
+        ctx.lineTo(x1, h);
+        ctx.stroke();
+      }
+      // Horizontal lines
+      for (let y = horizon; y < h + step; y += step) {
+        const py = y + off;
+        if (py < horizon) continue;
+        const k = (py - horizon) / (h - horizon);
+        const y_mapped = horizon + Math.pow(k, 2) * (h - horizon);
+        if (y_mapped > h) continue;
+        ctx.lineWidth = 1 + k * 3;
+        ctx.beginPath();
+        ctx.moveTo(0, y_mapped);
+        ctx.lineTo(w, y_mapped);
+        ctx.stroke();
+      }
+      const glow = ctx.createLinearGradient(0, horizon, 0, horizon + 100);
+      glow.addColorStop(0, hexToRgba(colors.primary, 0.3 * I));
+      glow.addColorStop(1, "transparent");
+      ctx.fillStyle = glow;
+      ctx.fillRect(0, horizon, w, 100);
+      break;
+    }
+    case "soft-gradient-swirl": {
+      // Dreamy, slowly evolving organic blobs of color.
+      const g = ctx.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, Math.max(w, h));
+      g.addColorStop(0, colors.bg[1]);
+      g.addColorStop(1, colors.bg[0]);
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, w, h);
+      ctx.globalCompositeOperation = "screen";
+      for (let i = 0; i < 4; i++) {
+        const cx = w / 2 + Math.sin(t * 0.2 + i * 1.5) * w * 0.35;
+        const cy = h / 2 + Math.cos(t * 0.15 + i * 2.1) * h * 0.3;
+        const r = Math.max(w, h) * (0.4 + rnd(i) * 0.2);
+        const rg = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+        rg.addColorStop(0, hexToRgba(i % 2 ? colors.accent : colors.primary, 0.4 * I));
+        rg.addColorStop(1, "transparent");
+        ctx.fillStyle = rg;
+        ctx.fillRect(0, 0, w, h);
+      }
+      break;
+    }
     default:
       break;
+
   }
 
   ctx.restore();

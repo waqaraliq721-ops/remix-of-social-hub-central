@@ -573,9 +573,9 @@ function WyrPage() {
       // channel logo
       drawChannelLogo(ctx, channelLogoImg, channelLogo, w, h, local);
 
-      // percentage reveal in the last second
-      if (showPct && local > dur - 1.2) {
-        const k = ease.out(Math.min(1, (local - (dur - 1.2)) / 0.5));
+      // percentage reveal after the timer finishes
+      if (showPct && local >= timerSecs) {
+        const k = ease.out(Math.min(1, (local - timerSecs) / 0.8));
         const label = (pct: number) => `${Math.round(pct)}%`;
         ctx.save();
         ctx.globalAlpha = k;
@@ -594,6 +594,7 @@ function WyrPage() {
         }
         ctx.restore();
       }
+
 
       // scanlines for arcade
       if (style === "arcade") {
@@ -1133,8 +1134,10 @@ function WyrPage() {
       uhdLogoEmoji,
       uhdRiderEmoji,
       showUhdRider,
+      showPct,
     ],
   );
+
 
   const drawFrame = useCallback(
     (ctx: CanvasRenderingContext2D, t: number) => {
@@ -1155,6 +1158,7 @@ function WyrPage() {
         });
         return;
       }
+
       if (outro.id !== "none" && t >= timeline.outroStart) {
         OUTRO_ANIMATIONS.find((a) => a.id === outro.id)?.draw({
           ctx,
