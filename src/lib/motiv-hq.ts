@@ -1185,29 +1185,147 @@ function drawCover(
   ctx.drawImage(src, (w - dw) / 2, (h - dh) / 2, dw, dh);
 }
 
-function drawSubject(ctx: CanvasRenderingContext2D, i: HqFrameInput, src: Drawable, opts?: { desaturate?: boolean }) {
+function subjectRect(i: HqFrameInput, src: Drawable) {
   const { w, h, cfg, t } = i;
   const sw = "videoWidth" in src ? src.videoWidth : (src as HTMLImageElement).naturalWidth || src.width;
   const sh =
     "videoHeight" in src ? src.videoHeight : (src as HTMLImageElement).naturalHeight || src.height;
-  if (!sw || !sh) return;
   const m = subjectMotion(cfg.subjectAnim, t, cfg.subjectAnimDur, cfg.subjectAnimAmount);
   const targetH = h * 0.82 * cfg.subjectScale * m.scale;
-  const scale = targetH / sh;
+  const scale = sh ? targetH / sh : 0;
   const dw = sw * scale;
   const dh = sh * scale;
   const cx = w * cfg.subjectX + m.dx;
   const cy = h * cfg.subjectY + m.dy;
+  return { sw, sh, dw, dh, cx, cy, alpha: m.alpha };
+}
+
+function drawSubject(ctx: CanvasRenderingContext2D, i: HqFrameInput, src: Drawable, opts?: { desaturate?: boolean }) {
+  const { cfg } = i;
+  const r = subjectRect(i, src);
+  if (!r.sw || !r.sh) return;
   ctx.save();
-  ctx.globalAlpha = m.alpha;
+  ctx.globalAlpha = r.alpha;
   if (opts?.desaturate) ctx.filter = "grayscale(0.75) contrast(1.08)";
   if (cfg.subjectShadow > 0) {
     ctx.shadowColor = `rgba(0,0,0,${cfg.subjectShadow})`;
     ctx.shadowBlur = 60;
     ctx.shadowOffsetY = 24;
   }
-  ctx.drawImage(src, cx - dw / 2, cy - dh / 2, dw, dh);
+  ctx.drawImage(src, r.cx - r.dw / 2, r.cy - r.dh / 2, r.dw, r.dh);
   ctx.restore();
+}
+
+/** Draws the subject with a soft alpha-feathered edge so it blends into a textured backdrop. */
+function drawSubjectFeathered(ctx: CanvasRenderingContext2D, i: HqFrameInput, src: Drawable, featherAmount = 0.34) {
+  const { w, h } = i;
+  const r = subjectRect(i, src);
+  if (!r.sw || !r.sh) return;
+  const tmp = document.createElement("canvas");
+  tmp.width = w;
+  tmp.height = h;
+  const tctx = tmp.getContext("2d");
+  if (!tctx) return;
+  tctx.globalAlpha = r.alpha;
+  tctx.drawImage(src, r.cx - r.dw / 2, r.cy - r.dh / 2, r.dw, r.dh);
+  const outerR = Math.max(r.dw, r.dh) * 0.62;
+  const innerR = outerR * (1 - featherAmount);
+  tctx.globalCompositeOperation = "destination-in";
+  const grad = tctx.createRadialGradient(r.cx, r.cy, innerR, r.cx, r.cy, outerR);
+  grad.addColorStop(0, "rgba(255,255,255,1)");
+  grad.addColorStop(1, "rgba(255,255,255,0)");
+  tctx.fillStyle = grad;
+  tctx.fillRect(0, 0, w, h);
+  ctx.save();
+  if (i.cfg.subjectShadow > 0) {
+    ctx.shadowColor = `rgba(0,0,0,${i.cfg.subjectShadow})`;
+    ctx.shadowBlur = 50;
+    ctx.shadowOffsetY = 18;
+  }
+  ctx.drawImage(tmp, 0, 0);
+  ctx.restore();
+}
+
+/** Animated halftone dot field, brightness-modulated by an underlying sine field. */
+function drawHalftoneOverlay(
+  ctx: CanvasRenderingContext2D,
+  w: number,
+  h: number,
+  t: number,
+  color: string,
+  dotSize: number,
+) {
+  ctx.save();
+  ctx.fillStyle = color;
+  const step = Math.max(4, dotSize);
+  for (let y = 0; y < h; y += step) {
+    for (let x = 0; x < w; x += step) {
+      const wave = Math.sin(x * 0.02 + t * 0.6) * Math.cos(y * 0.018 - t * 0.4);
+      const r = (0.32 + 0.5 * ((wave + 1) / 2)) * (step * 0.42);
+      ctx.globalAlpha = 0.16 + 0.1 * ((wave + 1) / 2);
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  ctx.restore();
+}
+
+/** CRT-style scanlines with a slow vertical drift. */
+function drawScanlines(ctx: CanvasRenderingContext2D, w: number, h: number, t: number) {
+  ctx.save();
+  ctx.globalAlpha = 0.12;
+  ctx.fillStyle = "#000000";
+  const step = 4;
+  const offset = (t * 40) % step;
+  for (let y = -step + offset; y < h; y += step) {
+    ctx.fillRect(0, y, w, 1.6);
+  }
+  ctx.restore();
+  ctx.save();
+  const g = ctx.createLinearGradient(0, 0, 0, h);
+  g.addColorStop(0, "rgba(255,255,255,0.05)");
+  g.addColorStop(0.5, "rgba(255,255,255,0)");
+  g.addColorStop(1, "rgba(255,255,255,0.05)");
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, w, h);
+  ctx.restore();
+}
+
+/** Vertical strip of drifting sprocket holes for the film-strip layout. */
+function drawSprockets(ctx: CanvasRenderingContext2D, x: number, colW: number, h: number, t: number) {
+  ctx.save();
+  ctx.fillStyle = "#050505";
+  ctx.fillRect(x, 0, colW, h);
+  const holeH = colW * 0.68;
+  const gap = holeH * 1.55;
+  const offset = (t * 26) % gap;
+  ctx.fillStyle = "#dcd6c8";
+  for (let y = -gap + offset; y < h + gap; y += gap) {
+    const rx = x + colW * 0.5;
+    ctx.beginPath();
+    ctx.roundRect(rx - colW * 0.28, y, colW * 0.56, holeH, colW * 0.14);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+/** Decrypt-style reveal: characters cycle through random glyphs before locking to the real text. */
+const GLITCH_GLYPHS = "!<>-_\\/[]{}—=+*^?#@$%01ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+function decryptText(text: string, progress: number, seed: number): string {
+  const p = Math.max(0, Math.min(1, progress));
+  const lockCount = Math.floor(text.length * p);
+  let out = "";
+  for (let idx = 0; idx < text.length; idx++) {
+    const ch = text[idx];
+    if (ch === " " || idx < lockCount) {
+      out += ch;
+    } else {
+      const n = Math.floor(Math.abs(Math.sin(idx * 12.9898 + seed * 78.233)) * GLITCH_GLYPHS.length);
+      out += GLITCH_GLYPHS[n % GLITCH_GLYPHS.length];
+    }
+  }
+  return out;
 }
 
 function fontString(cfg: HqConfig, size: number, weight: string, italic: boolean, font?: string) {

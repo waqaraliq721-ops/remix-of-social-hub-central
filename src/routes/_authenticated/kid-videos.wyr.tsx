@@ -400,7 +400,7 @@ function WyrPage() {
   const [exporting, setExporting] = useState(false);
   const [exportProgress, setExportProgress] = useState(0);
   const [audio, setAudio] = useState<KidAudioSettings>(() => defaultKidAudio());
-  const { playSfx } = useKidAudioEngine(audio);
+  const { playSfx, startMusic, stopMusic } = useKidAudioEngine(audio);
 
   const [urlDraft, setUrlDraft] = useState<Record<string, string>>({});
   const [urlErr, setUrlErr] = useState<Record<string, string>>({});
@@ -1319,7 +1319,21 @@ function WyrPage() {
     [aspect, dims, drawRound, drawRoundHQ, drawRoundUHD, intro, outro, timeline, roundTransition],
   );
 
-  // preview loop
+  // Track canvas visibility so the preview RAF loop can skip rendering
+  // (and the underlying work) while the canvas is scrolled out of view.
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || typeof IntersectionObserver === "undefined") return;
+    const io = new IntersectionObserver(([entry]) => {
+      canvasVisibleRef.current = entry?.isIntersecting ?? true;
+    });
+    io.observe(canvas);
+    return () => io.disconnect();
+  }, []);
+
+  // preview loop — driven by a single RAF using a timestamp-derived clock
+  // (anchored to wall time) instead of accumulating per-frame deltas, so
+  // dropped frames never cause drift/stutter.
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -1327,12 +1341,12 @@ function WyrPage() {
     if (!ctx) return;
     const loop = (now: number) => {
       if (playing) {
-        const dt = lastRef.current ? (now - lastRef.current) / 1000 : 0;
-        timeRef.current = Math.min(timeline.total, timeRef.current + dt);
+        timeRef.current = Math.min(timeline.total, (now - playAnchorRef.current) / 1000);
         if (timeRef.current >= timeline.total) {
           setPlaying(false);
           timeRef.current = 0;
           playedRef.current.clear();
+          sfxPlayedRef.current.clear();
         }
         // fire voiceovers
         for (const seg of timeline.segs) {
@@ -1347,27 +1361,62 @@ function WyrPage() {
             audioElRef.current = el;
             void el.play().catch(() => {});
           }
+          const roundGuessDur = Math.min(timerSecs, seg.dur);
+          const cueDefs: { key: string; kind: "start" | "timer" | "reveal"; at: number }[] = [
+            { key: `${seg.round.id}-start`, kind: "start", at: seg.start },
+            { key: `${seg.round.id}-timer`, kind: "timer", at: seg.start + Math.max(0, roundGuessDur - 1) },
+            { key: `${seg.round.id}-reveal`, kind: "reveal", at: seg.start + roundGuessDur },
+          ];
+          for (const cue of cueDefs) {
+            if (
+              !sfxPlayedRef.current.has(cue.key) &&
+              timeRef.current >= cue.at &&
+              timeRef.current < cue.at + 0.2
+            ) {
+              sfxPlayedRef.current.add(cue.key);
+              playSfx(cue.kind);
+            }
+          }
+        }
+        if (
+          timeline.segs.length > 1 &&
+          !sfxPlayedRef.current.has(`transition-${Math.floor(timeRef.current)}`)
+        ) {
+          for (let i = 1; i < timeline.segs.length; i++) {
+            const key = `transition-${timeline.segs[i].round.id}`;
+            const boundary = timeline.segs[i].start;
+            if (
+              !sfxPlayedRef.current.has(key) &&
+              timeRef.current >= boundary &&
+              timeRef.current < boundary + 0.2
+            ) {
+              sfxPlayedRef.current.add(key);
+              playSfx("transition");
+            }
+          }
         }
         setTime(timeRef.current);
       }
-      lastRef.current = now;
-      drawFrame(ctx, timeRef.current);
+      if (canvasVisibleRef.current) drawFrame(ctx, timeRef.current);
       rafRef.current = requestAnimationFrame(loop);
     };
     rafRef.current = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(rafRef.current);
-  }, [drawFrame, playing, timeline]);
+  }, [drawFrame, playing, timeline, playSfx, timerSecs]);
 
   const togglePlay = () => {
     if (playing) {
       audioElRef.current?.pause();
+      audio.music.enabled && stopMusic();
       setPlaying(false);
     } else {
       if (timeRef.current >= timeline.total - 0.05) {
         timeRef.current = 0;
         playedRef.current.clear();
+        sfxPlayedRef.current.clear();
       }
-      lastRef.current = 0;
+      playAnchorRef.current = performance.now() - timeRef.current * 1000;
+      if (audio.music.enabled) startMusic(timeRef.current);
       setPlaying(true);
     }
   };

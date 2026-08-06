@@ -83,7 +83,19 @@ import {
   drawRoundTransition,
   roundTransitionCoverage,
   RoundTransitionControls,
+  ANSWER_BOX_STYLES,
+  drawAnswerBox,
 } from "@/lib/kid-elements";
+import {
+  KidAudioCard,
+  defaultKidAudio,
+  useKidAudioEngine,
+  renderKidSfxBuffer,
+  renderKidMusicBuffer,
+  audioBufferToStream,
+  type KidAudioSettings,
+  type KidAudioCue,
+} from "@/lib/kid-audio";
 
 export const Route = createFileRoute("/_authenticated/kid-videos/emoji")({
   head: () => ({
@@ -160,17 +172,64 @@ function defaultStyleMap(): Record<string, ElementStyleSpec> {
   };
 }
 
+type VoSlot = {
+  script: string;
+  url: string | null;
+  blob: Blob | null;
+  dur: number;
+  volume: number;
+};
+
+function emptyVoSlot(): VoSlot {
+  return { script: "", url: null, blob: null, dur: 0, volume: 1 };
+}
+
 type Round = {
   id: string;
   emojis: string;
   answer: string;
   category: string;
   hint: string;
-  script: string;
-  voUrl: string | null;
-  voBlob: Blob | null;
-  voDur: number;
+  voIntro: VoSlot;
+  voMid: VoSlot;
+  voAnswer: VoSlot;
+  /** Seconds after the guessing phase starts before the mid/hint VO plays. */
+  voMidOffset: number;
 };
+
+type EmojiBoxSpec = {
+  width: number; // % of canvas width
+  height: number; // % of canvas height
+  x: number; // % of canvas width, center
+  y: number; // % of canvas height, center
+  radius: number; // % of min(w,h)
+  padding: number; // % of min(w,h)
+  emojiSize: number;
+  spacing: number;
+  opacity: number;
+  bg: string;
+  borderColor: string;
+  borderWidth: number;
+  shadow: boolean;
+};
+
+function defaultEmojiBox(): EmojiBoxSpec {
+  return {
+    width: 78,
+    height: 24,
+    x: 50,
+    y: 46,
+    radius: 6,
+    padding: 5,
+    emojiSize: 1,
+    spacing: 1,
+    opacity: 1,
+    bg: "#000000",
+    borderColor: "",
+    borderWidth: 0.5,
+    shadow: true,
+  };
+}
 
 type StyleId = "bubble" | "arcade" | "chalk" | "confetti" | "clean" | "quizshow" | "hq";
 const STYLES: { id: StyleId; name: string; desc: string }[] = [
@@ -253,10 +312,10 @@ function emptyRound(i = 0): Round {
     answer: s.answer,
     category: s.category,
     hint: "",
-    script: "",
-    voUrl: null,
-    voBlob: null,
-    voDur: 0,
+    voIntro: emptyVoSlot(),
+    voMid: emptyVoSlot(),
+    voAnswer: emptyVoSlot(),
+    voMidOffset: 1.5,
   };
 }
 
@@ -317,6 +376,11 @@ function EmojiPage() {
   const [roundBadgeId, setRoundBadgeId] = useState<RoundBadgeId>("pill");
   const [roundTransition, setRoundTransition] = useState<RoundTransitionSpec>(defaultRoundTransition());
 
+  const [emojiBox, setEmojiBox] = useState<EmojiBoxSpec>(defaultEmojiBox());
+  const [answerBoxStyle, setAnswerBoxStyle] = useState<string>(ANSWER_BOX_STYLES[0].id);
+  const [audio, setAudio] = useState<KidAudioSettings>(defaultKidAudio());
+  const { playSfx } = useKidAudioEngine(audio);
+
   const [provider, setProvider] = useState<TtsProvider>("elevenlabs");
   const [voice, setVoice] = useState(TTS_VOICES.elevenlabs[0].id);
   const [voStyle, setVoStyle] = useState("Bright, playful game-show host for kids");
@@ -336,6 +400,8 @@ function EmojiPage() {
   const lastRef = useRef(0);
   const audioElRef = useRef<HTMLAudioElement | null>(null);
   const playedRef = useRef<Set<string>>(new Set());
+  const sfxPlayedRef = useRef<Set<string>>(new Set());
+  const voAudioElsRef = useRef<Map<string, HTMLAudioElement>>(new Map());
 
   useEffect(() => {
     if (!channelLogoUrl) {
@@ -361,7 +427,9 @@ function EmojiPage() {
   const pal = useMemo(() => applyOverrides(basePalette, colors), [basePalette, colors]);
 
   const roundDur = useCallback(
-    (r: Round) => Math.max(timerSecs, (r.voDur || 0) + 0.6) + revealSecs,
+    (r: Round) =>
+      Math.max(timerSecs, (r.voIntro.dur || 0) + (r.voMidOffset || 0) + (r.voMid.dur || 0) + 0.6) +
+      Math.max(revealSecs, (r.voAnswer.dur || 0) + 0.4),
     [timerSecs, revealSecs],
   );
 
