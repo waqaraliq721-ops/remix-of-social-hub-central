@@ -1142,8 +1142,7 @@ function WyrPage() {
       ctx.fillStyle = "#07070a";
       ctx.fillRect(0, 0, w, h);
 
-      const realTotal = timeline.total;
-
+      if (intro.id !== "none" && t < timeline.introEnd) {
         INTRO_ANIMATIONS.find((a) => a.id === intro.id)?.draw({
           ctx,
           w,
@@ -1156,6 +1155,7 @@ function WyrPage() {
         });
         return;
       }
+
       if (outro.id !== "none" && t >= timeline.outroStart) {
         OUTRO_ANIMATIONS.find((a) => a.id === outro.id)?.draw({
           ctx,
