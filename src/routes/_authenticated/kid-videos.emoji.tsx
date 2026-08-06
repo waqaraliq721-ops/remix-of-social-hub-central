@@ -260,10 +260,15 @@ function emptyRound(i = 0): Round {
     category: s.category,
     hint: "",
     script: "",
-    voUrl: null,
-    voBlob: null,
+    voStartUrl: null,
+    voStartBlob: null,
+    voMiddleUrl: null,
+    voMiddleBlob: null,
+    voAnswerUrl: null,
+    voAnswerBlob: null,
     voDur: 0,
   };
+
 }
 
 /** Split a string into visual emoji clusters. */
