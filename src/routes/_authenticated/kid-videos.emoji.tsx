@@ -167,10 +167,16 @@ type Round = {
   category: string;
   hint: string;
   script: string;
-  voUrl: string | null;
-  voBlob: Blob | null;
-  voDur: number;
+  // Multi-part voiceover
+  voStartUrl: string | null;
+  voStartBlob: Blob | null;
+  voMiddleUrl: string | null;
+  voMiddleBlob: Blob | null;
+  voAnswerUrl: string | null;
+  voAnswerBlob: Blob | null;
+  voDur: number; // total or start? lets keep total
 };
+
 
 type StyleId = "bubble" | "arcade" | "chalk" | "confetti" | "clean" | "quizshow" | "hq";
 const STYLES: { id: StyleId; name: string; desc: string }[] = [
