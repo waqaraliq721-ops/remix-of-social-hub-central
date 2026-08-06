@@ -261,7 +261,12 @@ export type BackgroundId =
   | "solid"
   | "spiral-sunburst"
   | "sunburst-rays"
-  | "question-field";
+  | "question-field"
+  | "paper-texture"
+  | "comic-dots"
+  | "retro-grid"
+  | "soft-gradient-swirl";
+
 
 export const BACKGROUNDS: { id: BackgroundId; name: string }[] = [
   { id: "gradient", name: "Gradient" },
