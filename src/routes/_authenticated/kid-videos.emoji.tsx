@@ -661,36 +661,40 @@ function EmojiPage() {
         ctx.restore();
       }
 
-      // ---- emoji card ----
-      const cardTop = chipY + hs * 1.6;
-      const cardBottom = h - M - Math.min(w, h) * (revealSecs > 0 ? 0.3 : 0.2);
-      const cardH = Math.max(Math.min(w, h) * 0.22, cardBottom - cardTop);
-      const cardW = w - M * 2;
-      const cx = w / 2;
-      const cyCard = cardTop + cardH / 2;
+      // ---- emoji card (fully controllable via emojiBox) ----
+      const cardW = (emojiBox.width / 100) * w;
+      const cardH = (emojiBox.height / 100) * h;
+      const cx = (emojiBox.x / 100) * w;
+      const cyCard = (emojiBox.y / 100) * h;
+      const cardTop = cyCard - cardH / 2;
+      const minWH = Math.min(w, h);
 
       ctx.save();
-      ctx.globalAlpha = inK;
+      ctx.globalAlpha = inK * emojiBox.opacity;
       const breathe = 1 + Math.sin(absT * 1.4) * 0.006 * bounce;
       ctx.translate(cx, cyCard);
       ctx.scale(breathe, breathe);
       ctx.translate(-cx, -cyCard);
-      if (style !== "clean") {
-        ctx.fillStyle = hexA("#000000", style === "chalk" ? 0.28 : 0.35);
-        roundRect(
-          ctx,
-          cx - cardW / 2,
-          cyCard - cardH / 2,
-          cardW,
-          cardH,
-          style === "arcade" ? Math.min(w, h) * 0.01 : Math.min(w, h) * 0.06,
-        );
+      if (style !== "clean" || emojiBox.borderWidth > 0 || emojiBox.opacity > 0) {
+        const boxRadius = (emojiBox.radius / 100) * minWH;
+        if (emojiBox.shadow) {
+          ctx.shadowColor = "rgba(0,0,0,0.45)";
+          ctx.shadowBlur = minWH * 0.02;
+          ctx.shadowOffsetY = minWH * 0.006;
+        }
+        ctx.fillStyle = hexA(emojiBox.bg, style === "chalk" ? 0.28 : 0.35 * emojiBox.opacity + (emojiBox.opacity < 1 ? 0 : 0));
+        roundRect(ctx, cx - cardW / 2, cyCard - cardH / 2, cardW, cardH, boxRadius);
         ctx.fill();
-        ctx.strokeStyle = hexA(pal.primary, style === "chalk" ? 0.5 : 0.75);
-        ctx.lineWidth = Math.max(2, Math.min(w, h) * 0.005);
-        if (style === "chalk") ctx.setLineDash([Math.min(w, h) * 0.02, Math.min(w, h) * 0.012]);
-        ctx.stroke();
-        ctx.setLineDash([]);
+        ctx.shadowBlur = 0;
+        ctx.shadowOffsetY = 0;
+        const borderCol = emojiBox.borderColor || pal.primary;
+        if (emojiBox.borderWidth > 0) {
+          ctx.strokeStyle = hexA(borderCol, style === "chalk" ? 0.5 : 0.75);
+          ctx.lineWidth = Math.max(1, minWH * (emojiBox.borderWidth / 100));
+          if (style === "chalk") ctx.setLineDash([minWH * 0.02, minWH * 0.012]);
+          ctx.stroke();
+          ctx.setLineDash([]);
+        }
       }
       ctx.restore();
 
@@ -701,11 +705,12 @@ function EmojiPage() {
         const perRow = list.length > 4 ? Math.ceil(list.length / 2) : list.length;
         const rows: string[][] = [];
         for (let i = 0; i < list.length; i += perRow) rows.push(list.slice(i, i + perRow));
+        const padFrac = Math.max(0, 1 - (emojiBox.padding / 100) * 2);
         const maxCell = Math.min(
-          (cardW * 0.86) / perRow,
-          (cardH * 0.78) / rows.length,
+          (cardW * padFrac) / perRow,
+          (cardH * padFrac) / rows.length,
         );
-        const size = maxCell * 0.92 * emojiScale;
+        const size = maxCell * 0.92 * emojiScale * emojiBox.emojiSize;
         const emojiAnim = computeAnim(anims.emoji ?? defaultAnim(), local);
         ctx.save();
         applyStyle(ctx, emojiStyleSpec, cx, cyCard, w, h);
@@ -714,12 +719,12 @@ function EmojiPage() {
         ctx.textBaseline = "middle";
         ctx.font = `${Math.round(size)}px ${EMOJI_FONT}`;
         rows.forEach((row, ri) => {
-          const rowY = cyCard + (ri - (rows.length - 1) / 2) * maxCell * 1.02 * emojiLineHeight;
+          const rowY = cyCard + (ri - (rows.length - 1) / 2) * maxCell * 1.02 * emojiLineHeight * emojiBox.spacing;
           row.forEach((e, i) => {
             const idx = ri * perRow + i;
             const pop = ease.back(Math.max(0, Math.min(1, (local - 0.12 * idx) / 0.45)));
             const wobble = Math.sin(absT * 2 + idx * 1.2) * 0.02 * bounce;
-            const x = cx + (i - (row.length - 1) / 2) * maxCell * 1.02 * emojiGap;
+            const x = cx + (i - (row.length - 1) / 2) * maxCell * 1.02 * emojiGap * emojiBox.spacing;
             ctx.save();
             ctx.translate(x, rowY);
             ctx.scale(pop * (1 + wobble), pop * (1 - wobble));

@@ -1707,6 +1707,245 @@ export function renderHqFrame(i: HqFrameInput) {
       paintCaption(ctx, i, boxW, topY);
       break;
     }
+    case "splitKinetic": {
+      paintBackdrop(i);
+      const lineStart = i.line?.start ?? 0;
+      const p = Math.max(0, Math.min(1, (t - lineStart) / 0.62));
+      const e = easeOutBack(Math.min(1, p * 1.05));
+      const gap = w * cfg.splitGap * (0.25 + 0.75 * Math.max(0, Math.min(1, easeInOutCubic(p))));
+      if (subject) drawSubject(ctx, i, subject, { desaturate: false });
+      const leftW = w / 2 - gap / 2;
+      const rightX = w / 2 + gap / 2;
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(0, 0, Math.max(0, leftW), h);
+      ctx.rect(rightX, 0, Math.max(0, w - rightX), h);
+      ctx.clip();
+      paintBackdrop(i);
+      ctx.restore();
+      const lines = cfg.heading.split("\n");
+      const size = h * 0.078;
+      const slide = (1 - e) * w * 0.5;
+      if (lines[0]) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(0, 0, Math.max(0, leftW), h);
+        ctx.clip();
+        drawHeadingLines(ctx, lines[0], leftW - w * 0.06 - slide, h * 0.46, size, size, "900", cfg.font, cfg.textColor, "right", t, cfg.uppercase, cfg.italic);
+        ctx.restore();
+      }
+      if (lines[1]) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(rightX, 0, Math.max(0, w - rightX), h);
+        ctx.clip();
+        drawHeadingLines(ctx, lines[1], rightX + w * 0.06 + slide, h * 0.56, size, size, "900", cfg.font, cfg.highlightColor, "left", t, cfg.uppercase, cfg.italic);
+        ctx.restore();
+      }
+      ctx.save();
+      ctx.fillStyle = cfg.highlightColor;
+      ctx.fillRect(w / 2 - gap / 2, 0, Math.max(0, gap), h);
+      ctx.restore();
+      paintCaption(ctx, i, boxW, topY);
+      break;
+    }
+    case "duotoneHalftone": {
+      paintBackdrop(i);
+      drawHalftoneOverlay(ctx, w, h, t, cfg.highlightColor, cfg.halftoneDot);
+      if (subject) {
+        ctx.save();
+        ctx.filter = "grayscale(1) contrast(1.15) brightness(1.05)";
+        drawSubject(ctx, i, subject);
+        ctx.restore();
+        ctx.save();
+        ctx.globalCompositeOperation = "color";
+        ctx.fillStyle = cfg.textColor;
+        ctx.globalAlpha = 0.85;
+        const r = subjectRect(i, subject);
+        ctx.fillRect(r.cx - r.dw / 2, r.cy - r.dh / 2, r.dw, r.dh);
+        ctx.restore();
+      }
+      const lines = cfg.heading.split("\n");
+      const size = h * 0.13;
+      const lh = size * 0.98;
+      const midY = h * 0.44;
+      const startY = midY - ((lines.length - 1) / 2) * lh;
+      ctx.save();
+      ctx.textAlign = "center";
+      ctx.lineWidth = Math.max(4, size * 0.05);
+      ctx.strokeStyle = cfg.highlightColor;
+      lines.forEach((ln, idx) => {
+        const pr = Math.max(0, Math.min(1, (t - idx * 0.12) / 0.6));
+        const ea = easeOutQuint(pr);
+        ctx.save();
+        ctx.globalAlpha = ea;
+        ctx.font = `900 ${size}px ${cfg.font}`;
+        ctx.strokeText(cfg.uppercase ? ln.toUpperCase() : ln, w / 2, startY + idx * lh + (1 - ea) * 24);
+        ctx.restore();
+      });
+      ctx.restore();
+      paintCaption(ctx, i, boxW, topY);
+      break;
+    }
+    case "verticalMarquee": {
+      paintBackdrop(i);
+      const words = (cfg.subheading || cfg.heading.replace(/\n/g, " "))
+        .split(/[,\n]/)
+        .map((wd) => wd.trim())
+        .filter(Boolean);
+      const list = words.length ? words : ["FOCUS", "GRIND", "RISE"];
+      const size = h * 0.09;
+      const lh = size * 1.05;
+      ctx.save();
+      ctx.textAlign = "center";
+      ctx.globalAlpha = 0.22;
+      ctx.fillStyle = cfg.textColor;
+      ctx.font = `800 ${size}px ${cfg.font}`;
+      const scroll = (t * cfg.marqueeSpeed * (h * 0.09)) % (lh * list.length);
+      const total = lh * list.length;
+      for (let y = -total + (scroll % total); y < h + lh; y += lh) {
+        const idx = Math.floor(((y + total * 4) / lh)) % list.length;
+        const word = cfg.uppercase ? list[idx].toUpperCase() : list[idx];
+        ctx.fillText(word, w / 2, y);
+      }
+      ctx.restore();
+      if (subject) drawSubject(ctx, i, subject, { desaturate: true });
+      const focus = cfg.heading.split("\n")[0] ?? "";
+      ctx.save();
+      ctx.globalAlpha = 0.92;
+      ctx.fillStyle = "rgba(0,0,0,0.35)";
+      ctx.fillRect(0, h * 0.42, w, h * 0.11);
+      ctx.restore();
+      drawHeadingLines(ctx, focus, w / 2, h * 0.49, size, h * 0.062, "900", cfg.font, cfg.highlightColor, "center", t, cfg.uppercase, cfg.italic);
+      paintCaption(ctx, i, boxW, topY);
+      break;
+    }
+    case "filmStrip": {
+      paintBackdrop(i);
+      const colW = w * 0.06;
+      const frameX = colW * 1.15;
+      const frameW = w - colW * 2.3;
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(frameX, h * 0.1, frameW, h * 0.68);
+      ctx.clip();
+      paintMediaBackground(i, { grayscale: false });
+      if (subject) drawSubject(ctx, i, subject);
+      ctx.restore();
+      ctx.save();
+      ctx.strokeStyle = "#e7e2d4";
+      ctx.lineWidth = 4;
+      ctx.strokeRect(frameX, h * 0.1, frameW, h * 0.68);
+      ctx.restore();
+      drawSprockets(ctx, 0, colW, h, t);
+      drawSprockets(ctx, w - colW, colW, h, t);
+      ctx.save();
+      ctx.textAlign = "left";
+      ctx.fillStyle = cfg.highlightColor;
+      ctx.font = `700 ${h * 0.022}px 'Courier New', monospace`;
+      ctx.fillText(cfg.author || "00:00:00:00", frameX + 12, h * 0.1 - 14);
+      ctx.restore();
+      if (cfg.subheading) {
+        ctx.save();
+        ctx.textAlign = "right";
+        ctx.fillStyle = cfg.textColor;
+        ctx.globalAlpha = 0.85;
+        ctx.font = `600 ${h * 0.02}px 'Courier New', monospace`;
+        ctx.fillText(cfg.subheading.toUpperCase(), frameX + frameW - 12, h * 0.1 - 14);
+        ctx.restore();
+      }
+      const lines = cfg.heading.split("\n");
+      const size = h * 0.05;
+      const lh = size * 1.05;
+      let y = h * 0.84;
+      lines.forEach((ln, idx) => {
+        drawHeadingLines(ctx, ln, w / 2, y + idx * lh, lh, size, "800", cfg.font, cfg.textColor, "center", t + idx * 0.05, cfg.uppercase, cfg.italic);
+      });
+      paintCaption(ctx, i, boxW, topY);
+      break;
+    }
+    case "glitchTerminal": {
+      paintBackdrop(i);
+      const lineStart = i.line?.start ?? 0;
+      const burst = Math.max(0, 1 - (t - lineStart) / 0.32) * cfg.glitchAmount;
+      if (subject) {
+        if (burst > 0.02) {
+          const off = burst * 14;
+          ctx.save();
+          ctx.globalCompositeOperation = "lighten";
+          ctx.globalAlpha = 0.7;
+          ctx.filter = "grayscale(1)";
+          ctx.save();
+          ctx.translate(-off, 0);
+          ctx.filter = "grayscale(1) sepia(1) hue-rotate(-50deg) saturate(6)";
+          drawSubject(ctx, i, subject);
+          ctx.restore();
+          ctx.save();
+          ctx.translate(off, 0);
+          ctx.filter = "grayscale(1) sepia(1) hue-rotate(140deg) saturate(6)";
+          drawSubject(ctx, i, subject);
+          ctx.restore();
+          ctx.restore();
+        }
+        drawSubject(ctx, i, subject, { desaturate: false });
+      }
+      drawScanlines(ctx, w, h, t);
+      const lines = cfg.heading.split("\n");
+      const size = h * 0.058;
+      const lh = size * 1.1;
+      const midY = h * 0.4;
+      const startY = midY - ((lines.length - 1) / 2) * lh;
+      ctx.save();
+      ctx.textAlign = "center";
+      ctx.fillStyle = cfg.textColor;
+      ctx.font = `700 ${size}px 'Courier New', monospace`;
+      lines.forEach((ln, idx) => {
+        const pr = Math.max(0, Math.min(1, (t - lineStart - idx * 0.15) / 0.5));
+        const text = decryptText(cfg.uppercase ? ln.toUpperCase() : ln, pr, idx + 1);
+        ctx.save();
+        ctx.globalAlpha = pr > 0 ? 1 : 0;
+        ctx.fillStyle = idx === lines.length - 1 ? cfg.highlightColor : cfg.textColor;
+        ctx.fillText(text, w / 2, startY + idx * lh);
+        ctx.restore();
+      });
+      ctx.restore();
+      paintCaption(ctx, i, boxW, topY);
+      break;
+    }
+    case "liquidReveal": {
+      paintBackdrop(i);
+      if (subject) drawSubjectFeathered(ctx, i, subject, 0.4);
+      const lineStart = i.line?.start ?? 0;
+      const lines = cfg.heading.split("\n");
+      const size = h * 0.066;
+      const lh = size * 1.2;
+      const midY = h * 0.42;
+      const startY = midY - ((lines.length - 1) / 2) * lh;
+      lines.forEach((ln, idx) => {
+        const p = Math.max(0, Math.min(1, (t - idx * 0.18) / 1.1));
+        const e = easeOutQuint(p);
+        const cy = startY + idx * lh;
+        ctx.save();
+        ctx.beginPath();
+        const blobs = 5;
+        for (let b = 0; b < blobs; b++) {
+          const bx = w / 2 + (b - (blobs - 1) / 2) * (w * 0.16);
+          const wobble = Math.sin(t * 1.4 + b * 1.7 + idx) * 10;
+          const r = e * (w * 0.16) + wobble;
+          ctx.moveTo(bx + r, cy);
+          ctx.arc(bx, cy - size * 0.15, Math.max(0, r), 0, Math.PI * 2);
+        }
+        ctx.clip();
+        ctx.globalAlpha = Math.min(1, e * 1.4);
+        ctx.font = `${cfg.italic ? "italic " : ""}700 ${size}px ${cfg.font}`;
+        ctx.textAlign = "center";
+        ctx.fillStyle = idx === lines.length - 1 ? cfg.highlightColor : cfg.textColor;
+        ctx.fillText(cfg.uppercase ? ln.toUpperCase() : ln, w / 2, cy + size * 0.3);
+        ctx.restore();
+      });
+      paintCaption(ctx, i, boxW, topY);
+      break;
+    }
   }
 
   ctx.restore();
