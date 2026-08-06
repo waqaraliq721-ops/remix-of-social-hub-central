@@ -1381,21 +1381,134 @@ function EmojiPage() {
                       />
                     </div>
                   </div>
-                  <div className="mt-3 space-y-2">
-                    <Label className="text-xs text-muted-foreground">
-                      Voiceover script (optional)
-                    </Label>
-                    <Textarea
-                      rows={2}
-                      value={r.script}
-                      placeholder={buildScript(r)}
-                      onChange={(e) => setRound(r.id, { script: e.target.value })}
-                    />
-                    {r.voUrl && (
-                      <audio controls src={r.voUrl} className="w-full">
-                        <track kind="captions" />
-                      </audio>
-                    )}
+                  <div className="mt-3 space-y-3 rounded-lg border border-dashed p-3">
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-xs text-muted-foreground">Intro voiceover (round start)</Label>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 px-2 text-xs"
+                          disabled={generating}
+                          onClick={() => generateVoSlot(r.id, "voIntro", buildIntroScript(r))}
+                        >
+                          <Wand2 className="mr-1 h-3 w-3" /> Generate
+                        </Button>
+                      </div>
+                      <Textarea
+                        rows={2}
+                        value={r.voIntro.script}
+                        placeholder={buildIntroScript(r)}
+                        onChange={(e) => setRound(r.id, { voIntro: { ...r.voIntro, script: e.target.value } })}
+                      />
+                      {r.voIntro.url && (
+                        <audio controls src={r.voIntro.url} className="w-full h-8">
+                          <track kind="captions" />
+                        </audio>
+                      )}
+                      <div>
+                        <Label className="text-[11px] text-muted-foreground">
+                          Volume · {Math.round(r.voIntro.volume * 100)}%
+                        </Label>
+                        <Slider
+                          value={[r.voIntro.volume]}
+                          min={0}
+                          max={1.5}
+                          step={0.05}
+                          onValueChange={([v]) => setRound(r.id, { voIntro: { ...r.voIntro, volume: v } })}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-xs text-muted-foreground">Hint/middle voiceover (during guessing)</Label>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 px-2 text-xs"
+                          disabled={generating}
+                          onClick={() => generateVoSlot(r.id, "voMid", buildMidScript(r))}
+                        >
+                          <Wand2 className="mr-1 h-3 w-3" /> Generate
+                        </Button>
+                      </div>
+                      <Textarea
+                        rows={2}
+                        value={r.voMid.script}
+                        placeholder={buildMidScript(r)}
+                        onChange={(e) => setRound(r.id, { voMid: { ...r.voMid, script: e.target.value } })}
+                      />
+                      {r.voMid.url && (
+                        <audio controls src={r.voMid.url} className="w-full h-8">
+                          <track kind="captions" />
+                        </audio>
+                      )}
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <Label className="text-[11px] text-muted-foreground">
+                            Offset · {r.voMidOffset.toFixed(1)}s
+                          </Label>
+                          <Slider
+                            value={[r.voMidOffset]}
+                            min={0}
+                            max={8}
+                            step={0.1}
+                            onValueChange={([v]) => setRound(r.id, { voMidOffset: v })}
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-[11px] text-muted-foreground">
+                            Volume · {Math.round(r.voMid.volume * 100)}%
+                          </Label>
+                          <Slider
+                            value={[r.voMid.volume]}
+                            min={0}
+                            max={1.5}
+                            step={0.05}
+                            onValueChange={([v]) => setRound(r.id, { voMid: { ...r.voMid, volume: v } })}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-xs text-muted-foreground">Answer voiceover (reveal)</Label>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 px-2 text-xs"
+                          disabled={generating}
+                          onClick={() => generateVoSlot(r.id, "voAnswer", buildAnswerScript(r))}
+                        >
+                          <Wand2 className="mr-1 h-3 w-3" /> Generate
+                        </Button>
+                      </div>
+                      <Textarea
+                        rows={2}
+                        value={r.voAnswer.script}
+                        placeholder={buildAnswerScript(r)}
+                        onChange={(e) => setRound(r.id, { voAnswer: { ...r.voAnswer, script: e.target.value } })}
+                      />
+                      {r.voAnswer.url && (
+                        <audio controls src={r.voAnswer.url} className="w-full h-8">
+                          <track kind="captions" />
+                        </audio>
+                      )}
+                      <div>
+                        <Label className="text-[11px] text-muted-foreground">
+                          Volume · {Math.round(r.voAnswer.volume * 100)}%
+                        </Label>
+                        <Slider
+                          value={[r.voAnswer.volume]}
+                          min={0}
+                          max={1.5}
+                          step={0.05}
+                          onValueChange={([v]) => setRound(r.id, { voAnswer: { ...r.voAnswer, volume: v } })}
+                        />
+                      </div>
+                    </div>
                   </div>
                 </div>
               ))}
