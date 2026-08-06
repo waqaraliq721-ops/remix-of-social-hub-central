@@ -1134,8 +1134,10 @@ function WyrPage() {
       uhdLogoEmoji,
       uhdRiderEmoji,
       showUhdRider,
+      showPct,
     ],
   );
+
 
   const drawFrame = useCallback(
     (ctx: CanvasRenderingContext2D, t: number) => {
