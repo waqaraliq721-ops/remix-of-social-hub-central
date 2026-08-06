@@ -297,6 +297,10 @@ export const BACKGROUNDS: { id: BackgroundId; name: string }[] = [
   { id: "spiral-sunburst", name: "Spiral sunburst" },
   { id: "sunburst-rays", name: "Sunburst rays" },
   { id: "question-field", name: "Question mark field" },
+  { id: "paper-texture", name: "Paper Texture" },
+  { id: "comic-dots", name: "Comic Dots" },
+  { id: "retro-grid", name: "Retro Grid" },
+  { id: "soft-gradient-swirl", name: "Soft Gradient Swirl" },
 ];
 
 
