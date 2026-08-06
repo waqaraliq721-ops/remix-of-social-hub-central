@@ -261,7 +261,17 @@ export type BackgroundId =
   | "solid"
   | "spiral-sunburst"
   | "sunburst-rays"
-  | "question-field";
+  | "question-field"
+  | "aurora-ribbons"
+  | "bokeh-float"
+  | "iso-grid"
+  | "confetti-drift"
+  | "liquid-blobs"
+  | "caustics"
+  | "paper-hills"
+  | "radial-sweep"
+  | "starfield-warp"
+  | "dot-matrix";
 
 export const BACKGROUNDS: { id: BackgroundId; name: string }[] = [
   { id: "gradient", name: "Gradient" },
@@ -292,6 +302,16 @@ export const BACKGROUNDS: { id: BackgroundId; name: string }[] = [
   { id: "spiral-sunburst", name: "Spiral sunburst" },
   { id: "sunburst-rays", name: "Sunburst rays" },
   { id: "question-field", name: "Question mark field" },
+  { id: "aurora-ribbons", name: "Aurora ribbons" },
+  { id: "bokeh-float", name: "Floating bokeh" },
+  { id: "iso-grid", name: "Isometric grid drift" },
+  { id: "confetti-drift", name: "Confetti drift" },
+  { id: "liquid-blobs", name: "Liquid blobs" },
+  { id: "caustics", name: "Soft caustics" },
+  { id: "paper-hills", name: "Paper-cut hills" },
+  { id: "radial-sweep", name: "Radial light sweep" },
+  { id: "starfield-warp", name: "Starfield warp" },
+  { id: "dot-matrix", name: "Dot matrix" },
 ];
 
 
@@ -772,6 +792,219 @@ export function drawBackground(
       for (let y = -step + off; y < h + step; y += step) {
         for (let x = -step; x < w + step; x += step) {
           ctx.fillText("?", x, y);
+        }
+      }
+      break;
+    }
+    case "aurora-ribbons": {
+      ctx.globalCompositeOperation = "screen";
+      for (let i = 0; i < 4; i++) {
+        ctx.beginPath();
+        const baseY = h * (0.2 + i * 0.18);
+        ctx.moveTo(-40, baseY);
+        for (let x = -40; x <= w + 40; x += 24) {
+          const y =
+            baseY +
+            Math.sin(x / (180 + i * 30) + t * (0.5 + i * 0.15) + i * 2) * 46 * I +
+            Math.sin(t * 0.2 + i) * 20;
+          ctx.lineTo(x, y);
+        }
+        for (let x = w + 40; x >= -40; x -= 24) {
+          const y =
+            baseY +
+            60 +
+            Math.sin(x / (180 + i * 30) + t * (0.5 + i * 0.15) + i * 2) * 46 * I;
+          ctx.lineTo(x, y);
+        }
+        ctx.closePath();
+        const rg = ctx.createLinearGradient(0, baseY - 60, 0, baseY + 120);
+        rg.addColorStop(0, hexToRgba(i % 2 ? colors.accent : colors.primary, 0));
+        rg.addColorStop(0.5, hexToRgba(i % 2 ? colors.accent : colors.primary, 0.28 * I));
+        rg.addColorStop(1, hexToRgba(i % 2 ? colors.accent : colors.primary, 0));
+        ctx.fillStyle = rg;
+        ctx.fill();
+      }
+      break;
+    }
+    case "bokeh-float": {
+      ctx.globalCompositeOperation = "screen";
+      for (let i = 0; i < 22; i++) {
+        const speed = 0.05 + rnd(i * 3.3) * 0.12;
+        const x = w * rnd(i * 5.5) + Math.sin(t * 0.3 + i) * w * 0.05;
+        const y = ((rnd(i * 9.9) * h + t * speed * h * 0.6) % (h + 160)) - 80;
+        const r = (18 + rnd(i * 1.3) * 60) * I;
+        const rg = ctx.createRadialGradient(x, y, 0, x, y, r);
+        const col = i % 3 === 0 ? colors.accent : colors.primary;
+        rg.addColorStop(0, hexToRgba(col, 0.22));
+        rg.addColorStop(0.6, hexToRgba(col, 0.08));
+        rg.addColorStop(1, hexToRgba(col, 0));
+        ctx.fillStyle = rg;
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      break;
+    }
+    case "iso-grid": {
+      ctx.save();
+      const step = 70;
+      const offX = (t * 22) % step;
+      const offY = (t * 12) % (step * 0.6);
+      ctx.strokeStyle = hexToRgba(colors.primary, 0.16 * I);
+      ctx.lineWidth = 1.5;
+      for (let y = -step * 2 + offY; y < h + step * 2; y += step * 0.6) {
+        ctx.beginPath();
+        for (let x = -step * 2 + offX; x < w + step * 2; x += 6) {
+          const yy = y + Math.sin(x / 90) * 10;
+          if (x === -step * 2 + offX) ctx.moveTo(x, yy);
+          else ctx.lineTo(x, yy);
+        }
+        ctx.stroke();
+      }
+      ctx.strokeStyle = hexToRgba(colors.accent, 0.12 * I);
+      for (let x = -step * 2 + offX; x < w + step * 2; x += step) {
+        ctx.save();
+        ctx.translate(x, 0);
+        ctx.transform(1, 0.5, 0, 1, 0, 0);
+        ctx.beginPath();
+        ctx.moveTo(0, -h);
+        ctx.lineTo(0, h * 2);
+        ctx.stroke();
+        ctx.restore();
+      }
+      ctx.restore();
+      break;
+    }
+    case "confetti-drift": {
+      for (let i = 0; i < 60; i++) {
+        const drift = Math.sin(t * 0.6 + i) * 30;
+        const x = ((rnd(i * 4.1) * w + drift) % (w + 40)) - 20;
+        const y = ((rnd(i * 6.3) * h + t * (30 + rnd(i * 2) * 50)) % (h + 60)) - 30;
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(t * (0.6 + rnd(i) * 1.2) + i);
+        ctx.fillStyle = hexToRgba(i % 3 === 0 ? colors.accent : i % 3 === 1 ? colors.primary : "#ffffff", 0.4 * I);
+        if (i % 2 === 0) {
+          ctx.fillRect(-4, -7, 8, 14);
+        } else {
+          ctx.beginPath();
+          ctx.arc(0, 0, 5, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.restore();
+      }
+      break;
+    }
+    case "liquid-blobs": {
+      ctx.globalCompositeOperation = "screen";
+      ctx.filter = "blur(2px)";
+      for (let i = 0; i < 6; i++) {
+        const cx = w * (0.2 + 0.15 * i) + Math.sin(t * 0.4 + i * 2.1) * w * 0.14;
+        const cy = h * (0.3 + 0.1 * (i % 3)) + Math.cos(t * 0.33 + i * 1.4) * h * 0.16;
+        const r = Math.min(w, h) * (0.12 + rnd(i * 2) * 0.1) * (1 + 0.15 * Math.sin(t * 0.8 + i));
+        const rg = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+        const col = i % 2 ? colors.accent : colors.primary;
+        rg.addColorStop(0, hexToRgba(col, 0.5 * I));
+        rg.addColorStop(1, hexToRgba(col, 0));
+        ctx.fillStyle = rg;
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.filter = "none";
+      break;
+    }
+    case "caustics": {
+      ctx.globalCompositeOperation = "screen";
+      const step = 46;
+      for (let x = 0; x < w + step; x += step) {
+        for (let y = 0; y < h + step; y += step) {
+          const n =
+            Math.sin(x / 60 + t * 0.6) * Math.cos(y / 60 - t * 0.5) +
+            Math.sin((x + y) / 90 + t * 0.4);
+          const a = Math.max(0, n) * 0.12 * I;
+          if (a <= 0.002) continue;
+          ctx.beginPath();
+          ctx.arc(x, y, step * 0.42, 0, Math.PI * 2);
+          ctx.fillStyle = hexToRgba(colors.accent, a);
+          ctx.fill();
+        }
+      }
+      break;
+    }
+    case "paper-hills": {
+      const layers = 4;
+      for (let i = 0; i < layers; i++) {
+        const baseY = h * (0.5 + i * 0.12);
+        const amp = 30 + i * 10;
+        const speed = 0.06 + i * 0.03;
+        ctx.beginPath();
+        ctx.moveTo(0, h);
+        ctx.lineTo(0, baseY);
+        for (let x = 0; x <= w; x += 24) {
+          const y = baseY - Math.sin(x / (140 + i * 20) + t * speed + i) * amp * I;
+          ctx.lineTo(x, y);
+        }
+        ctx.lineTo(w, h);
+        ctx.closePath();
+        ctx.fillStyle = hexToRgba(i % 2 ? colors.primary : colors.accent, 0.18 + i * 0.06);
+        ctx.fill();
+      }
+      break;
+    }
+    case "radial-sweep": {
+      const cx = w / 2;
+      const cy = h / 2;
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(t * 0.4);
+      const g = ctx.createConicGradient ? ctx.createConicGradient(0, 0, 0) : null;
+      if (g) {
+        g.addColorStop(0, hexToRgba(colors.accent, 0));
+        g.addColorStop(0.08, hexToRgba(colors.accent, 0.3 * I));
+        g.addColorStop(0.16, hexToRgba(colors.accent, 0));
+        g.addColorStop(0.5, hexToRgba(colors.primary, 0));
+        g.addColorStop(0.58, hexToRgba(colors.primary, 0.2 * I));
+        g.addColorStop(0.66, hexToRgba(colors.primary, 0));
+        g.addColorStop(1, hexToRgba(colors.accent, 0));
+        ctx.fillStyle = g;
+        const R = Math.hypot(w, h);
+        ctx.fillRect(-R, -R, R * 2, R * 2);
+      }
+      ctx.restore();
+      break;
+    }
+    case "starfield-warp": {
+      const cx = w / 2;
+      const cy = h / 2;
+      for (let i = 0; i < 140; i++) {
+        const angle = rnd(i * 3.7) * Math.PI * 2;
+        const speed = 0.5 + rnd(i * 5.1) * 1.5;
+        const dist = ((t * speed * 180 + rnd(i * 9.3) * 900) % 900) + 4;
+        const x = cx + Math.cos(angle) * dist;
+        const y = cy + Math.sin(angle) * dist * (h / w || 1);
+        const len = dist * 0.06 * I;
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(x - Math.cos(angle) * len, y - Math.sin(angle) * len);
+        ctx.strokeStyle = hexToRgba("#ffffff", Math.min(0.9, dist / 900));
+        ctx.lineWidth = 1.4;
+        ctx.stroke();
+      }
+      break;
+    }
+    case "dot-matrix": {
+      const step = 26;
+      const off = t * 0.8;
+      for (let x = 0; x < w + step; x += step) {
+        for (let y = 0; y < h + step; y += step) {
+          const p =
+            Math.sin(x / 80 + off) * Math.cos(y / 80 - off * 0.7) * 0.5 + 0.5;
+          const r = 1.2 + p * 3.4 * I;
+          ctx.beginPath();
+          ctx.arc(x, y, r, 0, Math.PI * 2);
+          ctx.fillStyle = hexToRgba(p > 0.6 ? colors.accent : colors.primary, 0.12 + p * 0.22);
+          ctx.fill();
         }
       }
       break;
@@ -3269,4 +3502,346 @@ export function RoundTransitionControls({
       </div>
     </div>
   );
+}
+
+// ---------------------------------------------------------------------------
+// Answer box templates (used by emoji/math/logo quiz studios)
+// ---------------------------------------------------------------------------
+
+export type AnswerBoxStyle = { id: string; name: string };
+
+export const ANSWER_BOX_STYLES: AnswerBoxStyle[] = [
+  { id: "solid-pill", name: "Solid pill" },
+  { id: "glass-blur", name: "Glass blur" },
+  { id: "neon-outline", name: "Neon outline" },
+  { id: "ticket-stub", name: "Ticket stub" },
+  { id: "ribbon-banner", name: "Ribbon banner" },
+  { id: "extruded-3d", name: "3D extruded card" },
+  { id: "sticker-shadow", name: "Sticker w/ shadow" },
+  { id: "gradient-bar", name: "Gradient bar" },
+  { id: "chalk-outline", name: "Chalk outline" },
+  { id: "torn-paper", name: "Torn paper" },
+  { id: "marquee-lights", name: "Marquee lights" },
+  { id: "bubble-tail", name: "Speech bubble" },
+];
+
+function abClamp01(v: number) {
+  return Math.max(0, Math.min(1, v));
+}
+
+/** Shrinks font-size until `text` fits within `maxW` (single line). */
+function fitAnswerText(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  maxW: number,
+  startSize: number,
+  fontFamily: string,
+  minSize = 10,
+) {
+  let size = startSize;
+  while (size > minSize) {
+    ctx.font = `700 ${size}px ${fontFamily}`;
+    if (ctx.measureText(text).width <= maxW) break;
+    size -= 1;
+  }
+  ctx.font = `700 ${size}px ${fontFamily}`;
+  return size;
+}
+
+/**
+ * Draws one of many answer-box "chip" styles at (x,y,w,h). `t` is 0..1 reveal
+ * progress (0 = not yet shown, 1 = fully settled) used to animate scale /
+ * opacity / wipes / sweeps. Caller is responsible for positioning; this
+ * function saves/restores the context.
+ */
+export function drawAnswerBox(
+  ctx: CanvasRenderingContext2D,
+  opts: {
+    style: string;
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+    text: string;
+    t: number;
+    accent: string;
+    textColor: string;
+    bg: string;
+    radius?: number;
+    font?: string;
+  },
+) {
+  const { style, x, y, w, h, text, accent, textColor, bg } = opts;
+  const t = abClamp01(opts.t);
+  const r = opts.radius ?? h * 0.22;
+  const fontFamily = opts.font ?? "system-ui, sans-serif";
+  const cx = x + w / 2;
+  const cy = y + h / 2;
+
+  ctx.save();
+  // Global pop-in scale/opacity applied to almost every style for consistency,
+  // individual styles may layer additional motion on top of this base `t`.
+  const pop = 0.85 + 0.15 * Math.min(1, t * 1.6);
+  const alpha = Math.min(1, t * 2.2);
+  ctx.globalAlpha *= alpha;
+  ctx.translate(cx, cy);
+  ctx.scale(pop, pop);
+  ctx.translate(-cx, -cy);
+
+  const path = (rr: number, ww = w, hh = h) => {
+    ctx.beginPath();
+    ctx.roundRect(x + (w - ww) / 2, y + (h - hh) / 2, ww, hh, rr);
+  };
+
+  const drawCenteredText = (color: string, maxW = w * 0.86, size = h * 0.4) => {
+    ctx.fillStyle = color;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    fitAnswerText(ctx, text, maxW, size, fontFamily);
+    ctx.fillText(text, cx, cy + h * 0.02);
+  };
+
+  switch (style) {
+    case "glass-blur": {
+      path(r);
+      ctx.fillStyle = "rgba(255,255,255,0.14)";
+      ctx.fill();
+      ctx.strokeStyle = hexToRgba(textColor, 0.35);
+      ctx.lineWidth = Math.max(1.5, h * 0.02);
+      ctx.stroke();
+      ctx.save();
+      path(r);
+      ctx.clip();
+      const sheen = ctx.createLinearGradient(x, y, x, y + h);
+      sheen.addColorStop(0, "rgba(255,255,255,0.28)");
+      sheen.addColorStop(0.5, "rgba(255,255,255,0.02)");
+      ctx.fillStyle = sheen;
+      ctx.fillRect(x, y, w, h * 0.5);
+      ctx.restore();
+      drawCenteredText(textColor);
+      break;
+    }
+    case "neon-outline": {
+      const glow = 0.6 + 0.4 * Math.sin(t * Math.PI);
+      path(r);
+      ctx.fillStyle = hexToRgba(bg, 0.55);
+      ctx.fill();
+      ctx.save();
+      ctx.shadowColor = accent;
+      ctx.shadowBlur = 18 * glow;
+      ctx.strokeStyle = accent;
+      ctx.lineWidth = Math.max(2, h * 0.035);
+      path(r);
+      ctx.stroke();
+      ctx.restore();
+      drawCenteredText(accent);
+      break;
+    }
+    case "ticket-stub": {
+      const notchR = h * 0.16;
+      path(r);
+      ctx.fillStyle = hexToRgba(bg, 0.96);
+      ctx.fill();
+      ctx.save();
+      path(r);
+      ctx.clip();
+      ctx.fillStyle = "rgba(0,0,0,0.55)";
+      [x, x + w].forEach((nx) => {
+        ctx.beginPath();
+        ctx.arc(nx, cy, notchR, 0, Math.PI * 2);
+        ctx.fill();
+      });
+      ctx.restore();
+      ctx.setLineDash([6, 6]);
+      ctx.strokeStyle = hexToRgba(textColor, 0.4);
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(x + notchR * 1.4, y + 4);
+      ctx.lineTo(x + notchR * 1.4, y + h - 4);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.strokeStyle = hexToRgba(accent, 0.9);
+      ctx.lineWidth = Math.max(2, h * 0.03);
+      path(r);
+      ctx.stroke();
+      drawCenteredText(textColor, w * 0.7);
+      break;
+    }
+    case "ribbon-banner": {
+      const notch = h * 0.28;
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.lineTo(x + w, y);
+      ctx.lineTo(x + w - notch * 0.6, y + h / 2);
+      ctx.lineTo(x + w, y + h);
+      ctx.lineTo(x, y + h);
+      ctx.lineTo(x + notch * 0.6, y + h / 2);
+      ctx.closePath();
+      const g = ctx.createLinearGradient(x, y, x + w, y);
+      g.addColorStop(0, hexToRgba(accent, 0.95));
+      g.addColorStop(1, hexToRgba(bg, 0.95));
+      ctx.fillStyle = g;
+      ctx.fill();
+      ctx.strokeStyle = hexToRgba(textColor, 0.25);
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      drawCenteredText(textColor, w * 0.72);
+      break;
+    }
+    case "extruded-3d": {
+      const depth = h * 0.14;
+      path(r, w, h);
+      ctx.save();
+      ctx.translate(0, depth);
+      ctx.beginPath();
+      ctx.roundRect(x, y, w, h, r);
+      ctx.fillStyle = hexToRgba("#000000", 0.4);
+      ctx.fill();
+      ctx.restore();
+      path(r);
+      const g = ctx.createLinearGradient(x, y, x, y + h);
+      g.addColorStop(0, hexToRgba(accent, 1));
+      g.addColorStop(1, hexToRgba(accent, 0.75));
+      ctx.fillStyle = g;
+      ctx.fill();
+      ctx.strokeStyle = hexToRgba("#ffffff", 0.5);
+      ctx.lineWidth = Math.max(1.5, h * 0.02);
+      path(r);
+      ctx.stroke();
+      drawCenteredText("#ffffff");
+      break;
+    }
+    case "sticker-shadow": {
+      ctx.save();
+      ctx.translate(h * 0.05, h * 0.08);
+      path(r);
+      ctx.fillStyle = "rgba(0,0,0,0.35)";
+      ctx.fill();
+      ctx.restore();
+      path(r);
+      ctx.fillStyle = hexToRgba(bg, 0.98);
+      ctx.fill();
+      ctx.strokeStyle = hexToRgba("#ffffff", 0.9);
+      ctx.lineWidth = Math.max(3, h * 0.05);
+      path(r);
+      ctx.stroke();
+      drawCenteredText(textColor);
+      break;
+    }
+    case "gradient-bar": {
+      const sweep = abClamp01(t * 1.4);
+      path(r);
+      ctx.save();
+      ctx.clip();
+      const g = ctx.createLinearGradient(x, y, x + w, y + h);
+      g.addColorStop(0, hexToRgba(accent, 0.95));
+      g.addColorStop(1, hexToRgba(bg, 0.95));
+      ctx.fillStyle = g;
+      ctx.fillRect(x, y, w * sweep, h);
+      ctx.fillStyle = hexToRgba(bg, 0.5);
+      ctx.fillRect(x + w * sweep, y, w * (1 - sweep), h);
+      ctx.restore();
+      drawCenteredText("#ffffff");
+      break;
+    }
+    case "chalk-outline": {
+      ctx.fillStyle = hexToRgba(bg, 0.15);
+      path(r);
+      ctx.fill();
+      ctx.save();
+      ctx.strokeStyle = hexToRgba(textColor, 0.9);
+      ctx.lineWidth = Math.max(1.5, h * 0.025);
+      ctx.setLineDash([2, 3]);
+      ctx.lineCap = "round";
+      path(r);
+      ctx.stroke();
+      ctx.restore();
+      drawCenteredText(textColor);
+      break;
+    }
+    case "torn-paper": {
+      ctx.save();
+      ctx.beginPath();
+      const teeth = 14;
+      const amp = h * 0.05;
+      ctx.moveTo(x, y + amp);
+      for (let i = 0; i <= teeth; i++) {
+        const px = x + (w / teeth) * i;
+        const py = y + (i % 2 === 0 ? 0 : amp);
+        ctx.lineTo(px, py);
+      }
+      for (let i = 0; i <= teeth; i++) {
+        const px = x + w - (w / teeth) * i;
+        const py = y + h - (i % 2 === 0 ? 0 : amp);
+        ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+      ctx.fillStyle = hexToRgba(bg, 0.97);
+      ctx.fill();
+      ctx.strokeStyle = hexToRgba("#000000", 0.08);
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.restore();
+      drawCenteredText(textColor, w * 0.78, h * 0.34);
+      break;
+    }
+    case "marquee-lights": {
+      path(r);
+      ctx.fillStyle = hexToRgba(bg, 0.95);
+      ctx.fill();
+      ctx.strokeStyle = hexToRgba(accent, 0.9);
+      ctx.lineWidth = Math.max(2, h * 0.03);
+      path(r);
+      ctx.stroke();
+      const bulbs = Math.max(8, Math.round(w / 26));
+      for (let i = 0; i < bulbs; i++) {
+        const ang = (i / bulbs) * Math.PI * 2 + t * 6;
+        const on = Math.sin(ang) > 0;
+        const px = x + r * 0.6 + ((w - r * 1.2) / (bulbs - 1)) * i;
+        const topY = y + h * 0.08;
+        const botY = y + h * 0.92;
+        [topY, botY].forEach((py) => {
+          ctx.beginPath();
+          ctx.arc(px, py, Math.max(1.5, h * 0.045), 0, Math.PI * 2);
+          ctx.fillStyle = on ? hexToRgba(accent, 0.95) : hexToRgba(textColor, 0.25);
+          ctx.fill();
+        });
+      }
+      drawCenteredText(textColor, w * 0.72);
+      break;
+    }
+    case "bubble-tail": {
+      const tailH = h * 0.22;
+      ctx.beginPath();
+      ctx.roundRect(x, y, w, h - tailH, r);
+      ctx.moveTo(cx - tailH * 0.6, y + h - tailH);
+      ctx.lineTo(cx, y + h);
+      ctx.lineTo(cx + tailH * 0.6, y + h - tailH);
+      ctx.closePath();
+      ctx.fillStyle = hexToRgba(bg, 0.97);
+      ctx.fill();
+      ctx.strokeStyle = hexToRgba(textColor, 0.2);
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.save();
+      ctx.translate(0, -tailH / 2);
+      drawCenteredText(textColor, w * 0.8, (h - tailH) * 0.42);
+      ctx.restore();
+      break;
+    }
+    case "solid-pill":
+    default: {
+      path(Math.min(r, h / 2));
+      ctx.fillStyle = hexToRgba(accent, 0.95);
+      ctx.fill();
+      ctx.strokeStyle = hexToRgba("#ffffff", 0.35);
+      ctx.lineWidth = Math.max(1.5, h * 0.02);
+      path(Math.min(r, h / 2));
+      ctx.stroke();
+      drawCenteredText("#ffffff");
+      break;
+    }
+  }
+
+  ctx.restore();
 }

@@ -83,7 +83,19 @@ import {
   drawRoundTransition,
   roundTransitionCoverage,
   RoundTransitionControls,
+  ANSWER_BOX_STYLES,
+  drawAnswerBox,
 } from "@/lib/kid-elements";
+import {
+  KidAudioCard,
+  defaultKidAudio,
+  useKidAudioEngine,
+  renderKidSfxBuffer,
+  renderKidMusicBuffer,
+  audioBufferToStream,
+  type KidAudioSettings,
+  type KidAudioCue,
+} from "@/lib/kid-audio";
 
 export const Route = createFileRoute("/_authenticated/kid-videos/emoji")({
   head: () => ({
@@ -160,17 +172,64 @@ function defaultStyleMap(): Record<string, ElementStyleSpec> {
   };
 }
 
+type VoSlot = {
+  script: string;
+  url: string | null;
+  blob: Blob | null;
+  dur: number;
+  volume: number;
+};
+
+function emptyVoSlot(): VoSlot {
+  return { script: "", url: null, blob: null, dur: 0, volume: 1 };
+}
+
 type Round = {
   id: string;
   emojis: string;
   answer: string;
   category: string;
   hint: string;
-  script: string;
-  voUrl: string | null;
-  voBlob: Blob | null;
-  voDur: number;
+  voIntro: VoSlot;
+  voMid: VoSlot;
+  voAnswer: VoSlot;
+  /** Seconds after the guessing phase starts before the mid/hint VO plays. */
+  voMidOffset: number;
 };
+
+type EmojiBoxSpec = {
+  width: number; // % of canvas width
+  height: number; // % of canvas height
+  x: number; // % of canvas width, center
+  y: number; // % of canvas height, center
+  radius: number; // % of min(w,h)
+  padding: number; // % of min(w,h)
+  emojiSize: number;
+  spacing: number;
+  opacity: number;
+  bg: string;
+  borderColor: string;
+  borderWidth: number;
+  shadow: boolean;
+};
+
+function defaultEmojiBox(): EmojiBoxSpec {
+  return {
+    width: 78,
+    height: 24,
+    x: 50,
+    y: 46,
+    radius: 6,
+    padding: 5,
+    emojiSize: 1,
+    spacing: 1,
+    opacity: 1,
+    bg: "#000000",
+    borderColor: "",
+    borderWidth: 0.5,
+    shadow: true,
+  };
+}
 
 type StyleId = "bubble" | "arcade" | "chalk" | "confetti" | "clean" | "quizshow" | "hq";
 const STYLES: { id: StyleId; name: string; desc: string }[] = [
@@ -253,10 +312,10 @@ function emptyRound(i = 0): Round {
     answer: s.answer,
     category: s.category,
     hint: "",
-    script: "",
-    voUrl: null,
-    voBlob: null,
-    voDur: 0,
+    voIntro: emptyVoSlot(),
+    voMid: emptyVoSlot(),
+    voAnswer: emptyVoSlot(),
+    voMidOffset: 1.5,
   };
 }
 
@@ -317,6 +376,19 @@ function EmojiPage() {
   const [roundBadgeId, setRoundBadgeId] = useState<RoundBadgeId>("pill");
   const [roundTransition, setRoundTransition] = useState<RoundTransitionSpec>(defaultRoundTransition());
 
+  const [emojiBox, setEmojiBox] = useState<EmojiBoxSpec>(defaultEmojiBox());
+  const setEmojiBoxPatch = (patch: Partial<EmojiBoxSpec>) => setEmojiBox((b) => ({ ...b, ...patch }));
+  const [answerBoxStyle, setAnswerBoxStyle] = useState<string>(ANSWER_BOX_STYLES[0].id);
+  const [answerBoxAccent, setAnswerBoxAccent] = useState("");
+  const [answerBoxTextColor, setAnswerBoxTextColor] = useState("");
+  const [answerBoxBg, setAnswerBoxBg] = useState("");
+  const [answerBoxScale, setAnswerBoxScale] = useState(1);
+  const [answerBoxDx, setAnswerBoxDx] = useState(0);
+  const [answerBoxDy, setAnswerBoxDy] = useState(0);
+  const [audio, setAudio] = useState<KidAudioSettings>(defaultKidAudio());
+  const { playSfx } = useKidAudioEngine(audio);
+  const lastTimerSecRef = useRef<Map<string, number>>(new Map());
+
   const [provider, setProvider] = useState<TtsProvider>("elevenlabs");
   const [voice, setVoice] = useState(TTS_VOICES.elevenlabs[0].id);
   const [voStyle, setVoStyle] = useState("Bright, playful game-show host for kids");
@@ -336,6 +408,8 @@ function EmojiPage() {
   const lastRef = useRef(0);
   const audioElRef = useRef<HTMLAudioElement | null>(null);
   const playedRef = useRef<Set<string>>(new Set());
+  const sfxPlayedRef = useRef<Set<string>>(new Set());
+  const voAudioElsRef = useRef<Map<string, HTMLAudioElement>>(new Map());
 
   useEffect(() => {
     if (!channelLogoUrl) {
@@ -361,7 +435,9 @@ function EmojiPage() {
   const pal = useMemo(() => applyOverrides(basePalette, colors), [basePalette, colors]);
 
   const roundDur = useCallback(
-    (r: Round) => Math.max(timerSecs, (r.voDur || 0) + 0.6) + revealSecs,
+    (r: Round) =>
+      Math.max(timerSecs, (r.voIntro.dur || 0) + (r.voMidOffset || 0) + (r.voMid.dur || 0) + 0.6) +
+      Math.max(revealSecs, (r.voAnswer.dur || 0) + 0.4),
     [timerSecs, revealSecs],
   );
 
@@ -593,36 +669,40 @@ function EmojiPage() {
         ctx.restore();
       }
 
-      // ---- emoji card ----
-      const cardTop = chipY + hs * 1.6;
-      const cardBottom = h - M - Math.min(w, h) * (revealSecs > 0 ? 0.3 : 0.2);
-      const cardH = Math.max(Math.min(w, h) * 0.22, cardBottom - cardTop);
-      const cardW = w - M * 2;
-      const cx = w / 2;
-      const cyCard = cardTop + cardH / 2;
+      // ---- emoji card (fully controllable via emojiBox) ----
+      const cardW = (emojiBox.width / 100) * w;
+      const cardH = (emojiBox.height / 100) * h;
+      const cx = (emojiBox.x / 100) * w;
+      const cyCard = (emojiBox.y / 100) * h;
+      const cardTop = cyCard - cardH / 2;
+      const minWH = Math.min(w, h);
 
       ctx.save();
-      ctx.globalAlpha = inK;
+      ctx.globalAlpha = inK * emojiBox.opacity;
       const breathe = 1 + Math.sin(absT * 1.4) * 0.006 * bounce;
       ctx.translate(cx, cyCard);
       ctx.scale(breathe, breathe);
       ctx.translate(-cx, -cyCard);
-      if (style !== "clean") {
-        ctx.fillStyle = hexA("#000000", style === "chalk" ? 0.28 : 0.35);
-        roundRect(
-          ctx,
-          cx - cardW / 2,
-          cyCard - cardH / 2,
-          cardW,
-          cardH,
-          style === "arcade" ? Math.min(w, h) * 0.01 : Math.min(w, h) * 0.06,
-        );
+      if (style !== "clean" || emojiBox.borderWidth > 0 || emojiBox.opacity > 0) {
+        const boxRadius = (emojiBox.radius / 100) * minWH;
+        if (emojiBox.shadow) {
+          ctx.shadowColor = "rgba(0,0,0,0.45)";
+          ctx.shadowBlur = minWH * 0.02;
+          ctx.shadowOffsetY = minWH * 0.006;
+        }
+        ctx.fillStyle = hexA(emojiBox.bg, style === "chalk" ? 0.28 : 0.35 * emojiBox.opacity + (emojiBox.opacity < 1 ? 0 : 0));
+        roundRect(ctx, cx - cardW / 2, cyCard - cardH / 2, cardW, cardH, boxRadius);
         ctx.fill();
-        ctx.strokeStyle = hexA(pal.primary, style === "chalk" ? 0.5 : 0.75);
-        ctx.lineWidth = Math.max(2, Math.min(w, h) * 0.005);
-        if (style === "chalk") ctx.setLineDash([Math.min(w, h) * 0.02, Math.min(w, h) * 0.012]);
-        ctx.stroke();
-        ctx.setLineDash([]);
+        ctx.shadowBlur = 0;
+        ctx.shadowOffsetY = 0;
+        const borderCol = emojiBox.borderColor || pal.primary;
+        if (emojiBox.borderWidth > 0) {
+          ctx.strokeStyle = hexA(borderCol, style === "chalk" ? 0.5 : 0.75);
+          ctx.lineWidth = Math.max(1, minWH * (emojiBox.borderWidth / 100));
+          if (style === "chalk") ctx.setLineDash([minWH * 0.02, minWH * 0.012]);
+          ctx.stroke();
+          ctx.setLineDash([]);
+        }
       }
       ctx.restore();
 
@@ -633,11 +713,12 @@ function EmojiPage() {
         const perRow = list.length > 4 ? Math.ceil(list.length / 2) : list.length;
         const rows: string[][] = [];
         for (let i = 0; i < list.length; i += perRow) rows.push(list.slice(i, i + perRow));
+        const padFrac = Math.max(0, 1 - (emojiBox.padding / 100) * 2);
         const maxCell = Math.min(
-          (cardW * 0.86) / perRow,
-          (cardH * 0.78) / rows.length,
+          (cardW * padFrac) / perRow,
+          (cardH * padFrac) / rows.length,
         );
-        const size = maxCell * 0.92 * emojiScale;
+        const size = maxCell * 0.92 * emojiScale * emojiBox.emojiSize;
         const emojiAnim = computeAnim(anims.emoji ?? defaultAnim(), local);
         ctx.save();
         applyStyle(ctx, emojiStyleSpec, cx, cyCard, w, h);
@@ -646,12 +727,12 @@ function EmojiPage() {
         ctx.textBaseline = "middle";
         ctx.font = `${Math.round(size)}px ${EMOJI_FONT}`;
         rows.forEach((row, ri) => {
-          const rowY = cyCard + (ri - (rows.length - 1) / 2) * maxCell * 1.02 * emojiLineHeight;
+          const rowY = cyCard + (ri - (rows.length - 1) / 2) * maxCell * 1.02 * emojiLineHeight * emojiBox.spacing;
           row.forEach((e, i) => {
             const idx = ri * perRow + i;
             const pop = ease.back(Math.max(0, Math.min(1, (local - 0.12 * idx) / 0.45)));
             const wobble = Math.sin(absT * 2 + idx * 1.2) * 0.02 * bounce;
-            const x = cx + (i - (row.length - 1) / 2) * maxCell * 1.02 * emojiGap;
+            const x = cx + (i - (row.length - 1) / 2) * maxCell * 1.02 * emojiGap * emojiBox.spacing;
             ctx.save();
             ctx.translate(x, rowY);
             ctx.scale(pop * (1 + wobble), pop * (1 - wobble));
@@ -748,39 +829,30 @@ function EmojiPage() {
       if (revealing && r.answer.trim() && answerStyleSpec.visible) {
         if (style === "confetti") drawConfetti(ctx, w, h, (local - guessDur) / Math.max(0.6, revealSecs));
         const answerAnim = computeAnim(anims.answer ?? defaultAnim(), local - guessDur);
-        const bandH0 = Math.min(w, h) * 0.2;
-        const bandY0 = h - M - bandH0;
+        const bandH = Math.min(w, h) * 0.22 * answerBoxScale;
+        const bandW = Math.min(w - M * 2, Math.min(w, h) * 1.1) * answerBoxScale;
+        const bandCx = w / 2 + (answerBoxDx / 100) * w;
+        const bandCy = h - M - bandH / 2 + (answerBoxDy / 100) * h;
+        const bandX = bandCx - bandW / 2;
+        const bandY = bandCy - bandH / 2;
         ctx.save();
-        applyStyle(ctx, answerStyleSpec, w / 2, bandY0 + bandH0 / 2, w, h);
-        applyAnim(ctx, answerAnim, w / 2, bandY0 + bandH0 / 2);
-        ctx.globalAlpha *= revealK;
-        const bandH = bandH0;
-        const bandY = bandY0;
+        applyStyle(ctx, answerStyleSpec, bandCx, bandCy, w, h);
+        applyAnim(ctx, answerAnim, bandCx, bandCy);
         ctx.translate(0, (1 - revealK) * bandH * 0.4);
-        ctx.fillStyle = hexA("#000000", 0.55);
-        roundRect(ctx, M, bandY, w - M * 2, bandH, Math.min(w, h) * 0.05);
-        ctx.fill();
-        ctx.strokeStyle = hexA(pal.accent, 0.85);
-        ctx.lineWidth = Math.max(2, Math.min(w, h) * 0.005);
-        ctx.stroke();
-
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        const ls = Math.round(Math.min(w, h) * 0.028);
-        ctx.font = `800 ${ls}px ${FX_FONT}`;
-        ctx.fillStyle = pal.accent;
-        ctx.fillText("ANSWER", w / 2, bandY + bandH * 0.26);
-
         const answer = uppercase ? r.answer.toUpperCase() : r.answer;
-        const base = Math.round(Math.min(w, h) * 0.075);
-        fitText(ctx, answer, w - M * 2 - Math.min(w, h) * 0.06, base, 900);
-        const asz = parseInt(ctx.font, 10);
-        const lines = wrapText(ctx, answer, w - M * 2 - Math.min(w, h) * 0.06).slice(0, 2);
-        const startY = bandY + bandH * 0.62 - ((lines.length - 1) * asz * 1.05) / 2;
-        ctx.fillStyle = pal.text;
-        ctx.shadowColor = hexA(pal.accent, 0.5);
-        ctx.shadowBlur = asz * 0.35;
-        lines.forEach((line, i) => ctx.fillText(line, w / 2, startY + i * asz * 1.05));
+        drawAnswerBox(ctx, {
+          style: answerBoxStyle,
+          x: bandX,
+          y: bandY,
+          w: bandW,
+          h: bandH,
+          text: answer,
+          t: revealK,
+          accent: answerBoxAccent.trim() || pal.accent,
+          textColor: answerBoxTextColor.trim() || pal.text,
+          bg: answerBoxBg.trim() || pal.primary,
+          font: FX_FONT,
+        });
         ctx.restore();
       }
 
@@ -834,12 +906,20 @@ function EmojiPage() {
     },
     [
       anims,
+      answerBoxAccent,
+      answerBoxBg,
+      answerBoxDx,
+      answerBoxDy,
+      answerBoxScale,
+      answerBoxStyle,
+      answerBoxTextColor,
       aspect,
       bounce,
       channelLogo,
       channelLogoEmoji,
       drawBackground,
       drawConfetti,
+      emojiBox,
       emojiGap,
       emojiLineHeight,
       emojiOutlineColor,
@@ -926,6 +1006,14 @@ function EmojiPage() {
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
+    const playVoOnce = (key: string, url: string | null, vol: number) => {
+      if (!url || playedRef.current.has(key)) return;
+      playedRef.current.add(key);
+      const el = new Audio(url);
+      el.volume = Math.max(0, Math.min(1, vol));
+      audioElRef.current = el;
+      void el.play().catch(() => {});
+    };
     const loop = (now: number) => {
       if (playing) {
         const dt = lastRef.current ? (now - lastRef.current) / 1000 : 0;
@@ -934,29 +1022,63 @@ function EmojiPage() {
           setPlaying(false);
           timeRef.current = 0;
           playedRef.current.clear();
+          lastTimerSecRef.current.clear();
         }
-        for (const seg of timeline.segs) {
+        const seg = timeline.segs.find(
+          (sg) => timeRef.current >= sg.start && timeRef.current < sg.start + sg.dur,
+        );
+        if (seg) {
+          const startKey = `${seg.round.id}-start`;
+          if (!playedRef.current.has(startKey)) {
+            playedRef.current.add(startKey);
+            playSfx("start");
+            playVoOnce(`${seg.round.id}-intro`, seg.round.voIntro.url, seg.round.voIntro.volume);
+          }
+          const guessDur = Math.max(0.5, seg.dur - revealSecs);
+          const local = timeRef.current - seg.start;
           if (
-            seg.round.voUrl &&
-            !playedRef.current.has(seg.round.id) &&
-            timeRef.current >= seg.start &&
-            timeRef.current < seg.start + 0.35
+            seg.round.voMid.url &&
+            local >= seg.round.voMidOffset &&
+            local < guessDur
           ) {
-            playedRef.current.add(seg.round.id);
-            const el = new Audio(seg.round.voUrl);
-            audioElRef.current = el;
-            void el.play().catch(() => {});
+            playVoOnce(`${seg.round.id}-mid`, seg.round.voMid.url, seg.round.voMid.volume);
+          }
+          if (!revealSegHandled(seg.round.id) && local >= guessDur) {
+            markRevealHandled(seg.round.id);
+            playSfx("reveal");
+            playVoOnce(`${seg.round.id}-answer`, seg.round.voAnswer.url, seg.round.voAnswer.volume);
+          }
+          if (local < guessDur) {
+            const remaining = Math.max(0, guessDur - local);
+            const intRemaining = Math.ceil(remaining);
+            if (intRemaining <= 3 && intRemaining >= 1) {
+              const last = lastTimerSecRef.current.get(seg.round.id);
+              if (last !== intRemaining) {
+                lastTimerSecRef.current.set(seg.round.id, intRemaining);
+                playSfx("timer");
+              }
+            }
           }
         }
+        timeline.segs.forEach((sg, i) => {
+          if (i === 0) return;
+          const key = `transition-${sg.round.id}`;
+          if (Math.abs(timeRef.current - sg.start) < 0.05 && !playedRef.current.has(key)) {
+            playedRef.current.add(key);
+            playSfx("transition");
+          }
+        });
         setTime(timeRef.current);
       }
       lastRef.current = now;
       drawFrame(ctx, timeRef.current);
       rafRef.current = requestAnimationFrame(loop);
     };
+    const revealSegHandled = (id: string) => playedRef.current.has(`${id}-reveal`);
+    const markRevealHandled = (id: string) => playedRef.current.add(`${id}-reveal`);
     rafRef.current = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(rafRef.current);
-  }, [drawFrame, playing, timeline]);
+  }, [drawFrame, playing, timeline, playSfx, revealSecs]);
 
   const togglePlay = () => {
     if (playing) {
@@ -974,24 +1096,52 @@ function EmojiPage() {
 
   // ---------------- voiceover ----------------
 
-  const buildScript = (r: Round) =>
-    r.script.trim() ||
-    `Can you guess this one?${r.category ? ` It's a ${r.category.toLowerCase()}.` : ""} ${
-      r.hint ? `Hint: ${r.hint}.` : ""
-    } The answer is ${r.answer || "coming up"}!`;
+  const buildIntroScript = (r: Round) =>
+    r.voIntro.script.trim() ||
+    `Can you guess this one?${r.category ? ` It's a ${r.category.toLowerCase()}.` : ""}`;
+  const buildMidScript = (r: Round) =>
+    r.voMid.script.trim() || (r.hint ? `Here's a hint: ${r.hint}.` : "Think carefully, you can do it!");
+  const buildAnswerScript = (r: Round) =>
+    r.voAnswer.script.trim() || `The answer is ${r.answer || "coming up"}!`;
+
+  const generateVoSlot = async (
+    roundId: string,
+    slot: "voIntro" | "voMid" | "voAnswer",
+    text: string,
+  ) => {
+    setGenerating(true);
+    try {
+      const { url, blob } = await generateSpeech(text, { provider, voice, styleDirection: voStyle });
+      const dur = await blobDuration(blob);
+      setRounds((rs) =>
+        rs.map((r) =>
+          r.id === roundId ? { ...r, [slot]: { ...r[slot], url, blob, dur } } : r,
+        ),
+      );
+      toast.success("Voiceover generated");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Voiceover failed");
+    } finally {
+      setGenerating(false);
+    }
+  };
 
   const generateAll = async () => {
     if (!rounds.length) return;
     setGenerating(true);
     try {
       for (const r of rounds) {
-        const { url, blob } = await generateSpeech(buildScript(r), {
-          provider,
-          voice,
-          styleDirection: voStyle,
+        const intro = await generateSpeech(buildIntroScript(r), { provider, voice, styleDirection: voStyle });
+        const introDur = await blobDuration(intro.blob);
+        const mid = await generateSpeech(buildMidScript(r), { provider, voice, styleDirection: voStyle });
+        const midDur = await blobDuration(mid.blob);
+        const ans = await generateSpeech(buildAnswerScript(r), { provider, voice, styleDirection: voStyle });
+        const ansDur = await blobDuration(ans.blob);
+        setRound(r.id, {
+          voIntro: { ...r.voIntro, url: intro.url, blob: intro.blob, dur: introDur },
+          voMid: { ...r.voMid, url: mid.url, blob: mid.blob, dur: midDur },
+          voAnswer: { ...r.voAnswer, url: ans.url, blob: ans.blob, dur: ansDur },
         });
-        const dur = await blobDuration(blob);
-        setRound(r.id, { voUrl: url, voBlob: blob, voDur: dur });
       }
       toast.success("Voiceovers generated");
     } catch (e) {
@@ -1016,15 +1166,42 @@ function EmojiPage() {
       const stream = canvas.captureStream(fps);
       const audioCtx = new AudioContext();
       const dest = audioCtx.createMediaStreamDestination();
+      const cues: KidAudioCue[] = [];
+      const playVo = async (blob: Blob | null, atSeconds: number, vol: number) => {
+        if (!blob) return;
+        const buf = await audioCtx.decodeAudioData(await blob.arrayBuffer());
+        const src = audioCtx.createBufferSource();
+        const g = audioCtx.createGain();
+        g.gain.value = Math.max(0, vol);
+        src.buffer = buf;
+        src.connect(g);
+        g.connect(dest);
+        src.start(Math.max(0, audioCtx.currentTime + atSeconds));
+      };
       for (const seg of timeline.segs) {
-        if (!seg.round.voBlob) continue;
-        const buf = await audioCtx.decodeAudioData(await seg.round.voBlob.arrayBuffer());
+        const guessDur = Math.max(0.5, seg.dur - revealSecs);
+        cues.push({ kind: "start", time: seg.start });
+        if (seg.index > 0) cues.push({ kind: "transition", time: seg.start });
+        cues.push({ kind: "reveal", time: seg.start + guessDur });
+        for (let s = 1; s <= 3; s++) {
+          const t = seg.start + guessDur - s;
+          if (t >= seg.start) cues.push({ kind: "timer", time: t });
+        }
+        await playVo(seg.round.voIntro.blob, seg.start + 0.15, seg.round.voIntro.volume);
+        await playVo(seg.round.voMid.blob, seg.start + seg.round.voMidOffset, seg.round.voMid.volume);
+        await playVo(seg.round.voAnswer.blob, seg.start + guessDur + 0.1, seg.round.voAnswer.volume);
+      }
+      dest.stream.getAudioTracks().forEach((t) => stream.addTrack(t));
+
+      const sfxBuf = await renderKidSfxBuffer(audio, cues, timeline.total);
+      const musicBuf = await renderKidMusicBuffer(audio, timeline.total);
+      for (const buf of [sfxBuf, musicBuf]) {
+        if (!buf) continue;
         const src = audioCtx.createBufferSource();
         src.buffer = buf;
         src.connect(dest);
-        src.start(audioCtx.currentTime + seg.start + 0.15);
+        src.start(audioCtx.currentTime);
       }
-      dest.stream.getAudioTracks().forEach((t) => stream.addTrack(t));
 
       const mime = MediaRecorder.isTypeSupported("video/mp4;codecs=avc1")
         ? "video/mp4;codecs=avc1"
@@ -1204,21 +1381,134 @@ function EmojiPage() {
                       />
                     </div>
                   </div>
-                  <div className="mt-3 space-y-2">
-                    <Label className="text-xs text-muted-foreground">
-                      Voiceover script (optional)
-                    </Label>
-                    <Textarea
-                      rows={2}
-                      value={r.script}
-                      placeholder={buildScript(r)}
-                      onChange={(e) => setRound(r.id, { script: e.target.value })}
-                    />
-                    {r.voUrl && (
-                      <audio controls src={r.voUrl} className="w-full">
-                        <track kind="captions" />
-                      </audio>
-                    )}
+                  <div className="mt-3 space-y-3 rounded-lg border border-dashed p-3">
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-xs text-muted-foreground">Intro voiceover (round start)</Label>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 px-2 text-xs"
+                          disabled={generating}
+                          onClick={() => generateVoSlot(r.id, "voIntro", buildIntroScript(r))}
+                        >
+                          <Wand2 className="mr-1 h-3 w-3" /> Generate
+                        </Button>
+                      </div>
+                      <Textarea
+                        rows={2}
+                        value={r.voIntro.script}
+                        placeholder={buildIntroScript(r)}
+                        onChange={(e) => setRound(r.id, { voIntro: { ...r.voIntro, script: e.target.value } })}
+                      />
+                      {r.voIntro.url && (
+                        <audio controls src={r.voIntro.url} className="w-full h-8">
+                          <track kind="captions" />
+                        </audio>
+                      )}
+                      <div>
+                        <Label className="text-[11px] text-muted-foreground">
+                          Volume · {Math.round(r.voIntro.volume * 100)}%
+                        </Label>
+                        <Slider
+                          value={[r.voIntro.volume]}
+                          min={0}
+                          max={1.5}
+                          step={0.05}
+                          onValueChange={([v]) => setRound(r.id, { voIntro: { ...r.voIntro, volume: v } })}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-xs text-muted-foreground">Hint/middle voiceover (during guessing)</Label>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 px-2 text-xs"
+                          disabled={generating}
+                          onClick={() => generateVoSlot(r.id, "voMid", buildMidScript(r))}
+                        >
+                          <Wand2 className="mr-1 h-3 w-3" /> Generate
+                        </Button>
+                      </div>
+                      <Textarea
+                        rows={2}
+                        value={r.voMid.script}
+                        placeholder={buildMidScript(r)}
+                        onChange={(e) => setRound(r.id, { voMid: { ...r.voMid, script: e.target.value } })}
+                      />
+                      {r.voMid.url && (
+                        <audio controls src={r.voMid.url} className="w-full h-8">
+                          <track kind="captions" />
+                        </audio>
+                      )}
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <Label className="text-[11px] text-muted-foreground">
+                            Offset · {r.voMidOffset.toFixed(1)}s
+                          </Label>
+                          <Slider
+                            value={[r.voMidOffset]}
+                            min={0}
+                            max={8}
+                            step={0.1}
+                            onValueChange={([v]) => setRound(r.id, { voMidOffset: v })}
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-[11px] text-muted-foreground">
+                            Volume · {Math.round(r.voMid.volume * 100)}%
+                          </Label>
+                          <Slider
+                            value={[r.voMid.volume]}
+                            min={0}
+                            max={1.5}
+                            step={0.05}
+                            onValueChange={([v]) => setRound(r.id, { voMid: { ...r.voMid, volume: v } })}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-xs text-muted-foreground">Answer voiceover (reveal)</Label>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 px-2 text-xs"
+                          disabled={generating}
+                          onClick={() => generateVoSlot(r.id, "voAnswer", buildAnswerScript(r))}
+                        >
+                          <Wand2 className="mr-1 h-3 w-3" /> Generate
+                        </Button>
+                      </div>
+                      <Textarea
+                        rows={2}
+                        value={r.voAnswer.script}
+                        placeholder={buildAnswerScript(r)}
+                        onChange={(e) => setRound(r.id, { voAnswer: { ...r.voAnswer, script: e.target.value } })}
+                      />
+                      {r.voAnswer.url && (
+                        <audio controls src={r.voAnswer.url} className="w-full h-8">
+                          <track kind="captions" />
+                        </audio>
+                      )}
+                      <div>
+                        <Label className="text-[11px] text-muted-foreground">
+                          Volume · {Math.round(r.voAnswer.volume * 100)}%
+                        </Label>
+                        <Slider
+                          value={[r.voAnswer.volume]}
+                          min={0}
+                          max={1.5}
+                          step={0.05}
+                          onValueChange={([v]) => setRound(r.id, { voAnswer: { ...r.voAnswer, volume: v } })}
+                        />
+                      </div>
+                    </div>
                   </div>
                 </div>
               ))}

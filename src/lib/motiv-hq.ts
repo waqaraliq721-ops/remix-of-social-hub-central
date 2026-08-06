@@ -678,7 +678,13 @@ export type HqLayout =
   | "serifCentered"
   | "grungeRight"
   | "skySplit"
-  | "tallStack";
+  | "tallStack"
+  | "splitKinetic"
+  | "duotoneHalftone"
+  | "verticalMarquee"
+  | "filmStrip"
+  | "glitchTerminal"
+  | "liquidReveal";
 
 export type HqControlKey =
   | "headline"
@@ -689,7 +695,8 @@ export type HqControlKey =
   | "backdrop"
   | "particles"
   | "camera"
-  | "signature";
+  | "signature"
+  | "layoutOptions";
 
 export type HqTemplate = {
   id: string;
@@ -854,6 +861,144 @@ export const HQ_TEMPLATES: HqTemplate[] = [
     cameraMotion: "zoomOut",
     duotone: true,
   },
+  {
+    id: "hq-split-kinetic",
+    name: "Split Kinetic",
+    desc: "The frame cracks into two hard-edged panels that slide apart on every line, subject sandwiched between them.",
+    layout: "splitKinetic",
+    backdrop: "voidsolid",
+    backdropColor: "#0a0a0c",
+    textColor: "#f5f5f2",
+    highlightColor: "#ff3d3d",
+    font: "'Archivo Black', Impact, sans-serif",
+    weight: "900",
+    italic: false,
+    uppercase: true,
+    size: 0.072,
+    align: "center",
+    textY: 0.88,
+    cutout: true,
+    keepOriginalBg: false,
+    particles: "none",
+    controls: ["headline", "typography", "wordAnimation", "wordEditor", "subject", "backdrop", "camera", "layoutOptions"],
+    cameraMotion: "handheld",
+    duotone: false,
+  },
+  {
+    id: "hq-duotone-halftone",
+    name: "Duotone Halftone",
+    desc: "Comic-press duotone subject under an animated halftone dot field, oversized outline type wrapping around it.",
+    layout: "duotoneHalftone",
+    backdrop: "duotone",
+    backdropColor: "#0d5c63",
+    textColor: "#f3ede0",
+    highlightColor: "#ffce45",
+    font: "'Archivo Black', Impact, sans-serif",
+    weight: "900",
+    italic: false,
+    uppercase: true,
+    size: 0.06,
+    align: "center",
+    textY: 0.86,
+    cutout: true,
+    keepOriginalBg: false,
+    particles: "none",
+    controls: ["headline", "typography", "wordAnimation", "wordEditor", "subject", "backdrop", "camera", "layoutOptions"],
+    cameraMotion: "breathe",
+    duotone: true,
+  },
+  {
+    id: "hq-vertical-marquee",
+    name: "Vertical Marquee",
+    desc: "An endless scrolling column of repeated key words behind the subject, with the focus line pinned and lit up.",
+    layout: "verticalMarquee",
+    backdrop: "graytex",
+    backdropColor: "#161616",
+    textColor: "#3d3d3d",
+    highlightColor: "#f2c744",
+    font: "'Helvetica Neue', Arial, sans-serif",
+    weight: "800",
+    italic: false,
+    uppercase: true,
+    size: 0.05,
+    align: "center",
+    textY: 0.9,
+    cutout: true,
+    keepOriginalBg: false,
+    particles: "none",
+    controls: ["headline", "typography", "wordAnimation", "wordEditor", "subject", "backdrop", "camera", "layoutOptions", "signature"],
+    cameraMotion: "drift",
+    duotone: false,
+  },
+  {
+    id: "hq-film-strip",
+    name: "Film Strip",
+    desc: "Subject boxed in an animated contact-sheet frame with drifting sprockets, a running timecode and chapter slate.",
+    layout: "filmStrip",
+    backdrop: "concrete",
+    backdropColor: "#111113",
+    textColor: "#eae7df",
+    highlightColor: "#d94f3d",
+    font: "'Courier New', monospace",
+    weight: "700",
+    italic: false,
+    uppercase: true,
+    size: 0.046,
+    align: "center",
+    textY: 0.9,
+    cutout: false,
+    keepOriginalBg: true,
+    particles: "none",
+    controls: ["headline", "typography", "wordAnimation", "wordEditor", "backdrop", "camera", "layoutOptions", "signature"],
+    cameraMotion: "parallax",
+    duotone: false,
+  },
+  {
+    id: "hq-glitch-terminal",
+    name: "Glitch Terminal",
+    desc: "RGB-split glitch bursts on every line change, CRT scanlines and a mono decrypt-style type reveal.",
+    layout: "glitchTerminal",
+    backdrop: "voidsolid",
+    backdropColor: "#04070a",
+    textColor: "#7dffb0",
+    highlightColor: "#ff3ec8",
+    font: "'Courier New', monospace",
+    weight: "700",
+    italic: false,
+    uppercase: true,
+    size: 0.055,
+    align: "center",
+    textY: 0.86,
+    cutout: true,
+    keepOriginalBg: false,
+    particles: "none",
+    controls: ["headline", "typography", "wordAnimation", "wordEditor", "subject", "backdrop", "camera", "layoutOptions"],
+    cameraMotion: "handheld",
+    duotone: false,
+  },
+  {
+    id: "hq-liquid-reveal",
+    name: "Liquid Mask Reveal",
+    desc: "Text bleeds into view through an organic ink-blot mask while the subject feathers softly into a textured backdrop.",
+    layout: "liquidReveal",
+    backdrop: "aurora",
+    backdropColor: "#101b3a",
+    textColor: "#f4f1ea",
+    highlightColor: "#57c2ff",
+    font: "Georgia, 'Times New Roman', serif",
+    weight: "700",
+    italic: false,
+    uppercase: false,
+    size: 0.058,
+    align: "center",
+    textY: 0.84,
+    cutout: true,
+    keepOriginalBg: false,
+    particles: "none",
+    controls: ["headline", "typography", "wordAnimation", "wordEditor", "subject", "backdrop", "camera", "layoutOptions"],
+    cameraMotion: "drift",
+    duotone: false,
+  },
 ];
 
 /* ------------------------------------------------------------------ config */
@@ -917,6 +1062,11 @@ export type HqConfig = {
   heading: string;
   subheading: string;
   author: string;
+  // template-specific layout options (harmless no-ops for templates that don't use them)
+  splitGap: number;
+  halftoneDot: number;
+  marqueeSpeed: number;
+  glitchAmount: number;
 };
 
 export function configForTemplate(tpl: HqTemplate, prev?: Partial<HqConfig>): HqConfig {
@@ -927,6 +1077,12 @@ export function configForTemplate(tpl: HqTemplate, prev?: Partial<HqConfig>): Hq
     "hq-grunge-right": { heading: "EARN\nIT", subheading: "no shortcuts, no excuses", author: "" },
     "hq-sky-split": { heading: "keep going\nEVEN WHEN IT'S HARD", subheading: "", author: "" },
     "hq-tall-stack": { heading: "P\nA\nT\nI\nE\nN\nC\nE", subheading: "trust the process", author: "" },
+    "hq-split-kinetic": { heading: "BREAK\nTHE MOLD", subheading: "", author: "" },
+    "hq-duotone-halftone": { heading: "PRESS\nON", subheading: "", author: "" },
+    "hq-vertical-marquee": { heading: "focus wins\nEVERY TIME", subheading: "focus, grind, rise, repeat, discipline, hustle", author: "" },
+    "hq-film-strip": { heading: "TAKE\nONE", subheading: "chapter i · the grind", author: "00:00:12:04" },
+    "hq-glitch-terminal": { heading: "REBOOT\nYOUR MIND", subheading: "", author: "" },
+    "hq-liquid-reveal": { heading: "flow with\nthe chaos", subheading: "", author: "" },
   };
   const d = headingDefaults[tpl.id] ?? { heading: "Winner.", subheading: "", author: "" };
   return {
@@ -982,6 +1138,10 @@ export function configForTemplate(tpl: HqTemplate, prev?: Partial<HqConfig>): Hq
     heading: d.heading,
     subheading: d.subheading,
     author: d.author,
+    splitGap: 0.05,
+    halftoneDot: 10,
+    marqueeSpeed: 1,
+    glitchAmount: 1,
     ...prev,
   };
 }
@@ -1025,29 +1185,147 @@ function drawCover(
   ctx.drawImage(src, (w - dw) / 2, (h - dh) / 2, dw, dh);
 }
 
-function drawSubject(ctx: CanvasRenderingContext2D, i: HqFrameInput, src: Drawable, opts?: { desaturate?: boolean }) {
+function subjectRect(i: HqFrameInput, src: Drawable) {
   const { w, h, cfg, t } = i;
   const sw = "videoWidth" in src ? src.videoWidth : (src as HTMLImageElement).naturalWidth || src.width;
   const sh =
     "videoHeight" in src ? src.videoHeight : (src as HTMLImageElement).naturalHeight || src.height;
-  if (!sw || !sh) return;
   const m = subjectMotion(cfg.subjectAnim, t, cfg.subjectAnimDur, cfg.subjectAnimAmount);
   const targetH = h * 0.82 * cfg.subjectScale * m.scale;
-  const scale = targetH / sh;
+  const scale = sh ? targetH / sh : 0;
   const dw = sw * scale;
   const dh = sh * scale;
   const cx = w * cfg.subjectX + m.dx;
   const cy = h * cfg.subjectY + m.dy;
+  return { sw, sh, dw, dh, cx, cy, alpha: m.alpha };
+}
+
+function drawSubject(ctx: CanvasRenderingContext2D, i: HqFrameInput, src: Drawable, opts?: { desaturate?: boolean }) {
+  const { cfg } = i;
+  const r = subjectRect(i, src);
+  if (!r.sw || !r.sh) return;
   ctx.save();
-  ctx.globalAlpha = m.alpha;
+  ctx.globalAlpha = r.alpha;
   if (opts?.desaturate) ctx.filter = "grayscale(0.75) contrast(1.08)";
   if (cfg.subjectShadow > 0) {
     ctx.shadowColor = `rgba(0,0,0,${cfg.subjectShadow})`;
     ctx.shadowBlur = 60;
     ctx.shadowOffsetY = 24;
   }
-  ctx.drawImage(src, cx - dw / 2, cy - dh / 2, dw, dh);
+  ctx.drawImage(src, r.cx - r.dw / 2, r.cy - r.dh / 2, r.dw, r.dh);
   ctx.restore();
+}
+
+/** Draws the subject with a soft alpha-feathered edge so it blends into a textured backdrop. */
+function drawSubjectFeathered(ctx: CanvasRenderingContext2D, i: HqFrameInput, src: Drawable, featherAmount = 0.34) {
+  const { w, h } = i;
+  const r = subjectRect(i, src);
+  if (!r.sw || !r.sh) return;
+  const tmp = document.createElement("canvas");
+  tmp.width = w;
+  tmp.height = h;
+  const tctx = tmp.getContext("2d");
+  if (!tctx) return;
+  tctx.globalAlpha = r.alpha;
+  tctx.drawImage(src, r.cx - r.dw / 2, r.cy - r.dh / 2, r.dw, r.dh);
+  const outerR = Math.max(r.dw, r.dh) * 0.62;
+  const innerR = outerR * (1 - featherAmount);
+  tctx.globalCompositeOperation = "destination-in";
+  const grad = tctx.createRadialGradient(r.cx, r.cy, innerR, r.cx, r.cy, outerR);
+  grad.addColorStop(0, "rgba(255,255,255,1)");
+  grad.addColorStop(1, "rgba(255,255,255,0)");
+  tctx.fillStyle = grad;
+  tctx.fillRect(0, 0, w, h);
+  ctx.save();
+  if (i.cfg.subjectShadow > 0) {
+    ctx.shadowColor = `rgba(0,0,0,${i.cfg.subjectShadow})`;
+    ctx.shadowBlur = 50;
+    ctx.shadowOffsetY = 18;
+  }
+  ctx.drawImage(tmp, 0, 0);
+  ctx.restore();
+}
+
+/** Animated halftone dot field, brightness-modulated by an underlying sine field. */
+function drawHalftoneOverlay(
+  ctx: CanvasRenderingContext2D,
+  w: number,
+  h: number,
+  t: number,
+  color: string,
+  dotSize: number,
+) {
+  ctx.save();
+  ctx.fillStyle = color;
+  const step = Math.max(4, dotSize);
+  for (let y = 0; y < h; y += step) {
+    for (let x = 0; x < w; x += step) {
+      const wave = Math.sin(x * 0.02 + t * 0.6) * Math.cos(y * 0.018 - t * 0.4);
+      const r = (0.32 + 0.5 * ((wave + 1) / 2)) * (step * 0.42);
+      ctx.globalAlpha = 0.16 + 0.1 * ((wave + 1) / 2);
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  ctx.restore();
+}
+
+/** CRT-style scanlines with a slow vertical drift. */
+function drawScanlines(ctx: CanvasRenderingContext2D, w: number, h: number, t: number) {
+  ctx.save();
+  ctx.globalAlpha = 0.12;
+  ctx.fillStyle = "#000000";
+  const step = 4;
+  const offset = (t * 40) % step;
+  for (let y = -step + offset; y < h; y += step) {
+    ctx.fillRect(0, y, w, 1.6);
+  }
+  ctx.restore();
+  ctx.save();
+  const g = ctx.createLinearGradient(0, 0, 0, h);
+  g.addColorStop(0, "rgba(255,255,255,0.05)");
+  g.addColorStop(0.5, "rgba(255,255,255,0)");
+  g.addColorStop(1, "rgba(255,255,255,0.05)");
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, w, h);
+  ctx.restore();
+}
+
+/** Vertical strip of drifting sprocket holes for the film-strip layout. */
+function drawSprockets(ctx: CanvasRenderingContext2D, x: number, colW: number, h: number, t: number) {
+  ctx.save();
+  ctx.fillStyle = "#050505";
+  ctx.fillRect(x, 0, colW, h);
+  const holeH = colW * 0.68;
+  const gap = holeH * 1.55;
+  const offset = (t * 26) % gap;
+  ctx.fillStyle = "#dcd6c8";
+  for (let y = -gap + offset; y < h + gap; y += gap) {
+    const rx = x + colW * 0.5;
+    ctx.beginPath();
+    ctx.roundRect(rx - colW * 0.28, y, colW * 0.56, holeH, colW * 0.14);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+/** Decrypt-style reveal: characters cycle through random glyphs before locking to the real text. */
+const GLITCH_GLYPHS = "!<>-_\\/[]{}—=+*^?#@$%01ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+function decryptText(text: string, progress: number, seed: number): string {
+  const p = Math.max(0, Math.min(1, progress));
+  const lockCount = Math.floor(text.length * p);
+  let out = "";
+  for (let idx = 0; idx < text.length; idx++) {
+    const ch = text[idx];
+    if (ch === " " || idx < lockCount) {
+      out += ch;
+    } else {
+      const n = Math.floor(Math.abs(Math.sin(idx * 12.9898 + seed * 78.233)) * GLITCH_GLYPHS.length);
+      out += GLITCH_GLYPHS[n % GLITCH_GLYPHS.length];
+    }
+  }
+  return out;
 }
 
 function fontString(cfg: HqConfig, size: number, weight: string, italic: boolean, font?: string) {
@@ -1426,6 +1704,245 @@ export function renderHqFrame(i: HqFrameInput) {
         ctx.restore();
       }
       if (subject) drawSubject(ctx, i, subject, { desaturate: true });
+      paintCaption(ctx, i, boxW, topY);
+      break;
+    }
+    case "splitKinetic": {
+      paintBackdrop(i);
+      const lineStart = i.line?.start ?? 0;
+      const p = Math.max(0, Math.min(1, (t - lineStart) / 0.62));
+      const e = easeOutBack(Math.min(1, p * 1.05));
+      const gap = w * cfg.splitGap * (0.25 + 0.75 * Math.max(0, Math.min(1, easeInOutCubic(p))));
+      if (subject) drawSubject(ctx, i, subject, { desaturate: false });
+      const leftW = w / 2 - gap / 2;
+      const rightX = w / 2 + gap / 2;
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(0, 0, Math.max(0, leftW), h);
+      ctx.rect(rightX, 0, Math.max(0, w - rightX), h);
+      ctx.clip();
+      paintBackdrop(i);
+      ctx.restore();
+      const lines = cfg.heading.split("\n");
+      const size = h * 0.078;
+      const slide = (1 - e) * w * 0.5;
+      if (lines[0]) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(0, 0, Math.max(0, leftW), h);
+        ctx.clip();
+        drawHeadingLines(ctx, lines[0], leftW - w * 0.06 - slide, h * 0.46, size, size, "900", cfg.font, cfg.textColor, "right", t, cfg.uppercase, cfg.italic);
+        ctx.restore();
+      }
+      if (lines[1]) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(rightX, 0, Math.max(0, w - rightX), h);
+        ctx.clip();
+        drawHeadingLines(ctx, lines[1], rightX + w * 0.06 + slide, h * 0.56, size, size, "900", cfg.font, cfg.highlightColor, "left", t, cfg.uppercase, cfg.italic);
+        ctx.restore();
+      }
+      ctx.save();
+      ctx.fillStyle = cfg.highlightColor;
+      ctx.fillRect(w / 2 - gap / 2, 0, Math.max(0, gap), h);
+      ctx.restore();
+      paintCaption(ctx, i, boxW, topY);
+      break;
+    }
+    case "duotoneHalftone": {
+      paintBackdrop(i);
+      drawHalftoneOverlay(ctx, w, h, t, cfg.highlightColor, cfg.halftoneDot);
+      if (subject) {
+        ctx.save();
+        ctx.filter = "grayscale(1) contrast(1.15) brightness(1.05)";
+        drawSubject(ctx, i, subject);
+        ctx.restore();
+        ctx.save();
+        ctx.globalCompositeOperation = "color";
+        ctx.fillStyle = cfg.textColor;
+        ctx.globalAlpha = 0.85;
+        const r = subjectRect(i, subject);
+        ctx.fillRect(r.cx - r.dw / 2, r.cy - r.dh / 2, r.dw, r.dh);
+        ctx.restore();
+      }
+      const lines = cfg.heading.split("\n");
+      const size = h * 0.13;
+      const lh = size * 0.98;
+      const midY = h * 0.44;
+      const startY = midY - ((lines.length - 1) / 2) * lh;
+      ctx.save();
+      ctx.textAlign = "center";
+      ctx.lineWidth = Math.max(4, size * 0.05);
+      ctx.strokeStyle = cfg.highlightColor;
+      lines.forEach((ln, idx) => {
+        const pr = Math.max(0, Math.min(1, (t - idx * 0.12) / 0.6));
+        const ea = easeOutQuint(pr);
+        ctx.save();
+        ctx.globalAlpha = ea;
+        ctx.font = `900 ${size}px ${cfg.font}`;
+        ctx.strokeText(cfg.uppercase ? ln.toUpperCase() : ln, w / 2, startY + idx * lh + (1 - ea) * 24);
+        ctx.restore();
+      });
+      ctx.restore();
+      paintCaption(ctx, i, boxW, topY);
+      break;
+    }
+    case "verticalMarquee": {
+      paintBackdrop(i);
+      const words = (cfg.subheading || cfg.heading.replace(/\n/g, " "))
+        .split(/[,\n]/)
+        .map((wd) => wd.trim())
+        .filter(Boolean);
+      const list = words.length ? words : ["FOCUS", "GRIND", "RISE"];
+      const size = h * 0.09;
+      const lh = size * 1.05;
+      ctx.save();
+      ctx.textAlign = "center";
+      ctx.globalAlpha = 0.22;
+      ctx.fillStyle = cfg.textColor;
+      ctx.font = `800 ${size}px ${cfg.font}`;
+      const scroll = (t * cfg.marqueeSpeed * (h * 0.09)) % (lh * list.length);
+      const total = lh * list.length;
+      for (let y = -total + (scroll % total); y < h + lh; y += lh) {
+        const idx = Math.floor(((y + total * 4) / lh)) % list.length;
+        const word = cfg.uppercase ? list[idx].toUpperCase() : list[idx];
+        ctx.fillText(word, w / 2, y);
+      }
+      ctx.restore();
+      if (subject) drawSubject(ctx, i, subject, { desaturate: true });
+      const focus = cfg.heading.split("\n")[0] ?? "";
+      ctx.save();
+      ctx.globalAlpha = 0.92;
+      ctx.fillStyle = "rgba(0,0,0,0.35)";
+      ctx.fillRect(0, h * 0.42, w, h * 0.11);
+      ctx.restore();
+      drawHeadingLines(ctx, focus, w / 2, h * 0.49, size, h * 0.062, "900", cfg.font, cfg.highlightColor, "center", t, cfg.uppercase, cfg.italic);
+      paintCaption(ctx, i, boxW, topY);
+      break;
+    }
+    case "filmStrip": {
+      paintBackdrop(i);
+      const colW = w * 0.06;
+      const frameX = colW * 1.15;
+      const frameW = w - colW * 2.3;
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(frameX, h * 0.1, frameW, h * 0.68);
+      ctx.clip();
+      paintMediaBackground(i, { grayscale: false });
+      if (subject) drawSubject(ctx, i, subject);
+      ctx.restore();
+      ctx.save();
+      ctx.strokeStyle = "#e7e2d4";
+      ctx.lineWidth = 4;
+      ctx.strokeRect(frameX, h * 0.1, frameW, h * 0.68);
+      ctx.restore();
+      drawSprockets(ctx, 0, colW, h, t);
+      drawSprockets(ctx, w - colW, colW, h, t);
+      ctx.save();
+      ctx.textAlign = "left";
+      ctx.fillStyle = cfg.highlightColor;
+      ctx.font = `700 ${h * 0.022}px 'Courier New', monospace`;
+      ctx.fillText(cfg.author || "00:00:00:00", frameX + 12, h * 0.1 - 14);
+      ctx.restore();
+      if (cfg.subheading) {
+        ctx.save();
+        ctx.textAlign = "right";
+        ctx.fillStyle = cfg.textColor;
+        ctx.globalAlpha = 0.85;
+        ctx.font = `600 ${h * 0.02}px 'Courier New', monospace`;
+        ctx.fillText(cfg.subheading.toUpperCase(), frameX + frameW - 12, h * 0.1 - 14);
+        ctx.restore();
+      }
+      const lines = cfg.heading.split("\n");
+      const size = h * 0.05;
+      const lh = size * 1.05;
+      let y = h * 0.84;
+      lines.forEach((ln, idx) => {
+        drawHeadingLines(ctx, ln, w / 2, y + idx * lh, lh, size, "800", cfg.font, cfg.textColor, "center", t + idx * 0.05, cfg.uppercase, cfg.italic);
+      });
+      paintCaption(ctx, i, boxW, topY);
+      break;
+    }
+    case "glitchTerminal": {
+      paintBackdrop(i);
+      const lineStart = i.line?.start ?? 0;
+      const burst = Math.max(0, 1 - (t - lineStart) / 0.32) * cfg.glitchAmount;
+      if (subject) {
+        if (burst > 0.02) {
+          const off = burst * 14;
+          ctx.save();
+          ctx.globalCompositeOperation = "lighten";
+          ctx.globalAlpha = 0.7;
+          ctx.filter = "grayscale(1)";
+          ctx.save();
+          ctx.translate(-off, 0);
+          ctx.filter = "grayscale(1) sepia(1) hue-rotate(-50deg) saturate(6)";
+          drawSubject(ctx, i, subject);
+          ctx.restore();
+          ctx.save();
+          ctx.translate(off, 0);
+          ctx.filter = "grayscale(1) sepia(1) hue-rotate(140deg) saturate(6)";
+          drawSubject(ctx, i, subject);
+          ctx.restore();
+          ctx.restore();
+        }
+        drawSubject(ctx, i, subject, { desaturate: false });
+      }
+      drawScanlines(ctx, w, h, t);
+      const lines = cfg.heading.split("\n");
+      const size = h * 0.058;
+      const lh = size * 1.1;
+      const midY = h * 0.4;
+      const startY = midY - ((lines.length - 1) / 2) * lh;
+      ctx.save();
+      ctx.textAlign = "center";
+      ctx.fillStyle = cfg.textColor;
+      ctx.font = `700 ${size}px 'Courier New', monospace`;
+      lines.forEach((ln, idx) => {
+        const pr = Math.max(0, Math.min(1, (t - lineStart - idx * 0.15) / 0.5));
+        const text = decryptText(cfg.uppercase ? ln.toUpperCase() : ln, pr, idx + 1);
+        ctx.save();
+        ctx.globalAlpha = pr > 0 ? 1 : 0;
+        ctx.fillStyle = idx === lines.length - 1 ? cfg.highlightColor : cfg.textColor;
+        ctx.fillText(text, w / 2, startY + idx * lh);
+        ctx.restore();
+      });
+      ctx.restore();
+      paintCaption(ctx, i, boxW, topY);
+      break;
+    }
+    case "liquidReveal": {
+      paintBackdrop(i);
+      if (subject) drawSubjectFeathered(ctx, i, subject, 0.4);
+      const lineStart = i.line?.start ?? 0;
+      const lines = cfg.heading.split("\n");
+      const size = h * 0.066;
+      const lh = size * 1.2;
+      const midY = h * 0.42;
+      const startY = midY - ((lines.length - 1) / 2) * lh;
+      lines.forEach((ln, idx) => {
+        const p = Math.max(0, Math.min(1, (t - idx * 0.18) / 1.1));
+        const e = easeOutQuint(p);
+        const cy = startY + idx * lh;
+        ctx.save();
+        ctx.beginPath();
+        const blobs = 5;
+        for (let b = 0; b < blobs; b++) {
+          const bx = w / 2 + (b - (blobs - 1) / 2) * (w * 0.16);
+          const wobble = Math.sin(t * 1.4 + b * 1.7 + idx) * 10;
+          const r = e * (w * 0.16) + wobble;
+          ctx.moveTo(bx + r, cy);
+          ctx.arc(bx, cy - size * 0.15, Math.max(0, r), 0, Math.PI * 2);
+        }
+        ctx.clip();
+        ctx.globalAlpha = Math.min(1, e * 1.4);
+        ctx.font = `${cfg.italic ? "italic " : ""}700 ${size}px ${cfg.font}`;
+        ctx.textAlign = "center";
+        ctx.fillStyle = idx === lines.length - 1 ? cfg.highlightColor : cfg.textColor;
+        ctx.fillText(cfg.uppercase ? ln.toUpperCase() : ln, w / 2, cy + size * 0.3);
+        ctx.restore();
+      });
       paintCaption(ctx, i, boxW, topY);
       break;
     }

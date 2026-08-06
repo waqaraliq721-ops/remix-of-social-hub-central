@@ -76,7 +76,18 @@ import {
   drawRoundTransition,
   roundTransitionCoverage,
   RoundTransitionControls,
+  ANSWER_BOX_STYLES,
+  drawAnswerBox,
 } from "@/lib/kid-elements";
+import {
+  KidAudioCard,
+  defaultKidAudio,
+  useKidAudioEngine,
+  renderKidSfxBuffer,
+  renderKidMusicBuffer,
+  type KidAudioSettings,
+  type KidAudioCue,
+} from "@/lib/kid-audio";
 import {
   TTS_PROVIDERS,
   TTS_VOICES,
@@ -284,12 +295,48 @@ type Round = {
   voUrl: string | null;
   voBlob: Blob | null;
   voDur: number;
+  hintScript: string;
+  hintVoUrl: string | null;
+  hintVoBlob: Blob | null;
+  hintVoDur: number;
+  hintOffset: number;
+  hintVolume: number;
+  introVolume: number;
+  answerScript: string;
+  answerVoUrl: string | null;
+  answerVoBlob: Blob | null;
+  answerVoDur: number;
+  answerVolume: number;
 };
 
 function generateRound(difficulty: Difficulty, duration = 6): Round {
   const { expr, answer } = genQuestion(difficulty);
   const { options, correctIndex } = makeOptions(answer);
-  return { id: uid(), difficulty, expr, answer, options, correctIndex, duration, script: "", voUrl: null, voBlob: null, voDur: 0 };
+  return {
+    id: uid(),
+    difficulty,
+    expr,
+    answer,
+    options,
+    correctIndex,
+    duration,
+    script: "",
+    voUrl: null,
+    voBlob: null,
+    voDur: 0,
+    hintScript: "",
+    hintVoUrl: null,
+    hintVoBlob: null,
+    hintVoDur: 0,
+    hintOffset: 2,
+    hintVolume: 1,
+    introVolume: 1,
+    answerScript: "",
+    answerVoUrl: null,
+    answerVoBlob: null,
+    answerVoDur: 0,
+    answerVolume: 1,
+  };
 }
 
 function MathPage() {
@@ -326,6 +373,15 @@ function MathPage() {
     setLogoUrl(url);
   };
 
+  const [answerBoxStyle, setAnswerBoxStyle] = useState(ANSWER_BOX_STYLES[0].id);
+  const [answerBoxAccent, setAnswerBoxAccent] = useState("");
+  const [answerBoxTextColor, setAnswerBoxTextColor] = useState("");
+  const [answerBoxBg, setAnswerBoxBg] = useState("");
+  const [answerBoxScale, setAnswerBoxScale] = useState(1);
+  const [answerBoxDx, setAnswerBoxDx] = useState(0);
+  const [answerBoxDy, setAnswerBoxDy] = useState(0);
+  const [audio, setAudio] = useState<KidAudioSettings>(defaultKidAudio());
+  const { playSfx } = useKidAudioEngine(audio);
   const [roundBadgeId, setRoundBadgeId] = useState<RoundBadgeId>("star-burst");
   const [roundTransition, setRoundTransition] = useState<RoundTransitionSpec>(() =>
     defaultRoundTransition({ id: "wipe-left" }),
@@ -572,18 +628,26 @@ function MathPage() {
           ctx.stroke();
           if (styles.answer?.visible ?? true) {
             const ansAnim = computeAnim(anims.answer ?? defaultAnim(), local - guessDur);
+            const boxW = colW * 0.6 * answerBoxScale;
+            const boxH = rowH * 0.9 * answerBoxScale;
+            const bx = pos.x + colW / 2 + (answerBoxDx / 100) * w - boxW / 2;
+            const by = pos.y + rowH * 0.92 + (answerBoxDy / 100) * h;
             ctx.save();
-            applyStyle(ctx, styles.answer, pos.x + colW - rowH * 0.3, pos.y + rowH * 0.3, w, h);
-            applyAnim(ctx, ansAnim, pos.x + colW - rowH * 0.3, pos.y + rowH * 0.3);
-            ctx.beginPath();
-            ctx.arc(pos.x + colW - rowH * 0.3, pos.y + rowH * 0.3, rowH * 0.22, 0, Math.PI * 2);
-            ctx.fillStyle = "#22c55e";
-            ctx.fill();
-            ctx.fillStyle = "#ffffff";
-            ctx.font = `900 ${Math.round(rowH * 0.28)}px ${FX_FONT}`;
-            ctx.textAlign = "center";
-            ctx.textBaseline = "middle";
-            ctx.fillText("✓", pos.x + colW - rowH * 0.3, pos.y + rowH * 0.32);
+            applyStyle(ctx, styles.answer, bx + boxW / 2, by + boxH / 2, w, h);
+            applyAnim(ctx, ansAnim, bx + boxW / 2, by + boxH / 2);
+            drawAnswerBox(ctx, {
+              style: answerBoxStyle,
+              x: bx,
+              y: by,
+              w: boxW,
+              h: boxH,
+              text: "CORRECT!",
+              t: revealK,
+              accent: answerBoxAccent.trim() || pal.accent,
+              textColor: answerBoxTextColor.trim() || pal.text,
+              bg: answerBoxBg.trim() || pal.primary,
+              font: FX_FONT,
+            });
             ctx.restore();
           }
         }
@@ -746,12 +810,45 @@ function MathPage() {
         const seg = timeline.segs.find(
           (sg) => timeRef.current >= sg.start && timeRef.current < sg.start + sg.dur,
         );
-        if (seg && seg.round.voUrl && !playedRef.current.has(seg.round.id)) {
+        if (seg && !playedRef.current.has(seg.round.id)) {
           playedRef.current.add(seg.round.id);
-          const el = new Audio(seg.round.voUrl);
-          audioElRef.current = el;
-          void el.play().catch(() => {});
+          playSfx("start");
+          if (seg.round.voUrl) {
+            const el = new Audio(seg.round.voUrl);
+            audioElRef.current = el;
+            void el.play().catch(() => {});
+          }
         }
+        if (seg) {
+          const guessDur = Math.max(0.5, seg.dur - revealSecs);
+          const local = timeRef.current - seg.start;
+          const hintKey = `${seg.round.id}-hint`;
+          if (
+            seg.round.hintVoUrl &&
+            local >= seg.round.hintOffset &&
+            local < guessDur &&
+            !playedRef.current.has(hintKey)
+          ) {
+            playedRef.current.add(hintKey);
+            void new Audio(seg.round.hintVoUrl).play().catch(() => {});
+          }
+          const revealKey = `${seg.round.id}-reveal`;
+          if (local >= guessDur && !playedRef.current.has(revealKey)) {
+            playedRef.current.add(revealKey);
+            playSfx("reveal");
+            if (seg.round.answerVoUrl) {
+              void new Audio(seg.round.answerVoUrl).play().catch(() => {});
+            }
+          }
+        }
+        timeline.segs.forEach((sg, i) => {
+          if (i === 0) return;
+          const key = `transition-${sg.round.id}`;
+          if (Math.abs(timeRef.current - sg.start) < 0.05 && !playedRef.current.has(key)) {
+            playedRef.current.add(key);
+            playSfx("transition");
+          }
+        });
         setTime(timeRef.current);
       }
       lastRef.current = now;
@@ -777,21 +874,53 @@ function MathPage() {
   };
 
 
-  const buildScript = (r: Round) =>
-    r.script.trim() || `What is ${r.expr}? The answer is ${r.answer}!`;
+  const buildScript = (r: Round) => r.script.trim() || `What is ${r.expr}?`;
+  const buildHintScript = (r: Round) => r.hintScript.trim() || `Think carefully, you can do it!`;
+  const buildAnswerScript = (r: Round) =>
+    r.answerScript.trim() || `The answer is ${r.answer}!`;
+
+  const generateVo = async (
+    id: string,
+    text: string,
+    field: "voUrl" | "hintVoUrl" | "answerVoUrl",
+    blobField: "voBlob" | "hintVoBlob" | "answerVoBlob",
+    durField: "voDur" | "hintVoDur" | "answerVoDur",
+  ) => {
+    setGenerating(true);
+    try {
+      const { url, blob } = await generateSpeech(text, { provider, voice, styleDirection: voStyle });
+      const dur = await blobDuration(blob);
+      setRound(id, { [field]: url, [blobField]: blob, [durField]: dur } as Partial<Round>);
+      toast.success("Voiceover generated");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Voiceover failed");
+    } finally {
+      setGenerating(false);
+    }
+  };
 
   const generateAll = async () => {
     if (!rounds.length) return;
     setGenerating(true);
     try {
       for (const r of rounds) {
-        const { url, blob } = await generateSpeech(buildScript(r), {
-          provider,
-          voice,
-          styleDirection: voStyle,
+        const intro = await generateSpeech(buildScript(r), { provider, voice, styleDirection: voStyle });
+        const introDur = await blobDuration(intro.blob);
+        const hint = await generateSpeech(buildHintScript(r), { provider, voice, styleDirection: voStyle });
+        const hintDur = await blobDuration(hint.blob);
+        const answer = await generateSpeech(buildAnswerScript(r), { provider, voice, styleDirection: voStyle });
+        const answerDur = await blobDuration(answer.blob);
+        setRound(r.id, {
+          voUrl: intro.url,
+          voBlob: intro.blob,
+          voDur: introDur,
+          hintVoUrl: hint.url,
+          hintVoBlob: hint.blob,
+          hintVoDur: hintDur,
+          answerVoUrl: answer.url,
+          answerVoBlob: answer.blob,
+          answerVoDur: answerDur,
         });
-        const dur = await blobDuration(blob);
-        setRound(r.id, { voUrl: url, voBlob: blob, voDur: dur });
       }
       toast.success("Voiceovers generated");
     } catch (e) {
@@ -816,15 +945,38 @@ function MathPage() {
       const stream = canvas.captureStream(fps);
       const audioCtx = new AudioContext();
       const dest = audioCtx.createMediaStreamDestination();
+      const cues: KidAudioCue[] = [];
       for (const seg of timeline.segs) {
-        if (!seg.round.voBlob) continue;
-        const buf = await audioCtx.decodeAudioData(await seg.round.voBlob.arrayBuffer());
+        const guessDur = Math.max(0.5, seg.dur - revealSecs);
+        cues.push({ kind: "start", time: seg.start });
+        if (seg.index > 0) cues.push({ kind: "transition", time: seg.start });
+        cues.push({ kind: "reveal", time: seg.start + guessDur });
+        const playVo = async (blob: Blob | null, atSeconds: number, vol: number) => {
+          if (!blob) return;
+          const buf = await audioCtx.decodeAudioData(await blob.arrayBuffer());
+          const src = audioCtx.createBufferSource();
+          const g = audioCtx.createGain();
+          g.gain.value = Math.max(0, vol);
+          src.buffer = buf;
+          src.connect(g);
+          g.connect(dest);
+          src.start(Math.max(0, audioCtx.currentTime + atSeconds));
+        };
+        await playVo(seg.round.voBlob, seg.start + 0.15, seg.round.introVolume ?? 1);
+        await playVo(seg.round.hintVoBlob, seg.start + seg.round.hintOffset, seg.round.hintVolume ?? 1);
+        await playVo(seg.round.answerVoBlob, seg.start + guessDur + 0.1, seg.round.answerVolume ?? 1);
+      }
+      dest.stream.getAudioTracks().forEach((tr) => stream.addTrack(tr));
+
+      const sfxBuf = await renderKidSfxBuffer(audio, cues, timeline.total);
+      const musicBuf = await renderKidMusicBuffer(audio, timeline.total);
+      for (const buf of [sfxBuf, musicBuf]) {
+        if (!buf) continue;
         const src = audioCtx.createBufferSource();
         src.buffer = buf;
         src.connect(dest);
-        src.start(audioCtx.currentTime + seg.start + 0.15);
+        src.start(audioCtx.currentTime);
       }
-      dest.stream.getAudioTracks().forEach((tr) => stream.addTrack(tr));
       const mime = MediaRecorder.isTypeSupported("video/mp4;codecs=avc1")
         ? "video/mp4;codecs=avc1"
         : "video/webm;codecs=vp9";
@@ -1041,6 +1193,59 @@ function MathPage() {
                       onValueChange={([v]) => setRound(r.id, { duration: v })}
                     />
                   </div>
+
+                  <div className="mt-3 space-y-3 rounded-lg border p-3">
+                    <Label className="text-xs font-medium">Voiceovers (intro · hint · answer)</Label>
+                    {(
+                      [
+                        { label: "Intro (round start)", script: r.script, key: "script", url: r.voUrl, vol: r.introVolume, volKey: "introVolume", field: "voUrl" as const, blobField: "voBlob" as const, durField: "voDur" as const, placeholder: buildScript(r) },
+                        { label: "Hint (mid-round)", script: r.hintScript, key: "hintScript", url: r.hintVoUrl, vol: r.hintVolume, volKey: "hintVolume", field: "hintVoUrl" as const, blobField: "hintVoBlob" as const, durField: "hintVoDur" as const, placeholder: buildHintScript(r) },
+                        { label: "Answer (reveal)", script: r.answerScript, key: "answerScript", url: r.answerVoUrl, vol: r.answerVolume, volKey: "answerVolume", field: "answerVoUrl" as const, blobField: "answerVoBlob" as const, durField: "answerVoDur" as const, placeholder: buildAnswerScript(r) },
+                      ] as const
+                    ).map((v) => (
+                      <div key={v.label} className="space-y-1">
+                        <Label className="text-[11px] text-muted-foreground">{v.label}</Label>
+                        <Input
+                          value={v.script}
+                          placeholder={v.placeholder}
+                          onChange={(e) => setRound(r.id, { [v.key]: e.target.value } as Partial<Round>)}
+                        />
+                        <div className="flex items-center gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={generating}
+                            onClick={() => generateVo(r.id, v.script.trim() || v.placeholder, v.field, v.blobField, v.durField)}
+                          >
+                            <Wand2 className="mr-1 h-3 w-3" /> Generate
+                          </Button>
+                          {v.url && <audio src={v.url} controls className="h-8 flex-1" />}
+                        </div>
+                        {v.label === "Hint (mid-round)" && (
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Hint offset · {r.hintOffset.toFixed(1)}s</Label>
+                            <Slider
+                              value={[r.hintOffset]}
+                              min={0}
+                              max={Math.max(1, r.duration)}
+                              step={0.1}
+                              onValueChange={([nv]) => setRound(r.id, { hintOffset: nv })}
+                            />
+                          </div>
+                        )}
+                        <div>
+                          <Label className="text-[11px] text-muted-foreground">Volume · {Math.round(v.vol * 100)}%</Label>
+                          <Slider
+                            value={[v.vol]}
+                            min={0}
+                            max={1.5}
+                            step={0.05}
+                            onValueChange={([nv]) => setRound(r.id, { [v.volKey]: nv } as Partial<Round>)}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               ))}
             </CardContent>
@@ -1100,6 +1305,58 @@ function MathPage() {
           </Card>
 
           <ColorCustomiser base={basePalette} value={colors} onChange={setColors} />
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Answer box</CardTitle>
+              <CardDescription>Template, colours and placement of the correct-answer chip.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div>
+                <Label className="text-xs text-muted-foreground">Template</Label>
+                <Select value={answerBoxStyle} onValueChange={setAnswerBoxStyle}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ANSWER_BOX_STYLES.map((o) => (
+                      <SelectItem key={o.id} value={o.id}>
+                        {o.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <Label className="text-[11px] text-muted-foreground">Accent</Label>
+                  <Input type="color" value={answerBoxAccent || pal.accent} onChange={(e) => setAnswerBoxAccent(e.target.value)} className="h-8 w-full cursor-pointer p-1" />
+                </div>
+                <div>
+                  <Label className="text-[11px] text-muted-foreground">Text</Label>
+                  <Input type="color" value={answerBoxTextColor || pal.text} onChange={(e) => setAnswerBoxTextColor(e.target.value)} className="h-8 w-full cursor-pointer p-1" />
+                </div>
+                <div>
+                  <Label className="text-[11px] text-muted-foreground">Background</Label>
+                  <Input type="color" value={answerBoxBg || pal.primary} onChange={(e) => setAnswerBoxBg(e.target.value)} className="h-8 w-full cursor-pointer p-1" />
+                </div>
+              </div>
+              <div>
+                <Label className="text-[11px] text-muted-foreground">Scale · {answerBoxScale.toFixed(2)}x</Label>
+                <Slider value={[answerBoxScale]} min={0.5} max={2} step={0.05} onValueChange={([v]) => setAnswerBoxScale(v)} />
+              </div>
+              <div>
+                <Label className="text-[11px] text-muted-foreground">X offset · {answerBoxDx.toFixed(0)}%</Label>
+                <Slider value={[answerBoxDx]} min={-30} max={30} step={1} onValueChange={([v]) => setAnswerBoxDx(v)} />
+              </div>
+              <div>
+                <Label className="text-[11px] text-muted-foreground">Y offset · {answerBoxDy.toFixed(0)}%</Label>
+                <Slider value={[answerBoxDy]} min={-30} max={30} step={1} onValueChange={([v]) => setAnswerBoxDy(v)} />
+              </div>
+            </CardContent>
+          </Card>
+
+          <KidAudioCard value={audio} onChange={setAudio} />
 
           <Card>
             <CardHeader>

@@ -88,6 +88,15 @@ import {
   roundTransitionCoverage,
   RoundTransitionControls,
 } from "@/lib/kid-elements";
+import {
+  KidAudioCard,
+  defaultKidAudio,
+  useKidAudioEngine,
+  renderKidSfxBuffer,
+  renderKidMusicBuffer,
+  type KidAudioSettings,
+  type KidAudioCue,
+} from "@/lib/kid-audio";
 
 export const Route = createFileRoute("/_authenticated/kid-videos/wyr")({
   head: () => ({
@@ -209,6 +218,28 @@ const SIDE_COLORS: { id: string; name: string; a: string; b: string }[] = [
 
 const uid = () => Math.random().toString(36).slice(2, 9);
 
+function isPlausibleImageUrl(u: string): boolean {
+  try {
+    const parsed = new URL(u);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return false;
+    return /\.(png|jpe?g|webp|gif|avif|bmp|svg)(\?.*)?$/i.test(parsed.pathname) || parsed.search.length > 0 || parsed.hostname.length > 0;
+  } catch {
+    return false;
+  }
+}
+
+function loadImageFromUrl(
+  url: string,
+  onLoad: (img: HTMLImageElement) => void,
+  onError: (msg: string) => void,
+) {
+  const img = new Image();
+  img.crossOrigin = "anonymous";
+  img.onload = () => onLoad(img);
+  img.onerror = () => onError("Couldn't load that image (check the URL or that it allows cross-origin access).");
+  img.src = url;
+}
+
 function emptyRound(): Round {
   return {
     id: uid(),
@@ -239,6 +270,75 @@ function drawCover(
   const dw = img.naturalWidth * ratio;
   const dh = img.naturalHeight * ratio;
   ctx.drawImage(img, x + (w - dw) / 2, y + (h - dh) / 2, dw, dh);
+}
+
+// Pre-render an uploaded/URL image, cropped+scaled to its on-canvas box, into
+// an offscreen canvas so hot render loops never re-decode/re-scale the
+// original bitmap every frame — just blit the cached canvas.
+function getCachedCover(
+  cache: Map<string, HTMLCanvasElement>,
+  img: HTMLImageElement,
+  w: number,
+  h: number,
+  zoom: number,
+): HTMLCanvasElement {
+  const dw = Math.max(1, Math.round(w));
+  const dh = Math.max(1, Math.round(h));
+  const key = `${img.src}|${dw}x${dh}|${zoom.toFixed(3)}`;
+  let cached = cache.get(key);
+  if (!cached) {
+    cached = document.createElement("canvas");
+    cached.width = dw;
+    cached.height = dh;
+    const cctx = cached.getContext("2d");
+    if (cctx && img.naturalWidth && img.naturalHeight) {
+      const ratio = Math.max(dw / img.naturalWidth, dh / img.naturalHeight) * zoom;
+      const iw = img.naturalWidth * ratio;
+      const ih = img.naturalHeight * ratio;
+      cctx.drawImage(img, (dw - iw) / 2, (dh - ih) / 2, iw, ih);
+    }
+    cache.set(key, cached);
+    if (cache.size > 80) {
+      const firstKey = cache.keys().next().value;
+      if (firstKey !== undefined) cache.delete(firstKey);
+    }
+  }
+  return cached;
+}
+
+function drawCoverCached(
+  ctx: CanvasRenderingContext2D,
+  cache: Map<string, HTMLCanvasElement>,
+  img: HTMLImageElement,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  zoom = 1,
+) {
+  const cached = getCachedCover(cache, img, w, h, zoom);
+  ctx.drawImage(cached, x, y, w, h);
+}
+
+// Cache CanvasGradient objects per-context+key so gradients aren't rebuilt
+// on every animation frame (gradients are cheap-ish but add up at 60fps).
+function getCachedGradient(
+  cacheMap: WeakMap<CanvasRenderingContext2D, Map<string, CanvasGradient>>,
+  ctx: CanvasRenderingContext2D,
+  key: string,
+  build: () => CanvasGradient,
+): CanvasGradient {
+  let m = cacheMap.get(ctx);
+  if (!m) {
+    m = new Map();
+    cacheMap.set(ctx, m);
+  }
+  let g = m.get(key);
+  if (!g) {
+    g = build();
+    m.set(key, g);
+  }
+  return g;
 }
 
 function WyrPage() {
@@ -299,13 +399,24 @@ function WyrPage() {
   const [time, setTime] = useState(0);
   const [exporting, setExporting] = useState(false);
   const [exportProgress, setExportProgress] = useState(0);
+  const [audio, setAudio] = useState<KidAudioSettings>(() => defaultKidAudio());
+  const { playSfx, startMusic, stopMusic } = useKidAudioEngine(audio);
+
+  const [urlDraft, setUrlDraft] = useState<Record<string, string>>({});
+  const [urlErr, setUrlErr] = useState<Record<string, string>>({});
+  const [logoUrlDraft, setLogoUrlDraft] = useState("");
+  const [logoUrlErr, setLogoUrlErr] = useState("");
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const canvasVisibleRef = useRef(true);
   const rafRef = useRef(0);
   const timeRef = useRef(0);
-  const lastRef = useRef(0);
+  const playAnchorRef = useRef(0);
   const audioElRef = useRef<HTMLAudioElement | null>(null);
   const playedRef = useRef<Set<string>>(new Set());
+  const sfxPlayedRef = useRef<Set<string>>(new Set());
+  const imageCacheRef = useRef<Map<string, HTMLCanvasElement>>(new Map());
+  const gradientCacheRef = useRef<WeakMap<CanvasRenderingContext2D, Map<string, CanvasGradient>>>(new WeakMap());
 
   const dims = ASPECTS[aspect];
   const colors = SIDE_COLORS.find((c) => c.id === sideColor) ?? SIDE_COLORS[0];
@@ -383,7 +494,7 @@ function WyrPage() {
         const slide = (1 - intro01) * (vertical ? halfH : halfW) * 0.25 * s.dir;
         ctx.translate(vertical ? 0 : slide, vertical ? slide : 0);
         if (s.img) {
-          drawCover(ctx, s.img, s.x, s.y, halfW, halfH, zoom + local * 0.01);
+          drawCoverCached(ctx, imageCacheRef.current, s.img, s.x, s.y, halfW, halfH, zoom);
         } else {
           const g = ctx.createLinearGradient(s.x, s.y, s.x + halfW, s.y + halfH);
           g.addColorStop(0, hexA(s.color, 0.35));
@@ -574,8 +685,9 @@ function WyrPage() {
       drawChannelLogo(ctx, channelLogoImg, channelLogo, w, h, local);
 
       // percentage reveal in the last second
-      if (showPct && local > dur - 1.2) {
-        const k = ease.out(Math.min(1, (local - (dur - 1.2)) / 0.5));
+      const guessDur = Math.min(timerSecs, dur);
+      if (showPct && local >= guessDur) {
+        const k = ease.out(Math.min(1, (local - guessDur) / 0.5));
         const label = (pct: number) => `${Math.round(pct)}%`;
         ctx.save();
         ctx.globalAlpha = k;
@@ -644,9 +756,12 @@ function WyrPage() {
         absT,
         bgIntensity,
       );
-      const v = ctx.createRadialGradient(w / 2, h / 2, h * 0.2, w / 2, h / 2, h * 0.85);
-      v.addColorStop(0, "rgba(0,0,0,0)");
-      v.addColorStop(1, "rgba(0,0,0,0.5)");
+      const v = getCachedGradient(gradientCacheRef.current, ctx, `vig-hq-${w}x${h}`, () => {
+        const g = ctx.createRadialGradient(w / 2, h / 2, h * 0.2, w / 2, h / 2, h * 0.85);
+        g.addColorStop(0, "rgba(0,0,0,0)");
+        g.addColorStop(1, "rgba(0,0,0,0.5)");
+        return g;
+      });
       ctx.fillStyle = v;
       ctx.fillRect(0, 0, w, h);
 
@@ -737,7 +852,7 @@ function WyrPage() {
         ctx.save();
         ctx.clip();
         if (p.img) {
-          drawCover(ctx, p.img, p.x, panelTop, panelW, panelH, zoom);
+          drawCoverCached(ctx, imageCacheRef.current, p.img, p.x, panelTop, panelW, panelH, zoom);
         } else {
           ctx.fillStyle = hexA(p.color, 0.4);
           ctx.fillRect(p.x, panelTop, panelW, panelH);
@@ -836,6 +951,41 @@ function WyrPage() {
         drawTimeBar(ctx, timebarStyle, M * 1.3, barY, barW, barH, frac, { primary: "#34d399", accent: colors.b, text: "#ffffff" }, local);
         ctx.restore();
       }
+
+      // result reveal — strictly gated on the guessing timer having elapsed
+      const revealGuessDurHQ = Math.min(timerSecs, dur);
+      if (showPct && local >= revealGuessDurHQ) {
+        const k = ease.out(Math.min(1, (local - revealGuessDurHQ) / 0.5));
+        const pcts = [r.pctA, 100 - r.pctA];
+        const winnerIdx = r.pctA >= 50 ? 0 : 1;
+        panels.forEach((p, i) => {
+          const panelStyle = styles[p.key] ?? defaultStyle();
+          if (!panelStyle.visible) return;
+          ctx.save();
+          ctx.globalAlpha = k;
+          if (i === winnerIdx) {
+            ctx.save();
+            ctx.shadowColor = "#facc15";
+            ctx.shadowBlur = h * 0.035;
+            ctx.lineWidth = h * 0.012;
+            ctx.strokeStyle = "#facc15";
+            roundRect(ctx, p.x, panelTop, panelW, panelH, h * 0.03);
+            ctx.stroke();
+            ctx.restore();
+          }
+          ctx.fillStyle = "rgba(0,0,0,0.45)";
+          roundRect(ctx, p.x + panelW * 0.28, panelTop + panelH * 0.06, panelW * 0.44, h * 0.09, h * 0.02);
+          ctx.fill();
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.font = `900 ${Math.round(h * 0.055)}px ${FX_FONT}`;
+          ctx.fillStyle = i === winnerIdx ? "#facc15" : "#ffffff";
+          ctx.shadowColor = "rgba(0,0,0,0.8)";
+          ctx.shadowBlur = h * 0.015;
+          ctx.fillText(`${Math.round(pcts[i])}%`, p.x + panelW / 2, panelTop + panelH * 0.105);
+          ctx.restore();
+        });
+      }
     },
     [
       anims,
@@ -844,6 +994,7 @@ function WyrPage() {
       showHeading,
       showTimer,
       showVs,
+      showPct,
       timerSecs,
       uppercase,
       zoom,
@@ -882,9 +1033,12 @@ function WyrPage() {
         absT,
         bgIntensity,
       );
-      const v = ctx.createRadialGradient(w / 2, h / 2, h * 0.15, w / 2, h / 2, h * 0.9);
-      v.addColorStop(0, "rgba(0,0,0,0)");
-      v.addColorStop(1, "rgba(0,0,0,0.45)");
+      const v = getCachedGradient(gradientCacheRef.current, ctx, `vig-uhd-${w}x${h}`, () => {
+        const g = ctx.createRadialGradient(w / 2, h / 2, h * 0.15, w / 2, h / 2, h * 0.9);
+        g.addColorStop(0, "rgba(0,0,0,0)");
+        g.addColorStop(1, "rgba(0,0,0,0.45)");
+        return g;
+      });
       ctx.fillStyle = v;
       ctx.fillRect(0, 0, w, h);
 
@@ -998,7 +1152,7 @@ function WyrPage() {
         ctx.save();
         ctx.clip();
         if (p.img) {
-          drawCover(ctx, p.img, p.x, panelTop, panelW, panelH, zoom);
+          drawCoverCached(ctx, imageCacheRef.current, p.img, p.x, panelTop, panelW, panelH, zoom);
         } else {
           ctx.fillStyle = "rgba(255,255,255,0.12)";
           ctx.fillRect(p.x, panelTop, panelW, panelH);
@@ -1107,6 +1261,41 @@ function WyrPage() {
         }
         ctx.restore();
       }
+
+      // result reveal — strictly gated on the guessing timer having elapsed
+      const revealGuessDurUHD = Math.min(timerSecs, dur);
+      if (showPct && local >= revealGuessDurUHD) {
+        const k = ease.out(Math.min(1, (local - revealGuessDurUHD) / 0.5));
+        const pcts = [r.pctA, 100 - r.pctA];
+        const winnerIdx = r.pctA >= 50 ? 0 : 1;
+        panels.forEach((p, i) => {
+          const panelStyle = styles[p.key] ?? defaultStyle();
+          if (!panelStyle.visible) return;
+          ctx.save();
+          ctx.globalAlpha = k;
+          if (i === winnerIdx) {
+            ctx.save();
+            ctx.shadowColor = "#ffe066";
+            ctx.shadowBlur = h * 0.035;
+            ctx.lineWidth = h * 0.013;
+            ctx.strokeStyle = "#ffe066";
+            roundRect(ctx, p.x, panelTop, panelW, panelH, h * 0.035);
+            ctx.stroke();
+            ctx.restore();
+          }
+          ctx.fillStyle = "rgba(58,20,0,0.55)";
+          roundRect(ctx, p.x + panelW * 0.26, panelTop + panelH * 0.06, panelW * 0.48, h * 0.09, h * 0.02);
+          ctx.fill();
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.font = `900 ${Math.round(h * 0.055)}px ${FX_FONT}`;
+          ctx.fillStyle = i === winnerIdx ? "#ffe066" : "#ffffff";
+          ctx.shadowColor = "rgba(0,0,0,0.8)";
+          ctx.shadowBlur = h * 0.015;
+          ctx.fillText(`${Math.round(pcts[i])}%`, p.x + panelW / 2, panelTop + panelH * 0.105);
+          ctx.restore();
+        });
+      }
     },
     [
       anims,
@@ -1115,6 +1304,7 @@ function WyrPage() {
       showHeading,
       showTimer,
       showVs,
+      showPct,
       timerSecs,
       uppercase,
       zoom,
@@ -1201,7 +1391,21 @@ function WyrPage() {
     [aspect, dims, drawRound, drawRoundHQ, drawRoundUHD, intro, outro, timeline, roundTransition],
   );
 
-  // preview loop
+  // Track canvas visibility so the preview RAF loop can skip rendering
+  // (and the underlying work) while the canvas is scrolled out of view.
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || typeof IntersectionObserver === "undefined") return;
+    const io = new IntersectionObserver(([entry]) => {
+      canvasVisibleRef.current = entry?.isIntersecting ?? true;
+    });
+    io.observe(canvas);
+    return () => io.disconnect();
+  }, []);
+
+  // preview loop — driven by a single RAF using a timestamp-derived clock
+  // (anchored to wall time) instead of accumulating per-frame deltas, so
+  // dropped frames never cause drift/stutter.
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -1209,12 +1413,12 @@ function WyrPage() {
     if (!ctx) return;
     const loop = (now: number) => {
       if (playing) {
-        const dt = lastRef.current ? (now - lastRef.current) / 1000 : 0;
-        timeRef.current = Math.min(timeline.total, timeRef.current + dt);
+        timeRef.current = Math.min(timeline.total, (now - playAnchorRef.current) / 1000);
         if (timeRef.current >= timeline.total) {
           setPlaying(false);
           timeRef.current = 0;
           playedRef.current.clear();
+          sfxPlayedRef.current.clear();
         }
         // fire voiceovers
         for (const seg of timeline.segs) {
@@ -1229,27 +1433,62 @@ function WyrPage() {
             audioElRef.current = el;
             void el.play().catch(() => {});
           }
+          const roundGuessDur = Math.min(timerSecs, seg.dur);
+          const cueDefs: { key: string; kind: "start" | "timer" | "reveal"; at: number }[] = [
+            { key: `${seg.round.id}-start`, kind: "start", at: seg.start },
+            { key: `${seg.round.id}-timer`, kind: "timer", at: seg.start + Math.max(0, roundGuessDur - 1) },
+            { key: `${seg.round.id}-reveal`, kind: "reveal", at: seg.start + roundGuessDur },
+          ];
+          for (const cue of cueDefs) {
+            if (
+              !sfxPlayedRef.current.has(cue.key) &&
+              timeRef.current >= cue.at &&
+              timeRef.current < cue.at + 0.2
+            ) {
+              sfxPlayedRef.current.add(cue.key);
+              playSfx(cue.kind);
+            }
+          }
+        }
+        if (
+          timeline.segs.length > 1 &&
+          !sfxPlayedRef.current.has(`transition-${Math.floor(timeRef.current)}`)
+        ) {
+          for (let i = 1; i < timeline.segs.length; i++) {
+            const key = `transition-${timeline.segs[i].round.id}`;
+            const boundary = timeline.segs[i].start;
+            if (
+              !sfxPlayedRef.current.has(key) &&
+              timeRef.current >= boundary &&
+              timeRef.current < boundary + 0.2
+            ) {
+              sfxPlayedRef.current.add(key);
+              playSfx("transition");
+            }
+          }
         }
         setTime(timeRef.current);
       }
-      lastRef.current = now;
-      drawFrame(ctx, timeRef.current);
+      if (canvasVisibleRef.current) drawFrame(ctx, timeRef.current);
       rafRef.current = requestAnimationFrame(loop);
     };
     rafRef.current = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(rafRef.current);
-  }, [drawFrame, playing, timeline]);
+  }, [drawFrame, playing, timeline, playSfx, timerSecs]);
 
   const togglePlay = () => {
     if (playing) {
       audioElRef.current?.pause();
+      audio.music.enabled && stopMusic();
       setPlaying(false);
     } else {
       if (timeRef.current >= timeline.total - 0.05) {
         timeRef.current = 0;
         playedRef.current.clear();
+        sfxPlayedRef.current.clear();
       }
-      lastRef.current = 0;
+      playAnchorRef.current = performance.now() - timeRef.current * 1000;
+      if (audio.music.enabled) startMusic(timeRef.current);
       setPlaying(true);
     }
   };
@@ -1293,10 +1532,21 @@ function WyrPage() {
     setExporting(true);
     setExportProgress(0);
     try {
-      const fps = 60;
-      const stream = canvas.captureStream(fps);
+      const fps = 30;
+      // Deterministic, fixed-timestep capture: we drive the MediaStreamTrack
+      // manually (captureStream(0) = no automatic per-RAF capture) and push
+      // exactly one frame per rendered timestep via requestFrame(), so the
+      // recorded video never depends on how fast this tab's RAF/drawing
+      // loop actually runs — no dropped/duplicated frames, no stutter.
+      const stream = canvas.captureStream(0);
+      const [videoTrack] = stream.getVideoTracks();
+      const trackWithFrame = videoTrack as MediaStreamTrack & { requestFrame?: () => void };
+      const canRequestFrame = typeof trackWithFrame.requestFrame === "function";
+
       const audioCtx = new AudioContext();
       const dest = audioCtx.createMediaStreamDestination();
+
+      // Voiceover playback, per round.
       for (const seg of timeline.segs) {
         if (!seg.round.voBlob) continue;
         const buf = await audioCtx.decodeAudioData(await seg.round.voBlob.arrayBuffer());
@@ -1305,6 +1555,29 @@ function WyrPage() {
         src.connect(dest);
         src.start(audioCtx.currentTime + seg.start + 0.15);
       }
+
+      // SFX + music timeline, rendered offline then mixed in alongside the
+      // voiceover track — mirrors the cue schedule the live preview uses.
+      const cues: KidAudioCue[] = [];
+      for (const seg of timeline.segs) {
+        const guessDur = Math.min(timerSecs, seg.dur);
+        cues.push({ kind: "start", time: seg.start });
+        if (seg.index > 0) cues.push({ kind: "transition", time: seg.start });
+        cues.push({ kind: "timer", time: seg.start + Math.max(0, guessDur - 1) });
+        cues.push({ kind: "reveal", time: seg.start + guessDur });
+      }
+      const [sfxBuf, musicBuf] = await Promise.all([
+        renderKidSfxBuffer(audio, cues, timeline.total),
+        renderKidMusicBuffer(audio, timeline.total),
+      ]);
+      for (const buf of [sfxBuf, musicBuf]) {
+        if (!buf) continue;
+        const src = audioCtx.createBufferSource();
+        src.buffer = buf;
+        src.connect(dest);
+        src.start(audioCtx.currentTime);
+      }
+
       dest.stream.getAudioTracks().forEach((t) => stream.addTrack(t));
 
       const mime = MediaRecorder.isTypeSupported("video/mp4;codecs=avc1")
@@ -1316,17 +1589,26 @@ function WyrPage() {
       const done = new Promise<void>((res) => (rec.onstop = () => res()));
       rec.start();
 
-      const start = performance.now();
-      await new Promise<void>((resolve) => {
-        const tick = () => {
-          const t = (performance.now() - start) / 1000;
-          if (t >= timeline.total) return resolve();
-          drawFrame(ctx, t);
-          setExportProgress(Math.min(99, (t / timeline.total) * 100));
-          requestAnimationFrame(tick);
-        };
-        tick();
-      });
+      const frameDur = 1 / fps;
+      const totalFrames = Math.max(1, Math.ceil(timeline.total / frameDur));
+      for (let i = 0; i < totalFrames; i++) {
+        const t = Math.min(timeline.total, i * frameDur);
+        drawFrame(ctx, t);
+        if (canRequestFrame) {
+          trackWithFrame.requestFrame!();
+        }
+        setExportProgress(Math.min(99, (i / totalFrames) * 100));
+        // Yield to the event loop so the recorder can actually pull frames
+        // and the UI stays responsive, without relying on RAF timing.
+        await new Promise((r) => setTimeout(r, 0));
+      }
+      // Render the final frame once more so the recorder captures it even
+      // when requestFrame() isn't supported (falls back to captureStream's
+      // own per-mutation capture on canvases that support it).
+      drawFrame(ctx, timeline.total);
+      if (canRequestFrame) trackWithFrame.requestFrame!();
+      await new Promise((r) => setTimeout(r, 50));
+
       rec.stop();
       await done;
       await audioCtx.close();
@@ -1459,6 +1741,46 @@ function WyrPage() {
                               }}
                             />
                           </label>
+                          <div className="flex gap-1.5">
+                            <Input
+                              value={urlDraft[`${r.id}-${side}`] ?? ""}
+                              placeholder="https://image-url.jpg"
+                              className="h-8 text-xs"
+                              onChange={(e) => {
+                                const key = `${r.id}-${side}`;
+                                setUrlDraft((d) => ({ ...d, [key]: e.target.value }));
+                                setUrlErr((er) => ({ ...er, [key]: "" }));
+                              }}
+                            />
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="secondary"
+                              className="h-8 shrink-0 px-2"
+                              onClick={() => {
+                                const key = `${r.id}-${side}`;
+                                const draft = (urlDraft[key] ?? "").trim();
+                                if (!isPlausibleImageUrl(draft)) {
+                                  setUrlErr((er) => ({ ...er, [key]: "Enter a valid http(s) image URL." }));
+                                  return;
+                                }
+                                loadImageFromUrl(
+                                  draft,
+                                  (img) =>
+                                    setRound(
+                                      r.id,
+                                      side === "A" ? { urlA: draft, imgA: img } : { urlB: draft, imgB: img },
+                                    ),
+                                  (msg) => setUrlErr((er) => ({ ...er, [key]: msg })),
+                                );
+                              }}
+                            >
+                              Add
+                            </Button>
+                          </div>
+                          {urlErr[`${r.id}-${side}`] && (
+                            <p className="text-[11px] text-destructive">{urlErr[`${r.id}-${side}`]}</p>
+                          )}
                           {url && (
                             <img src={url} alt={`Option ${side}`} className="h-20 w-full rounded object-cover" />
                           )}
@@ -1734,6 +2056,41 @@ function WyrPage() {
               {channelLogoUrl && (
                 <img src={channelLogoUrl} alt="Channel logo" className="h-16 w-16 rounded-full border object-cover" />
               )}
+              <div className="flex gap-1.5">
+                <Input
+                  value={logoUrlDraft}
+                  placeholder="https://logo-url.png"
+                  className="h-8 text-xs"
+                  onChange={(e) => {
+                    setLogoUrlDraft(e.target.value);
+                    setLogoUrlErr("");
+                  }}
+                />
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="secondary"
+                  className="h-8 shrink-0 px-2"
+                  onClick={() => {
+                    const draft = logoUrlDraft.trim();
+                    if (!isPlausibleImageUrl(draft)) {
+                      setLogoUrlErr("Enter a valid http(s) image URL.");
+                      return;
+                    }
+                    loadImageFromUrl(
+                      draft,
+                      (img) => {
+                        setChannelLogoImg(img);
+                        setChannelLogoUrl(draft);
+                      },
+                      (msg) => setLogoUrlErr(msg),
+                    );
+                  }}
+                >
+                  Add
+                </Button>
+              </div>
+              {logoUrlErr && <p className="text-[11px] text-destructive">{logoUrlErr}</p>}
               <ChannelLogoControls value={channelLogo} onChange={setChannelLogo} />
             </CardContent>
           </Card>
@@ -1767,6 +2124,8 @@ function WyrPage() {
               <AnimControlGroup items={ANIM_ELEMENTS} values={anims} onChange={setAnim} />
             </CardContent>
           </Card>
+
+          <KidAudioCard value={audio} onChange={setAudio} />
 
           <IntroOutroCard
             intro={intro}
