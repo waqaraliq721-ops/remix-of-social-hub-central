@@ -3503,3 +3503,345 @@ export function RoundTransitionControls({
     </div>
   );
 }
+
+// ---------------------------------------------------------------------------
+// Answer box templates (used by emoji/math/logo quiz studios)
+// ---------------------------------------------------------------------------
+
+export type AnswerBoxStyle = { id: string; name: string };
+
+export const ANSWER_BOX_STYLES: AnswerBoxStyle[] = [
+  { id: "solid-pill", name: "Solid pill" },
+  { id: "glass-blur", name: "Glass blur" },
+  { id: "neon-outline", name: "Neon outline" },
+  { id: "ticket-stub", name: "Ticket stub" },
+  { id: "ribbon-banner", name: "Ribbon banner" },
+  { id: "extruded-3d", name: "3D extruded card" },
+  { id: "sticker-shadow", name: "Sticker w/ shadow" },
+  { id: "gradient-bar", name: "Gradient bar" },
+  { id: "chalk-outline", name: "Chalk outline" },
+  { id: "torn-paper", name: "Torn paper" },
+  { id: "marquee-lights", name: "Marquee lights" },
+  { id: "bubble-tail", name: "Speech bubble" },
+];
+
+function abClamp01(v: number) {
+  return Math.max(0, Math.min(1, v));
+}
+
+/** Shrinks font-size until `text` fits within `maxW` (single line). */
+function fitAnswerText(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  maxW: number,
+  startSize: number,
+  fontFamily: string,
+  minSize = 10,
+) {
+  let size = startSize;
+  while (size > minSize) {
+    ctx.font = `700 ${size}px ${fontFamily}`;
+    if (ctx.measureText(text).width <= maxW) break;
+    size -= 1;
+  }
+  ctx.font = `700 ${size}px ${fontFamily}`;
+  return size;
+}
+
+/**
+ * Draws one of many answer-box "chip" styles at (x,y,w,h). `t` is 0..1 reveal
+ * progress (0 = not yet shown, 1 = fully settled) used to animate scale /
+ * opacity / wipes / sweeps. Caller is responsible for positioning; this
+ * function saves/restores the context.
+ */
+export function drawAnswerBox(
+  ctx: CanvasRenderingContext2D,
+  opts: {
+    style: string;
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+    text: string;
+    t: number;
+    accent: string;
+    textColor: string;
+    bg: string;
+    radius?: number;
+    font?: string;
+  },
+) {
+  const { style, x, y, w, h, text, accent, textColor, bg } = opts;
+  const t = abClamp01(opts.t);
+  const r = opts.radius ?? h * 0.22;
+  const fontFamily = opts.font ?? "system-ui, sans-serif";
+  const cx = x + w / 2;
+  const cy = y + h / 2;
+
+  ctx.save();
+  // Global pop-in scale/opacity applied to almost every style for consistency,
+  // individual styles may layer additional motion on top of this base `t`.
+  const pop = 0.85 + 0.15 * Math.min(1, t * 1.6);
+  const alpha = Math.min(1, t * 2.2);
+  ctx.globalAlpha *= alpha;
+  ctx.translate(cx, cy);
+  ctx.scale(pop, pop);
+  ctx.translate(-cx, -cy);
+
+  const path = (rr: number, ww = w, hh = h) => {
+    ctx.beginPath();
+    ctx.roundRect(x + (w - ww) / 2, y + (h - hh) / 2, ww, hh, rr);
+  };
+
+  const drawCenteredText = (color: string, maxW = w * 0.86, size = h * 0.4) => {
+    ctx.fillStyle = color;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    fitAnswerText(ctx, text, maxW, size, fontFamily);
+    ctx.fillText(text, cx, cy + h * 0.02);
+  };
+
+  switch (style) {
+    case "glass-blur": {
+      path(r);
+      ctx.fillStyle = "rgba(255,255,255,0.14)";
+      ctx.fill();
+      ctx.strokeStyle = hexToRgba(textColor, 0.35);
+      ctx.lineWidth = Math.max(1.5, h * 0.02);
+      ctx.stroke();
+      ctx.save();
+      path(r);
+      ctx.clip();
+      const sheen = ctx.createLinearGradient(x, y, x, y + h);
+      sheen.addColorStop(0, "rgba(255,255,255,0.28)");
+      sheen.addColorStop(0.5, "rgba(255,255,255,0.02)");
+      ctx.fillStyle = sheen;
+      ctx.fillRect(x, y, w, h * 0.5);
+      ctx.restore();
+      drawCenteredText(textColor);
+      break;
+    }
+    case "neon-outline": {
+      const glow = 0.6 + 0.4 * Math.sin(t * Math.PI);
+      path(r);
+      ctx.fillStyle = hexToRgba(bg, 0.55);
+      ctx.fill();
+      ctx.save();
+      ctx.shadowColor = accent;
+      ctx.shadowBlur = 18 * glow;
+      ctx.strokeStyle = accent;
+      ctx.lineWidth = Math.max(2, h * 0.035);
+      path(r);
+      ctx.stroke();
+      ctx.restore();
+      drawCenteredText(accent);
+      break;
+    }
+    case "ticket-stub": {
+      const notchR = h * 0.16;
+      path(r);
+      ctx.fillStyle = hexToRgba(bg, 0.96);
+      ctx.fill();
+      ctx.save();
+      path(r);
+      ctx.clip();
+      ctx.fillStyle = "rgba(0,0,0,0.55)";
+      [x, x + w].forEach((nx) => {
+        ctx.beginPath();
+        ctx.arc(nx, cy, notchR, 0, Math.PI * 2);
+        ctx.fill();
+      });
+      ctx.restore();
+      ctx.setLineDash([6, 6]);
+      ctx.strokeStyle = hexToRgba(textColor, 0.4);
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(x + notchR * 1.4, y + 4);
+      ctx.lineTo(x + notchR * 1.4, y + h - 4);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.strokeStyle = hexToRgba(accent, 0.9);
+      ctx.lineWidth = Math.max(2, h * 0.03);
+      path(r);
+      ctx.stroke();
+      drawCenteredText(textColor, w * 0.7);
+      break;
+    }
+    case "ribbon-banner": {
+      const notch = h * 0.28;
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.lineTo(x + w, y);
+      ctx.lineTo(x + w - notch * 0.6, y + h / 2);
+      ctx.lineTo(x + w, y + h);
+      ctx.lineTo(x, y + h);
+      ctx.lineTo(x + notch * 0.6, y + h / 2);
+      ctx.closePath();
+      const g = ctx.createLinearGradient(x, y, x + w, y);
+      g.addColorStop(0, hexToRgba(accent, 0.95));
+      g.addColorStop(1, hexToRgba(bg, 0.95));
+      ctx.fillStyle = g;
+      ctx.fill();
+      ctx.strokeStyle = hexToRgba(textColor, 0.25);
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      drawCenteredText(textColor, w * 0.72);
+      break;
+    }
+    case "extruded-3d": {
+      const depth = h * 0.14;
+      path(r, w, h);
+      ctx.save();
+      ctx.translate(0, depth);
+      ctx.beginPath();
+      ctx.roundRect(x, y, w, h, r);
+      ctx.fillStyle = hexToRgba("#000000", 0.4);
+      ctx.fill();
+      ctx.restore();
+      path(r);
+      const g = ctx.createLinearGradient(x, y, x, y + h);
+      g.addColorStop(0, hexToRgba(accent, 1));
+      g.addColorStop(1, hexToRgba(accent, 0.75));
+      ctx.fillStyle = g;
+      ctx.fill();
+      ctx.strokeStyle = hexToRgba("#ffffff", 0.5);
+      ctx.lineWidth = Math.max(1.5, h * 0.02);
+      path(r);
+      ctx.stroke();
+      drawCenteredText("#ffffff");
+      break;
+    }
+    case "sticker-shadow": {
+      ctx.save();
+      ctx.translate(h * 0.05, h * 0.08);
+      path(r);
+      ctx.fillStyle = "rgba(0,0,0,0.35)";
+      ctx.fill();
+      ctx.restore();
+      path(r);
+      ctx.fillStyle = hexToRgba(bg, 0.98);
+      ctx.fill();
+      ctx.strokeStyle = hexToRgba("#ffffff", 0.9);
+      ctx.lineWidth = Math.max(3, h * 0.05);
+      path(r);
+      ctx.stroke();
+      drawCenteredText(textColor);
+      break;
+    }
+    case "gradient-bar": {
+      const sweep = abClamp01(t * 1.4);
+      path(r);
+      ctx.save();
+      ctx.clip();
+      const g = ctx.createLinearGradient(x, y, x + w, y + h);
+      g.addColorStop(0, hexToRgba(accent, 0.95));
+      g.addColorStop(1, hexToRgba(bg, 0.95));
+      ctx.fillStyle = g;
+      ctx.fillRect(x, y, w * sweep, h);
+      ctx.fillStyle = hexToRgba(bg, 0.5);
+      ctx.fillRect(x + w * sweep, y, w * (1 - sweep), h);
+      ctx.restore();
+      drawCenteredText("#ffffff");
+      break;
+    }
+    case "chalk-outline": {
+      ctx.fillStyle = hexToRgba(bg, 0.15);
+      path(r);
+      ctx.fill();
+      ctx.save();
+      ctx.strokeStyle = hexToRgba(textColor, 0.9);
+      ctx.lineWidth = Math.max(1.5, h * 0.025);
+      ctx.setLineDash([2, 3]);
+      ctx.lineCap = "round";
+      path(r);
+      ctx.stroke();
+      ctx.restore();
+      drawCenteredText(textColor);
+      break;
+    }
+    case "torn-paper": {
+      ctx.save();
+      ctx.beginPath();
+      const teeth = 14;
+      const amp = h * 0.05;
+      ctx.moveTo(x, y + amp);
+      for (let i = 0; i <= teeth; i++) {
+        const px = x + (w / teeth) * i;
+        const py = y + (i % 2 === 0 ? 0 : amp);
+        ctx.lineTo(px, py);
+      }
+      for (let i = 0; i <= teeth; i++) {
+        const px = x + w - (w / teeth) * i;
+        const py = y + h - (i % 2 === 0 ? 0 : amp);
+        ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+      ctx.fillStyle = hexToRgba(bg, 0.97);
+      ctx.fill();
+      ctx.strokeStyle = hexToRgba("#000000", 0.08);
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.restore();
+      drawCenteredText(textColor, w * 0.78, h * 0.34);
+      break;
+    }
+    case "marquee-lights": {
+      path(r);
+      ctx.fillStyle = hexToRgba(bg, 0.95);
+      ctx.fill();
+      ctx.strokeStyle = hexToRgba(accent, 0.9);
+      ctx.lineWidth = Math.max(2, h * 0.03);
+      path(r);
+      ctx.stroke();
+      const bulbs = Math.max(8, Math.round(w / 26));
+      for (let i = 0; i < bulbs; i++) {
+        const ang = (i / bulbs) * Math.PI * 2 + t * 6;
+        const on = Math.sin(ang) > 0;
+        const px = x + r * 0.6 + ((w - r * 1.2) / (bulbs - 1)) * i;
+        const topY = y + h * 0.08;
+        const botY = y + h * 0.92;
+        [topY, botY].forEach((py) => {
+          ctx.beginPath();
+          ctx.arc(px, py, Math.max(1.5, h * 0.045), 0, Math.PI * 2);
+          ctx.fillStyle = on ? hexToRgba(accent, 0.95) : hexToRgba(textColor, 0.25);
+          ctx.fill();
+        });
+      }
+      drawCenteredText(textColor, w * 0.72);
+      break;
+    }
+    case "bubble-tail": {
+      const tailH = h * 0.22;
+      ctx.beginPath();
+      ctx.roundRect(x, y, w, h - tailH, r);
+      ctx.moveTo(cx - tailH * 0.6, y + h - tailH);
+      ctx.lineTo(cx, y + h);
+      ctx.lineTo(cx + tailH * 0.6, y + h - tailH);
+      ctx.closePath();
+      ctx.fillStyle = hexToRgba(bg, 0.97);
+      ctx.fill();
+      ctx.strokeStyle = hexToRgba(textColor, 0.2);
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.save();
+      ctx.translate(0, -tailH / 2);
+      drawCenteredText(textColor, w * 0.8, (h - tailH) * 0.42);
+      ctx.restore();
+      break;
+    }
+    case "solid-pill":
+    default: {
+      path(Math.min(r, h / 2));
+      ctx.fillStyle = hexToRgba(accent, 0.95);
+      ctx.fill();
+      ctx.strokeStyle = hexToRgba("#ffffff", 0.35);
+      ctx.lineWidth = Math.max(1.5, h * 0.02);
+      path(Math.min(r, h / 2));
+      ctx.stroke();
+      drawCenteredText("#ffffff");
+      break;
+    }
+  }
+
+  ctx.restore();
+}

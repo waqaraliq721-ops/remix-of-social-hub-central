@@ -88,6 +88,15 @@ import {
   roundTransitionCoverage,
   RoundTransitionControls,
 } from "@/lib/kid-elements";
+import {
+  KidAudioCard,
+  defaultKidAudio,
+  useKidAudioEngine,
+  renderKidSfxBuffer,
+  renderKidMusicBuffer,
+  type KidAudioSettings,
+  type KidAudioCue,
+} from "@/lib/kid-audio";
 
 export const Route = createFileRoute("/_authenticated/kid-videos/wyr")({
   head: () => ({
@@ -209,6 +218,28 @@ const SIDE_COLORS: { id: string; name: string; a: string; b: string }[] = [
 
 const uid = () => Math.random().toString(36).slice(2, 9);
 
+function isPlausibleImageUrl(u: string): boolean {
+  try {
+    const parsed = new URL(u);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return false;
+    return /\.(png|jpe?g|webp|gif|avif|bmp|svg)(\?.*)?$/i.test(parsed.pathname) || parsed.search.length > 0 || parsed.hostname.length > 0;
+  } catch {
+    return false;
+  }
+}
+
+function loadImageFromUrl(
+  url: string,
+  onLoad: (img: HTMLImageElement) => void,
+  onError: (msg: string) => void,
+) {
+  const img = new Image();
+  img.crossOrigin = "anonymous";
+  img.onload = () => onLoad(img);
+  img.onerror = () => onError("Couldn't load that image (check the URL or that it allows cross-origin access).");
+  img.src = url;
+}
+
 function emptyRound(): Round {
   return {
     id: uid(),
@@ -239,6 +270,75 @@ function drawCover(
   const dw = img.naturalWidth * ratio;
   const dh = img.naturalHeight * ratio;
   ctx.drawImage(img, x + (w - dw) / 2, y + (h - dh) / 2, dw, dh);
+}
+
+// Pre-render an uploaded/URL image, cropped+scaled to its on-canvas box, into
+// an offscreen canvas so hot render loops never re-decode/re-scale the
+// original bitmap every frame — just blit the cached canvas.
+function getCachedCover(
+  cache: Map<string, HTMLCanvasElement>,
+  img: HTMLImageElement,
+  w: number,
+  h: number,
+  zoom: number,
+): HTMLCanvasElement {
+  const dw = Math.max(1, Math.round(w));
+  const dh = Math.max(1, Math.round(h));
+  const key = `${img.src}|${dw}x${dh}|${zoom.toFixed(3)}`;
+  let cached = cache.get(key);
+  if (!cached) {
+    cached = document.createElement("canvas");
+    cached.width = dw;
+    cached.height = dh;
+    const cctx = cached.getContext("2d");
+    if (cctx && img.naturalWidth && img.naturalHeight) {
+      const ratio = Math.max(dw / img.naturalWidth, dh / img.naturalHeight) * zoom;
+      const iw = img.naturalWidth * ratio;
+      const ih = img.naturalHeight * ratio;
+      cctx.drawImage(img, (dw - iw) / 2, (dh - ih) / 2, iw, ih);
+    }
+    cache.set(key, cached);
+    if (cache.size > 80) {
+      const firstKey = cache.keys().next().value;
+      if (firstKey !== undefined) cache.delete(firstKey);
+    }
+  }
+  return cached;
+}
+
+function drawCoverCached(
+  ctx: CanvasRenderingContext2D,
+  cache: Map<string, HTMLCanvasElement>,
+  img: HTMLImageElement,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  zoom = 1,
+) {
+  const cached = getCachedCover(cache, img, w, h, zoom);
+  ctx.drawImage(cached, x, y, w, h);
+}
+
+// Cache CanvasGradient objects per-context+key so gradients aren't rebuilt
+// on every animation frame (gradients are cheap-ish but add up at 60fps).
+function getCachedGradient(
+  cacheMap: WeakMap<CanvasRenderingContext2D, Map<string, CanvasGradient>>,
+  ctx: CanvasRenderingContext2D,
+  key: string,
+  build: () => CanvasGradient,
+): CanvasGradient {
+  let m = cacheMap.get(ctx);
+  if (!m) {
+    m = new Map();
+    cacheMap.set(ctx, m);
+  }
+  let g = m.get(key);
+  if (!g) {
+    g = build();
+    m.set(key, g);
+  }
+  return g;
 }
 
 function WyrPage() {
@@ -299,13 +399,24 @@ function WyrPage() {
   const [time, setTime] = useState(0);
   const [exporting, setExporting] = useState(false);
   const [exportProgress, setExportProgress] = useState(0);
+  const [audio, setAudio] = useState<KidAudioSettings>(() => defaultKidAudio());
+  const { playSfx } = useKidAudioEngine(audio);
+
+  const [urlDraft, setUrlDraft] = useState<Record<string, string>>({});
+  const [urlErr, setUrlErr] = useState<Record<string, string>>({});
+  const [logoUrlDraft, setLogoUrlDraft] = useState("");
+  const [logoUrlErr, setLogoUrlErr] = useState("");
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const canvasVisibleRef = useRef(true);
   const rafRef = useRef(0);
   const timeRef = useRef(0);
-  const lastRef = useRef(0);
+  const playAnchorRef = useRef(0);
   const audioElRef = useRef<HTMLAudioElement | null>(null);
   const playedRef = useRef<Set<string>>(new Set());
+  const sfxPlayedRef = useRef<Set<string>>(new Set());
+  const imageCacheRef = useRef<Map<string, HTMLCanvasElement>>(new Map());
+  const gradientCacheRef = useRef<WeakMap<CanvasRenderingContext2D, Map<string, CanvasGradient>>>(new WeakMap());
 
   const dims = ASPECTS[aspect];
   const colors = SIDE_COLORS.find((c) => c.id === sideColor) ?? SIDE_COLORS[0];
@@ -383,7 +494,7 @@ function WyrPage() {
         const slide = (1 - intro01) * (vertical ? halfH : halfW) * 0.25 * s.dir;
         ctx.translate(vertical ? 0 : slide, vertical ? slide : 0);
         if (s.img) {
-          drawCover(ctx, s.img, s.x, s.y, halfW, halfH, zoom + local * 0.01);
+          drawCoverCached(ctx, imageCacheRef.current, s.img, s.x, s.y, halfW, halfH, zoom);
         } else {
           const g = ctx.createLinearGradient(s.x, s.y, s.x + halfW, s.y + halfH);
           g.addColorStop(0, hexA(s.color, 0.35));
@@ -574,8 +685,9 @@ function WyrPage() {
       drawChannelLogo(ctx, channelLogoImg, channelLogo, w, h, local);
 
       // percentage reveal in the last second
-      if (showPct && local > dur - 1.2) {
-        const k = ease.out(Math.min(1, (local - (dur - 1.2)) / 0.5));
+      const guessDur = Math.min(timerSecs, dur);
+      if (showPct && local >= guessDur) {
+        const k = ease.out(Math.min(1, (local - guessDur) / 0.5));
         const label = (pct: number) => `${Math.round(pct)}%`;
         ctx.save();
         ctx.globalAlpha = k;
@@ -644,9 +756,12 @@ function WyrPage() {
         absT,
         bgIntensity,
       );
-      const v = ctx.createRadialGradient(w / 2, h / 2, h * 0.2, w / 2, h / 2, h * 0.85);
-      v.addColorStop(0, "rgba(0,0,0,0)");
-      v.addColorStop(1, "rgba(0,0,0,0.5)");
+      const v = getCachedGradient(gradientCacheRef.current, ctx, `vig-hq-${w}x${h}`, () => {
+        const g = ctx.createRadialGradient(w / 2, h / 2, h * 0.2, w / 2, h / 2, h * 0.85);
+        g.addColorStop(0, "rgba(0,0,0,0)");
+        g.addColorStop(1, "rgba(0,0,0,0.5)");
+        return g;
+      });
       ctx.fillStyle = v;
       ctx.fillRect(0, 0, w, h);
 
@@ -737,7 +852,7 @@ function WyrPage() {
         ctx.save();
         ctx.clip();
         if (p.img) {
-          drawCover(ctx, p.img, p.x, panelTop, panelW, panelH, zoom);
+          drawCoverCached(ctx, imageCacheRef.current, p.img, p.x, panelTop, panelW, panelH, zoom);
         } else {
           ctx.fillStyle = hexA(p.color, 0.4);
           ctx.fillRect(p.x, panelTop, panelW, panelH);
@@ -882,9 +997,12 @@ function WyrPage() {
         absT,
         bgIntensity,
       );
-      const v = ctx.createRadialGradient(w / 2, h / 2, h * 0.15, w / 2, h / 2, h * 0.9);
-      v.addColorStop(0, "rgba(0,0,0,0)");
-      v.addColorStop(1, "rgba(0,0,0,0.45)");
+      const v = getCachedGradient(gradientCacheRef.current, ctx, `vig-uhd-${w}x${h}`, () => {
+        const g = ctx.createRadialGradient(w / 2, h / 2, h * 0.15, w / 2, h / 2, h * 0.9);
+        g.addColorStop(0, "rgba(0,0,0,0)");
+        g.addColorStop(1, "rgba(0,0,0,0.45)");
+        return g;
+      });
       ctx.fillStyle = v;
       ctx.fillRect(0, 0, w, h);
 
@@ -998,7 +1116,7 @@ function WyrPage() {
         ctx.save();
         ctx.clip();
         if (p.img) {
-          drawCover(ctx, p.img, p.x, panelTop, panelW, panelH, zoom);
+          drawCoverCached(ctx, imageCacheRef.current, p.img, p.x, panelTop, panelW, panelH, zoom);
         } else {
           ctx.fillStyle = "rgba(255,255,255,0.12)";
           ctx.fillRect(p.x, panelTop, panelW, panelH);

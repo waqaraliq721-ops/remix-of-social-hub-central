@@ -678,7 +678,13 @@ export type HqLayout =
   | "serifCentered"
   | "grungeRight"
   | "skySplit"
-  | "tallStack";
+  | "tallStack"
+  | "splitKinetic"
+  | "duotoneHalftone"
+  | "verticalMarquee"
+  | "filmStrip"
+  | "glitchTerminal"
+  | "liquidReveal";
 
 export type HqControlKey =
   | "headline"
@@ -689,7 +695,8 @@ export type HqControlKey =
   | "backdrop"
   | "particles"
   | "camera"
-  | "signature";
+  | "signature"
+  | "layoutOptions";
 
 export type HqTemplate = {
   id: string;
@@ -854,6 +861,144 @@ export const HQ_TEMPLATES: HqTemplate[] = [
     cameraMotion: "zoomOut",
     duotone: true,
   },
+  {
+    id: "hq-split-kinetic",
+    name: "Split Kinetic",
+    desc: "The frame cracks into two hard-edged panels that slide apart on every line, subject sandwiched between them.",
+    layout: "splitKinetic",
+    backdrop: "voidsolid",
+    backdropColor: "#0a0a0c",
+    textColor: "#f5f5f2",
+    highlightColor: "#ff3d3d",
+    font: "'Archivo Black', Impact, sans-serif",
+    weight: "900",
+    italic: false,
+    uppercase: true,
+    size: 0.072,
+    align: "center",
+    textY: 0.88,
+    cutout: true,
+    keepOriginalBg: false,
+    particles: "none",
+    controls: ["headline", "typography", "wordAnimation", "wordEditor", "subject", "backdrop", "camera", "layoutOptions"],
+    cameraMotion: "handheld",
+    duotone: false,
+  },
+  {
+    id: "hq-duotone-halftone",
+    name: "Duotone Halftone",
+    desc: "Comic-press duotone subject under an animated halftone dot field, oversized outline type wrapping around it.",
+    layout: "duotoneHalftone",
+    backdrop: "duotone",
+    backdropColor: "#0d5c63",
+    textColor: "#f3ede0",
+    highlightColor: "#ffce45",
+    font: "'Archivo Black', Impact, sans-serif",
+    weight: "900",
+    italic: false,
+    uppercase: true,
+    size: 0.06,
+    align: "center",
+    textY: 0.86,
+    cutout: true,
+    keepOriginalBg: false,
+    particles: "none",
+    controls: ["headline", "typography", "wordAnimation", "wordEditor", "subject", "backdrop", "camera", "layoutOptions"],
+    cameraMotion: "breathe",
+    duotone: true,
+  },
+  {
+    id: "hq-vertical-marquee",
+    name: "Vertical Marquee",
+    desc: "An endless scrolling column of repeated key words behind the subject, with the focus line pinned and lit up.",
+    layout: "verticalMarquee",
+    backdrop: "graytex",
+    backdropColor: "#161616",
+    textColor: "#3d3d3d",
+    highlightColor: "#f2c744",
+    font: "'Helvetica Neue', Arial, sans-serif",
+    weight: "800",
+    italic: false,
+    uppercase: true,
+    size: 0.05,
+    align: "center",
+    textY: 0.9,
+    cutout: true,
+    keepOriginalBg: false,
+    particles: "none",
+    controls: ["headline", "typography", "wordAnimation", "wordEditor", "subject", "backdrop", "camera", "layoutOptions", "signature"],
+    cameraMotion: "drift",
+    duotone: false,
+  },
+  {
+    id: "hq-film-strip",
+    name: "Film Strip",
+    desc: "Subject boxed in an animated contact-sheet frame with drifting sprockets, a running timecode and chapter slate.",
+    layout: "filmStrip",
+    backdrop: "concrete",
+    backdropColor: "#111113",
+    textColor: "#eae7df",
+    highlightColor: "#d94f3d",
+    font: "'Courier New', monospace",
+    weight: "700",
+    italic: false,
+    uppercase: true,
+    size: 0.046,
+    align: "center",
+    textY: 0.9,
+    cutout: false,
+    keepOriginalBg: true,
+    particles: "none",
+    controls: ["headline", "typography", "wordAnimation", "wordEditor", "backdrop", "camera", "layoutOptions", "signature"],
+    cameraMotion: "parallax",
+    duotone: false,
+  },
+  {
+    id: "hq-glitch-terminal",
+    name: "Glitch Terminal",
+    desc: "RGB-split glitch bursts on every line change, CRT scanlines and a mono decrypt-style type reveal.",
+    layout: "glitchTerminal",
+    backdrop: "voidsolid",
+    backdropColor: "#04070a",
+    textColor: "#7dffb0",
+    highlightColor: "#ff3ec8",
+    font: "'Courier New', monospace",
+    weight: "700",
+    italic: false,
+    uppercase: true,
+    size: 0.055,
+    align: "center",
+    textY: 0.86,
+    cutout: true,
+    keepOriginalBg: false,
+    particles: "none",
+    controls: ["headline", "typography", "wordAnimation", "wordEditor", "subject", "backdrop", "camera", "layoutOptions"],
+    cameraMotion: "handheld",
+    duotone: false,
+  },
+  {
+    id: "hq-liquid-reveal",
+    name: "Liquid Mask Reveal",
+    desc: "Text bleeds into view through an organic ink-blot mask while the subject feathers softly into a textured backdrop.",
+    layout: "liquidReveal",
+    backdrop: "aurora",
+    backdropColor: "#101b3a",
+    textColor: "#f4f1ea",
+    highlightColor: "#57c2ff",
+    font: "Georgia, 'Times New Roman', serif",
+    weight: "700",
+    italic: false,
+    uppercase: false,
+    size: 0.058,
+    align: "center",
+    textY: 0.84,
+    cutout: true,
+    keepOriginalBg: false,
+    particles: "none",
+    controls: ["headline", "typography", "wordAnimation", "wordEditor", "subject", "backdrop", "camera", "layoutOptions"],
+    cameraMotion: "drift",
+    duotone: false,
+  },
 ];
 
 /* ------------------------------------------------------------------ config */
@@ -917,6 +1062,11 @@ export type HqConfig = {
   heading: string;
   subheading: string;
   author: string;
+  // template-specific layout options (harmless no-ops for templates that don't use them)
+  splitGap: number;
+  halftoneDot: number;
+  marqueeSpeed: number;
+  glitchAmount: number;
 };
 
 export function configForTemplate(tpl: HqTemplate, prev?: Partial<HqConfig>): HqConfig {
@@ -927,6 +1077,12 @@ export function configForTemplate(tpl: HqTemplate, prev?: Partial<HqConfig>): Hq
     "hq-grunge-right": { heading: "EARN\nIT", subheading: "no shortcuts, no excuses", author: "" },
     "hq-sky-split": { heading: "keep going\nEVEN WHEN IT'S HARD", subheading: "", author: "" },
     "hq-tall-stack": { heading: "P\nA\nT\nI\nE\nN\nC\nE", subheading: "trust the process", author: "" },
+    "hq-split-kinetic": { heading: "BREAK\nTHE MOLD", subheading: "", author: "" },
+    "hq-duotone-halftone": { heading: "PRESS\nON", subheading: "", author: "" },
+    "hq-vertical-marquee": { heading: "focus wins\nEVERY TIME", subheading: "focus, grind, rise, repeat, discipline, hustle", author: "" },
+    "hq-film-strip": { heading: "TAKE\nONE", subheading: "chapter i · the grind", author: "00:00:12:04" },
+    "hq-glitch-terminal": { heading: "REBOOT\nYOUR MIND", subheading: "", author: "" },
+    "hq-liquid-reveal": { heading: "flow with\nthe chaos", subheading: "", author: "" },
   };
   const d = headingDefaults[tpl.id] ?? { heading: "Winner.", subheading: "", author: "" };
   return {
@@ -982,6 +1138,10 @@ export function configForTemplate(tpl: HqTemplate, prev?: Partial<HqConfig>): Hq
     heading: d.heading,
     subheading: d.subheading,
     author: d.author,
+    splitGap: 0.05,
+    halftoneDot: 10,
+    marqueeSpeed: 1,
+    glitchAmount: 1,
     ...prev,
   };
 }
