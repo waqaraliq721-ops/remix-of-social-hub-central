@@ -913,3 +913,45 @@ export function drawFx(list: FxDef[], id: string, frame: FxFrame) {
   def.draw(frame);
   return true;
 }
+
+// ---------------------------------------------------------------------------
+// Background Music & SFX Shared Library
+// ---------------------------------------------------------------------------
+
+export type AudioConfig = {
+  url: string | null;
+  volume: number; // 0..1
+  start: number; // offset in audio file
+  end: number; // truncation in audio file
+  loop: boolean;
+};
+
+export const defaultAudio = (url: string | null = null): AudioConfig => ({
+  url,
+  volume: 0.5,
+  start: 0,
+  end: 0,
+  loop: true,
+});
+
+/** Shared SFX registry for UI and video engine. */
+export const SFX_LIBRARY = [
+  { id: "pop-1", name: "Pop Soft", url: "https://otvclkmfptmxeyreivkd.supabase.co/storage/v1/object/public/assets/pop-soft.mp3" },
+  { id: "pop-2", name: "Pop Sharp", url: "https://otvclkmfptmxeyreivkd.supabase.co/storage/v1/object/public/assets/pop-sharp.mp3" },
+  { id: "woosh-1", name: "Whoosh Light", url: "https://otvclkmfptmxeyreivkd.supabase.co/storage/v1/object/public/assets/whoosh-light.mp3" },
+  { id: "woosh-2", name: "Whoosh Fast", url: "https://otvclkmfptmxeyreivkd.supabase.co/storage/v1/object/public/assets/whoosh-fast.mp3" },
+  { id: "ding-1", name: "Ding Correct", url: "https://otvclkmfptmxeyreivkd.supabase.co/storage/v1/object/public/assets/ding-correct.mp3" },
+  { id: "buzzer-1", name: "Buzz Incorrect", url: "https://otvclkmfptmxeyreivkd.supabase.co/storage/v1/object/public/assets/buzzer.mp3" },
+  { id: "tick-1", name: "Clock Tick", url: "https://otvclkmfptmxeyreivkd.supabase.co/storage/v1/object/public/assets/clock-tick.mp3" },
+  { id: "countdown-1", name: "3-2-1 Beep", url: "https://otvclkmfptmxeyreivkd.supabase.co/storage/v1/object/public/assets/countdown.mp3" },
+  { id: "reveal-1", name: "Reveal Shine", url: "https://otvclkmfptmxeyreivkd.supabase.co/storage/v1/object/public/assets/reveal-shine.mp3" },
+  { id: "reveal-2", name: "Reveal Impact", url: "https://otvclkmfptmxeyreivkd.supabase.co/storage/v1/object/public/assets/reveal-impact.mp3" },
+];
+
+export type SfxTrigger = {
+  id: string; // SFX_LIBRARY id
+  time: number; // offset in video timeline
+  volume: number;
+  duration?: number;
+};
+
