@@ -1011,21 +1011,36 @@ function EmojiPage() {
     setGenerating(true);
     try {
       for (const r of rounds) {
-        const { url, blob } = await generateSpeech(buildScript(r), {
-          provider,
-          voice,
-          styleDirection: voStyle,
+        // 1. Question
+        const qText = `Can you guess this one?${r.category ? ` It's a ${r.category.toLowerCase()}.` : ""}`;
+        const qRes = await generateSpeech(qText, { provider, voice, styleDirection: voStyle });
+        
+        // 2. Middle/Hint
+        const hText = r.hint ? `Hint: ${r.hint}.` : "Keep guessing!";
+        const hRes = await generateSpeech(hText, { provider, voice, styleDirection: voStyle });
+        
+        // 3. Answer
+        const aText = `The answer is ${r.answer || "coming up"}!`;
+        const aRes = await generateSpeech(aText, { provider, voice, styleDirection: voStyle });
+
+        setRound(r.id, {
+          voStartUrl: qRes.url,
+          voStartBlob: qRes.blob,
+          voMiddleUrl: hRes.url,
+          voMiddleBlob: hRes.blob,
+          voAnswerUrl: aRes.url,
+          voAnswerBlob: aRes.blob,
+          voDur: await blobDuration(qRes.blob) + await blobDuration(hRes.blob) + await blobDuration(aRes.blob),
         });
-        const dur = await blobDuration(blob);
-        setRound(r.id, { voUrl: url, voBlob: blob, voDur: dur });
       }
-      toast.success("Voiceovers generated");
+      toast.success("Voiceovers generated (3 parts per round)");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Voiceover failed");
     } finally {
       setGenerating(false);
     }
   };
+
 
   // ---------------- export ----------------
 
