@@ -1080,6 +1080,81 @@ export default function MotivHqStudio() {
           </CardContent>
         </Card>}
 
+        {has("layoutOptions") && <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Layout options</CardTitle>
+            <CardDescription>Controls specific to this template's composition.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {template.layout === "splitKinetic" && (
+              <NumSlider
+                label="Panel gap"
+                min={0}
+                max={0.25}
+                value={cfg.splitGap}
+                onChange={(v) => set("splitGap", v)}
+              />
+            )}
+            {template.layout === "duotoneHalftone" && (
+              <NumSlider
+                label="Halftone dot size"
+                min={4}
+                max={26}
+                step={1}
+                value={cfg.halftoneDot}
+                onChange={(v) => set("halftoneDot", v)}
+                fmt={(v) => `${v}px`}
+              />
+            )}
+            {template.layout === "verticalMarquee" && (
+              <>
+                <Row label="Marquee words (comma separated)">
+                  <Input
+                    value={cfg.subheading}
+                    onChange={(e) => set("subheading", e.target.value)}
+                    placeholder="focus, grind, rise, repeat"
+                  />
+                </Row>
+                <NumSlider
+                  label="Scroll speed"
+                  min={0.1}
+                  max={3}
+                  value={cfg.marqueeSpeed}
+                  onChange={(v) => set("marqueeSpeed", v)}
+                />
+              </>
+            )}
+            {template.layout === "filmStrip" && (
+              <>
+                <Row label="Timecode">
+                  <Input value={cfg.author} onChange={(e) => set("author", e.target.value)} placeholder="00:00:12:04" />
+                </Row>
+                <Row label="Chapter label">
+                  <Input
+                    value={cfg.subheading}
+                    onChange={(e) => set("subheading", e.target.value)}
+                    placeholder="chapter i · the grind"
+                  />
+                </Row>
+              </>
+            )}
+            {template.layout === "glitchTerminal" && (
+              <NumSlider
+                label="Glitch burst amount"
+                min={0}
+                max={2}
+                value={cfg.glitchAmount}
+                onChange={(v) => set("glitchAmount", v)}
+              />
+            )}
+            {template.layout === "liquidReveal" && (
+              <p className="text-xs text-muted-foreground">
+                The ink-blot mask reveal timing follows the word stagger and animation intensity settings above.
+              </p>
+            )}
+          </CardContent>
+        </Card>}
+
         {has("wordEditor") && <Card>
           <CardHeader>
             <CardTitle className="text-base">Per-word styling</CardTitle>
