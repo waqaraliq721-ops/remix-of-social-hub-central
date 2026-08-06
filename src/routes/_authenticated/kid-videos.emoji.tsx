@@ -1058,13 +1058,21 @@ function EmojiPage() {
       const audioCtx = new AudioContext();
       const dest = audioCtx.createMediaStreamDestination();
       for (const seg of timeline.segs) {
-        if (!seg.round.voBlob) continue;
-        const buf = await audioCtx.decodeAudioData(await seg.round.voBlob.arrayBuffer());
-        const src = audioCtx.createBufferSource();
-        src.buffer = buf;
-        src.connect(dest);
-        src.start(audioCtx.currentTime + seg.start + 0.15);
+        const parts = [
+          { blob: seg.round.voStartBlob, offset: 0.15 },
+          { blob: seg.round.voMiddleBlob, offset: timerSecs / 2 + 0.15 },
+          { blob: seg.round.voAnswerBlob, offset: timerSecs + 0.15 },
+        ];
+        for (const p of parts) {
+          if (!p.blob) continue;
+          const buf = await audioCtx.decodeAudioData(await p.blob.arrayBuffer());
+          const src = audioCtx.createBufferSource();
+          src.buffer = buf;
+          src.connect(dest);
+          src.start(audioCtx.currentTime + seg.start + p.offset);
+        }
       }
+
       dest.stream.getAudioTracks().forEach((t) => stream.addTrack(t));
 
       const mime = MediaRecorder.isTypeSupported("video/mp4;codecs=avc1")
