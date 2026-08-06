@@ -785,9 +785,8 @@ export function drawBackground(
       }
       break;
     }
-      break;
-    }
     case "paper-texture": {
+
       // Light cream/grey background with procedural paper fiber noise and subtle crinkles.
       ctx.fillStyle = "#f5f2e9";
       ctx.fillRect(0, 0, w, h);
