@@ -167,16 +167,10 @@ type Round = {
   category: string;
   hint: string;
   script: string;
-  // Multi-part voiceover
-  voStartUrl: string | null;
-  voStartBlob: Blob | null;
-  voMiddleUrl: string | null;
-  voMiddleBlob: Blob | null;
-  voAnswerUrl: string | null;
-  voAnswerBlob: Blob | null;
-  voDur: number; // total or start? lets keep total
+  voUrl: string | null;
+  voBlob: Blob | null;
+  voDur: number;
 };
-
 
 type StyleId = "bubble" | "arcade" | "chalk" | "confetti" | "clean" | "quizshow" | "hq";
 const STYLES: { id: StyleId; name: string; desc: string }[] = [
@@ -260,15 +254,10 @@ function emptyRound(i = 0): Round {
     category: s.category,
     hint: "",
     script: "",
-    voStartUrl: null,
-    voStartBlob: null,
-    voMiddleUrl: null,
-    voMiddleBlob: null,
-    voAnswerUrl: null,
-    voAnswerBlob: null,
+    voUrl: null,
+    voBlob: null,
     voDur: 0,
   };
-
 }
 
 /** Split a string into visual emoji clusters. */
@@ -947,33 +936,18 @@ function EmojiPage() {
           playedRef.current.clear();
         }
         for (const seg of timeline.segs) {
-          const local = timeRef.current - seg.start;
-          const guessDur = timerSecs;
-          const guessOffset = 0.1; // small offset to avoid multiple triggers
-          
-          // Question VO at start
-          if (seg.round.voStartUrl && !playedRef.current.has(seg.round.id + "-start") && local >= 0 && local < 0.4) {
-            playedRef.current.add(seg.round.id + "-start");
-            const el = new Audio(seg.round.voStartUrl);
-            audioElRef.current = el;
-            void el.play().catch(() => {});
-          }
-          // Middle VO at halfway point
-          if (seg.round.voMiddleUrl && !playedRef.current.has(seg.round.id + "-middle") && local >= guessDur / 2 && local < guessDur / 2 + 0.4) {
-            playedRef.current.add(seg.round.id + "-middle");
-            const el = new Audio(seg.round.voMiddleUrl);
-            audioElRef.current = el;
-            void el.play().catch(() => {});
-          }
-          // Answer VO at reveal
-          if (seg.round.voAnswerUrl && !playedRef.current.has(seg.round.id + "-answer") && local >= guessDur && local < guessDur + 0.4) {
-            playedRef.current.add(seg.round.id + "-answer");
-            const el = new Audio(seg.round.voAnswerUrl);
+          if (
+            seg.round.voUrl &&
+            !playedRef.current.has(seg.round.id) &&
+            timeRef.current >= seg.start &&
+            timeRef.current < seg.start + 0.35
+          ) {
+            playedRef.current.add(seg.round.id);
+            const el = new Audio(seg.round.voUrl);
             audioElRef.current = el;
             void el.play().catch(() => {});
           }
         }
-
         setTime(timeRef.current);
       }
       lastRef.current = now;
@@ -1011,36 +985,21 @@ function EmojiPage() {
     setGenerating(true);
     try {
       for (const r of rounds) {
-        // 1. Question
-        const qText = `Can you guess this one?${r.category ? ` It's a ${r.category.toLowerCase()}.` : ""}`;
-        const qRes = await generateSpeech(qText, { provider, voice, styleDirection: voStyle });
-        
-        // 2. Middle/Hint
-        const hText = r.hint ? `Hint: ${r.hint}.` : "Keep guessing!";
-        const hRes = await generateSpeech(hText, { provider, voice, styleDirection: voStyle });
-        
-        // 3. Answer
-        const aText = `The answer is ${r.answer || "coming up"}!`;
-        const aRes = await generateSpeech(aText, { provider, voice, styleDirection: voStyle });
-
-        setRound(r.id, {
-          voStartUrl: qRes.url,
-          voStartBlob: qRes.blob,
-          voMiddleUrl: hRes.url,
-          voMiddleBlob: hRes.blob,
-          voAnswerUrl: aRes.url,
-          voAnswerBlob: aRes.blob,
-          voDur: await blobDuration(qRes.blob) + await blobDuration(hRes.blob) + await blobDuration(aRes.blob),
+        const { url, blob } = await generateSpeech(buildScript(r), {
+          provider,
+          voice,
+          styleDirection: voStyle,
         });
+        const dur = await blobDuration(blob);
+        setRound(r.id, { voUrl: url, voBlob: blob, voDur: dur });
       }
-      toast.success("Voiceovers generated (3 parts per round)");
+      toast.success("Voiceovers generated");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Voiceover failed");
     } finally {
       setGenerating(false);
     }
   };
-
 
   // ---------------- export ----------------
 
@@ -1058,21 +1017,13 @@ function EmojiPage() {
       const audioCtx = new AudioContext();
       const dest = audioCtx.createMediaStreamDestination();
       for (const seg of timeline.segs) {
-        const parts = [
-          { blob: seg.round.voStartBlob, offset: 0.15 },
-          { blob: seg.round.voMiddleBlob, offset: timerSecs / 2 + 0.15 },
-          { blob: seg.round.voAnswerBlob, offset: timerSecs + 0.15 },
-        ];
-        for (const p of parts) {
-          if (!p.blob) continue;
-          const buf = await audioCtx.decodeAudioData(await p.blob.arrayBuffer());
-          const src = audioCtx.createBufferSource();
-          src.buffer = buf;
-          src.connect(dest);
-          src.start(audioCtx.currentTime + seg.start + p.offset);
-        }
+        if (!seg.round.voBlob) continue;
+        const buf = await audioCtx.decodeAudioData(await seg.round.voBlob.arrayBuffer());
+        const src = audioCtx.createBufferSource();
+        src.buffer = buf;
+        src.connect(dest);
+        src.start(audioCtx.currentTime + seg.start + 0.15);
       }
-
       dest.stream.getAudioTracks().forEach((t) => stream.addTrack(t));
 
       const mime = MediaRecorder.isTypeSupported("video/mp4;codecs=avc1")
