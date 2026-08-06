@@ -951,6 +951,41 @@ function WyrPage() {
         drawTimeBar(ctx, timebarStyle, M * 1.3, barY, barW, barH, frac, { primary: "#34d399", accent: colors.b, text: "#ffffff" }, local);
         ctx.restore();
       }
+
+      // result reveal — strictly gated on the guessing timer having elapsed
+      const revealGuessDurHQ = Math.min(timerSecs, dur);
+      if (showPct && local >= revealGuessDurHQ) {
+        const k = ease.out(Math.min(1, (local - revealGuessDurHQ) / 0.5));
+        const pcts = [r.pctA, 100 - r.pctA];
+        const winnerIdx = r.pctA >= 50 ? 0 : 1;
+        panels.forEach((p, i) => {
+          const panelStyle = styles[p.key] ?? defaultStyle();
+          if (!panelStyle.visible) return;
+          ctx.save();
+          ctx.globalAlpha = k;
+          if (i === winnerIdx) {
+            ctx.save();
+            ctx.shadowColor = "#facc15";
+            ctx.shadowBlur = h * 0.035;
+            ctx.lineWidth = h * 0.012;
+            ctx.strokeStyle = "#facc15";
+            roundRect(ctx, p.x, panelTop, panelW, panelH, h * 0.03);
+            ctx.stroke();
+            ctx.restore();
+          }
+          ctx.fillStyle = "rgba(0,0,0,0.45)";
+          roundRect(ctx, p.x + panelW * 0.28, panelTop + panelH * 0.06, panelW * 0.44, h * 0.09, h * 0.02);
+          ctx.fill();
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.font = `900 ${Math.round(h * 0.055)}px ${FX_FONT}`;
+          ctx.fillStyle = i === winnerIdx ? "#facc15" : "#ffffff";
+          ctx.shadowColor = "rgba(0,0,0,0.8)";
+          ctx.shadowBlur = h * 0.015;
+          ctx.fillText(`${Math.round(pcts[i])}%`, p.x + panelW / 2, panelTop + panelH * 0.105);
+          ctx.restore();
+        });
+      }
     },
     [
       anims,
@@ -959,6 +994,7 @@ function WyrPage() {
       showHeading,
       showTimer,
       showVs,
+      showPct,
       timerSecs,
       uppercase,
       zoom,
@@ -1225,6 +1261,41 @@ function WyrPage() {
         }
         ctx.restore();
       }
+
+      // result reveal — strictly gated on the guessing timer having elapsed
+      const revealGuessDurUHD = Math.min(timerSecs, dur);
+      if (showPct && local >= revealGuessDurUHD) {
+        const k = ease.out(Math.min(1, (local - revealGuessDurUHD) / 0.5));
+        const pcts = [r.pctA, 100 - r.pctA];
+        const winnerIdx = r.pctA >= 50 ? 0 : 1;
+        panels.forEach((p, i) => {
+          const panelStyle = styles[p.key] ?? defaultStyle();
+          if (!panelStyle.visible) return;
+          ctx.save();
+          ctx.globalAlpha = k;
+          if (i === winnerIdx) {
+            ctx.save();
+            ctx.shadowColor = "#ffe066";
+            ctx.shadowBlur = h * 0.035;
+            ctx.lineWidth = h * 0.013;
+            ctx.strokeStyle = "#ffe066";
+            roundRect(ctx, p.x, panelTop, panelW, panelH, h * 0.035);
+            ctx.stroke();
+            ctx.restore();
+          }
+          ctx.fillStyle = "rgba(58,20,0,0.55)";
+          roundRect(ctx, p.x + panelW * 0.26, panelTop + panelH * 0.06, panelW * 0.48, h * 0.09, h * 0.02);
+          ctx.fill();
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.font = `900 ${Math.round(h * 0.055)}px ${FX_FONT}`;
+          ctx.fillStyle = i === winnerIdx ? "#ffe066" : "#ffffff";
+          ctx.shadowColor = "rgba(0,0,0,0.8)";
+          ctx.shadowBlur = h * 0.015;
+          ctx.fillText(`${Math.round(pcts[i])}%`, p.x + panelW / 2, panelTop + panelH * 0.105);
+          ctx.restore();
+        });
+      }
     },
     [
       anims,
@@ -1233,6 +1304,7 @@ function WyrPage() {
       showHeading,
       showTimer,
       showVs,
+      showPct,
       timerSecs,
       uppercase,
       zoom,
@@ -1460,10 +1532,21 @@ function WyrPage() {
     setExporting(true);
     setExportProgress(0);
     try {
-      const fps = 60;
-      const stream = canvas.captureStream(fps);
+      const fps = 30;
+      // Deterministic, fixed-timestep capture: we drive the MediaStreamTrack
+      // manually (captureStream(0) = no automatic per-RAF capture) and push
+      // exactly one frame per rendered timestep via requestFrame(), so the
+      // recorded video never depends on how fast this tab's RAF/drawing
+      // loop actually runs — no dropped/duplicated frames, no stutter.
+      const stream = canvas.captureStream(0);
+      const [videoTrack] = stream.getVideoTracks();
+      const trackWithFrame = videoTrack as MediaStreamTrack & { requestFrame?: () => void };
+      const canRequestFrame = typeof trackWithFrame.requestFrame === "function";
+
       const audioCtx = new AudioContext();
       const dest = audioCtx.createMediaStreamDestination();
+
+      // Voiceover playback, per round.
       for (const seg of timeline.segs) {
         if (!seg.round.voBlob) continue;
         const buf = await audioCtx.decodeAudioData(await seg.round.voBlob.arrayBuffer());
@@ -1472,6 +1555,29 @@ function WyrPage() {
         src.connect(dest);
         src.start(audioCtx.currentTime + seg.start + 0.15);
       }
+
+      // SFX + music timeline, rendered offline then mixed in alongside the
+      // voiceover track — mirrors the cue schedule the live preview uses.
+      const cues: KidAudioCue[] = [];
+      for (const seg of timeline.segs) {
+        const guessDur = Math.min(timerSecs, seg.dur);
+        cues.push({ kind: "start", time: seg.start });
+        if (seg.index > 0) cues.push({ kind: "transition", time: seg.start });
+        cues.push({ kind: "timer", time: seg.start + Math.max(0, guessDur - 1) });
+        cues.push({ kind: "reveal", time: seg.start + guessDur });
+      }
+      const [sfxBuf, musicBuf] = await Promise.all([
+        renderKidSfxBuffer(audio, cues, timeline.total),
+        renderKidMusicBuffer(audio, timeline.total),
+      ]);
+      for (const buf of [sfxBuf, musicBuf]) {
+        if (!buf) continue;
+        const src = audioCtx.createBufferSource();
+        src.buffer = buf;
+        src.connect(dest);
+        src.start(audioCtx.currentTime);
+      }
+
       dest.stream.getAudioTracks().forEach((t) => stream.addTrack(t));
 
       const mime = MediaRecorder.isTypeSupported("video/mp4;codecs=avc1")
@@ -1483,17 +1589,26 @@ function WyrPage() {
       const done = new Promise<void>((res) => (rec.onstop = () => res()));
       rec.start();
 
-      const start = performance.now();
-      await new Promise<void>((resolve) => {
-        const tick = () => {
-          const t = (performance.now() - start) / 1000;
-          if (t >= timeline.total) return resolve();
-          drawFrame(ctx, t);
-          setExportProgress(Math.min(99, (t / timeline.total) * 100));
-          requestAnimationFrame(tick);
-        };
-        tick();
-      });
+      const frameDur = 1 / fps;
+      const totalFrames = Math.max(1, Math.ceil(timeline.total / frameDur));
+      for (let i = 0; i < totalFrames; i++) {
+        const t = Math.min(timeline.total, i * frameDur);
+        drawFrame(ctx, t);
+        if (canRequestFrame) {
+          trackWithFrame.requestFrame!();
+        }
+        setExportProgress(Math.min(99, (i / totalFrames) * 100));
+        // Yield to the event loop so the recorder can actually pull frames
+        // and the UI stays responsive, without relying on RAF timing.
+        await new Promise((r) => setTimeout(r, 0));
+      }
+      // Render the final frame once more so the recorder captures it even
+      // when requestFrame() isn't supported (falls back to captureStream's
+      // own per-mutation capture on canvases that support it).
+      drawFrame(ctx, timeline.total);
+      if (canRequestFrame) trackWithFrame.requestFrame!();
+      await new Promise((r) => setTimeout(r, 50));
+
       rec.stop();
       await done;
       await audioCtx.close();
@@ -1626,6 +1741,46 @@ function WyrPage() {
                               }}
                             />
                           </label>
+                          <div className="flex gap-1.5">
+                            <Input
+                              value={urlDraft[`${r.id}-${side}`] ?? ""}
+                              placeholder="https://image-url.jpg"
+                              className="h-8 text-xs"
+                              onChange={(e) => {
+                                const key = `${r.id}-${side}`;
+                                setUrlDraft((d) => ({ ...d, [key]: e.target.value }));
+                                setUrlErr((er) => ({ ...er, [key]: "" }));
+                              }}
+                            />
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="secondary"
+                              className="h-8 shrink-0 px-2"
+                              onClick={() => {
+                                const key = `${r.id}-${side}`;
+                                const draft = (urlDraft[key] ?? "").trim();
+                                if (!isPlausibleImageUrl(draft)) {
+                                  setUrlErr((er) => ({ ...er, [key]: "Enter a valid http(s) image URL." }));
+                                  return;
+                                }
+                                loadImageFromUrl(
+                                  draft,
+                                  (img) =>
+                                    setRound(
+                                      r.id,
+                                      side === "A" ? { urlA: draft, imgA: img } : { urlB: draft, imgB: img },
+                                    ),
+                                  (msg) => setUrlErr((er) => ({ ...er, [key]: msg })),
+                                );
+                              }}
+                            >
+                              Add
+                            </Button>
+                          </div>
+                          {urlErr[`${r.id}-${side}`] && (
+                            <p className="text-[11px] text-destructive">{urlErr[`${r.id}-${side}`]}</p>
+                          )}
                           {url && (
                             <img src={url} alt={`Option ${side}`} className="h-20 w-full rounded object-cover" />
                           )}
@@ -1901,6 +2056,41 @@ function WyrPage() {
               {channelLogoUrl && (
                 <img src={channelLogoUrl} alt="Channel logo" className="h-16 w-16 rounded-full border object-cover" />
               )}
+              <div className="flex gap-1.5">
+                <Input
+                  value={logoUrlDraft}
+                  placeholder="https://logo-url.png"
+                  className="h-8 text-xs"
+                  onChange={(e) => {
+                    setLogoUrlDraft(e.target.value);
+                    setLogoUrlErr("");
+                  }}
+                />
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="secondary"
+                  className="h-8 shrink-0 px-2"
+                  onClick={() => {
+                    const draft = logoUrlDraft.trim();
+                    if (!isPlausibleImageUrl(draft)) {
+                      setLogoUrlErr("Enter a valid http(s) image URL.");
+                      return;
+                    }
+                    loadImageFromUrl(
+                      draft,
+                      (img) => {
+                        setChannelLogoImg(img);
+                        setChannelLogoUrl(draft);
+                      },
+                      (msg) => setLogoUrlErr(msg),
+                    );
+                  }}
+                >
+                  Add
+                </Button>
+              </div>
+              {logoUrlErr && <p className="text-[11px] text-destructive">{logoUrlErr}</p>}
               <ChannelLogoControls value={channelLogo} onChange={setChannelLogo} />
             </CardContent>
           </Card>
@@ -1934,6 +2124,8 @@ function WyrPage() {
               <AnimControlGroup items={ANIM_ELEMENTS} values={anims} onChange={setAnim} />
             </CardContent>
           </Card>
+
+          <KidAudioCard value={audio} onChange={setAudio} />
 
           <IntroOutroCard
             intro={intro}
