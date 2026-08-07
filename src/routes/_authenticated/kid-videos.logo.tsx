@@ -75,7 +75,20 @@ import {
   drawRoundTransition,
   roundTransitionCoverage,
   RoundTransitionControls,
+  ANSWER_BOX_STYLES,
+  drawAnswerBox,
 } from "@/lib/kid-elements";
+import {
+  KidAudioCard,
+  VoTimingControls,
+  defaultKidAudio,
+  useKidAudioEngine,
+  renderKidSfxBuffer,
+  renderKidMusicBuffer,
+  type KidAudioSettings,
+  type KidAudioCue,
+  type VoTimingMode,
+} from "@/lib/kid-audio";
 import {
   TTS_PROVIDERS,
   TTS_VOICES,
@@ -267,6 +280,10 @@ function LogoPage() {
   const [showTimer, setShowTimer] = useState(true);
   const [showTimeBar, setShowTimeBar] = useState(true);
   const [answerFontScale, setAnswerFontScale] = useState(1);
+  const [answerBoxStyle, setAnswerBoxStyle] = useState(ANSWER_BOX_STYLES[0].id);
+  const [voMode, setVoMode] = useState<VoTimingMode>("overlap");
+  const [audio, setAudio] = useState<KidAudioSettings>(defaultKidAudio());
+  const { playSfx } = useKidAudioEngine(audio);
   const [answerColor, setAnswerColor] = useState("");
   const [anims, setAnims] = useState<Record<string, ElementAnimSpec>>(defaultAnimMap());
   const setAnim = (key: string, spec: ElementAnimSpec) =>
@@ -316,8 +333,11 @@ function LogoPage() {
   const pal = useMemo(() => applyOverrides(basePalette, colors), [basePalette, colors]);
 
   const roundDur = useCallback(
-    (r: Round) => Math.max(Math.max(3, r.duration), (r.voDur || 0) + 0.6) + revealSecs,
-    [revealSecs],
+    (r: Round) =>
+      voMode === "hold"
+        ? (r.voDur || 0) + 0.3 + Math.max(3, r.duration) + revealSecs
+        : Math.max(Math.max(3, r.duration), (r.voDur || 0) + 0.6) + revealSecs,
+    [revealSecs, voMode],
   );
 
   const timeline = useMemo(() => {
@@ -568,15 +588,21 @@ function LogoPage() {
           ctx.globalAlpha *= revealK;
           applyStyle(ctx, styles.answer, bcx, bandY + bandH * 0.66, w, h);
           applyAnim(ctx, answerAnim, bcx, bandY + bandH * 0.66);
-          ctx.textAlign = "center";
-          ctx.textBaseline = "middle";
-          const answer = r.answer.toUpperCase();
-          const asz = fitText(ctx, answer, w - M * 2 - bandH * 0.5, bandH * 0.4 * answerFontScale, 900);
-          ctx.font = `900 ${asz}px ${FX_FONT}`;
-          ctx.fillStyle = answerColor.trim() || pal.text;
-          ctx.shadowColor = hexA(pal.accent, 0.5);
-          ctx.shadowBlur = asz * 0.35;
-          ctx.fillText(answer, bcx, bandY + bandH * 0.66);
+          const chipH = bandH * 0.52 * answerFontScale;
+          const chipW = Math.min(w - M * 2 - bandH * 0.4, w * 0.9);
+          drawAnswerBox(ctx, {
+            style: answerBoxStyle,
+            x: bcx - chipW / 2,
+            y: bandY + bandH * 0.66 - chipH / 2,
+            w: chipW,
+            h: chipH,
+            text: r.answer.toUpperCase(),
+            t: revealK,
+            accent: pal.accent,
+            textColor: answerColor.trim() || pal.text,
+            bg: pal.primary,
+            font: FX_FONT,
+          });
           ctx.restore();
         }
       }
@@ -632,6 +658,7 @@ function LogoPage() {
     [
       aspect,
       anims,
+      answerBoxStyle,
       answerColor,
       answerFontScale,
       styles,
@@ -722,12 +749,31 @@ function LogoPage() {
         const seg = timeline.segs.find(
           (sg) => timeRef.current >= sg.start && timeRef.current < sg.start + sg.dur,
         );
-        if (seg && seg.round.voUrl && !playedRef.current.has(seg.round.id)) {
+        if (seg && !playedRef.current.has(seg.round.id)) {
           playedRef.current.add(seg.round.id);
-          const el = new Audio(seg.round.voUrl);
-          audioElRef.current = el;
-          void el.play().catch(() => {});
+          playSfx("start");
+          if (seg.round.voUrl) {
+            const el = new Audio(seg.round.voUrl);
+            audioElRef.current = el;
+            void el.play().catch(() => {});
+          }
         }
+        if (seg) {
+          const gDur = Math.max(0.5, seg.dur - revealSecs);
+          const revealKey = `${seg.round.id}-reveal`;
+          if (timeRef.current - seg.start >= gDur && !playedRef.current.has(revealKey)) {
+            playedRef.current.add(revealKey);
+            playSfx("reveal");
+          }
+        }
+        timeline.segs.forEach((sg, i) => {
+          if (i === 0) return;
+          const key = `transition-${sg.round.id}`;
+          if (Math.abs(timeRef.current - sg.start) < 0.05 && !playedRef.current.has(key)) {
+            playedRef.current.add(key);
+            playSfx("transition");
+          }
+        });
         setTime(timeRef.current);
       }
       lastRef.current = now;
@@ -736,7 +782,7 @@ function LogoPage() {
     };
     rafRef.current = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(rafRef.current);
-  }, [drawFrame, playing, timeline]);
+  }, [drawFrame, playing, timeline, playSfx, revealSecs]);
 
   const togglePlay = () => {
     if (playing) {
@@ -799,6 +845,21 @@ function LogoPage() {
         src.buffer = buf;
         src.connect(dest);
         src.start(audioCtx.currentTime + seg.start + 0.15);
+      }
+      const cues: KidAudioCue[] = [];
+      timeline.segs.forEach((seg, i) => {
+        cues.push({ kind: "start", time: seg.start });
+        if (i > 0) cues.push({ kind: "transition", time: seg.start });
+        cues.push({ kind: "reveal", time: seg.start + Math.max(0.5, seg.dur - revealSecs) });
+      });
+      const sfxBuf = await renderKidSfxBuffer(audio, cues, timeline.total);
+      const musicBuf = await renderKidMusicBuffer(audio, timeline.total);
+      for (const buf of [sfxBuf, musicBuf]) {
+        if (!buf) continue;
+        const bsrc = audioCtx.createBufferSource();
+        bsrc.buffer = buf;
+        bsrc.connect(dest);
+        bsrc.start(audioCtx.currentTime);
       }
       dest.stream.getAudioTracks().forEach((tr) => stream.addTrack(tr));
       const mime = MediaRecorder.isTypeSupported("video/mp4;codecs=avc1")
@@ -1039,9 +1100,24 @@ function LogoPage() {
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Answer text</CardTitle>
-              <CardDescription>Font size and colour of the revealed answer.</CardDescription>
+              <CardDescription>Template, size and colour of the revealed answer.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
+              <div>
+                <Label className="text-xs text-muted-foreground">Answer template</Label>
+                <Select value={answerBoxStyle} onValueChange={setAnswerBoxStyle}>
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ANSWER_BOX_STYLES.map((o) => (
+                      <SelectItem key={o.id} value={o.id}>
+                        {o.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
               <div>
                 <Label className="text-xs text-muted-foreground">
                   Font size · {Math.round(answerFontScale * 100)}%
@@ -1222,6 +1298,12 @@ function LogoPage() {
                   placeholder="Delivery direction"
                 />
               )}
+              <VoTimingControls
+                mode={voMode}
+                onModeChange={setVoMode}
+                resultSecs={revealSecs}
+                onResultSecsChange={setRevealSecs}
+              />
               <Button onClick={generateAll} disabled={generating} className="w-full">
                 {generating ? (
                   <Loader2 className="mr-1 h-4 w-4 animate-spin" />
@@ -1232,6 +1314,8 @@ function LogoPage() {
               </Button>
             </CardContent>
           </Card>
+
+          <KidAudioCard value={audio} onChange={setAudio} />
 
           <IntroOutroCard
             intro={intro}

@@ -3523,7 +3523,15 @@ export const ANSWER_BOX_STYLES: AnswerBoxStyle[] = [
   { id: "torn-paper", name: "Torn paper" },
   { id: "marquee-lights", name: "Marquee lights" },
   { id: "bubble-tail", name: "Speech bubble" },
+  { id: "split-flap", name: "Split-flap board" },
+  { id: "underline-serif", name: "Editorial underline" },
+  { id: "double-outline", name: "Double outline" },
+  { id: "highlighter", name: "Highlighter sweep" },
+  { id: "badge-stack", name: "Stacked cards" },
+  { id: "glow-capsule", name: "Glow capsule" },
+  { id: "handwritten-note", name: "Handwritten note" },
 ];
+
 
 function abClamp01(v: number) {
   return Math.max(0, Math.min(1, v));
@@ -3829,7 +3837,126 @@ export function drawAnswerBox(
       ctx.restore();
       break;
     }
+
+    case "split-flap": {
+      // Two-tone flip board with a hairline seam.
+      path(r * 0.6);
+      const g = ctx.createLinearGradient(x, y, x, y + h);
+      g.addColorStop(0, hexToRgba(bg, 0.98));
+      g.addColorStop(0.499, hexToRgba(bg, 0.85));
+      g.addColorStop(0.5, hexToRgba("#000000", 0.55));
+      g.addColorStop(1, hexToRgba(bg, 0.98));
+      ctx.fillStyle = g;
+      ctx.fill();
+      ctx.strokeStyle = hexToRgba(accent, 0.85);
+      ctx.lineWidth = Math.max(1.5, h * 0.025);
+      ctx.stroke();
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.scale(1, Math.min(1, 0.4 + t * 0.6));
+      ctx.translate(-cx, -cy);
+      drawCenteredText(textColor, w * 0.84, h * 0.44);
+      ctx.restore();
+      break;
+    }
+    case "underline-serif": {
+      // Clean editorial: no box, just a sweeping accent underline.
+      drawCenteredText(textColor, w * 0.92, h * 0.52);
+      const uw = w * 0.7 * Math.min(1, t * 1.4);
+      ctx.fillStyle = hexToRgba(accent, 0.95);
+      ctx.fillRect(cx - uw / 2, y + h * 0.86, uw, Math.max(3, h * 0.06));
+      break;
+    }
+    case "double-outline": {
+      path(r);
+      ctx.fillStyle = hexToRgba(bg, 0.9);
+      ctx.fill();
+      ctx.strokeStyle = hexToRgba(accent, 0.95);
+      ctx.lineWidth = Math.max(2, h * 0.045);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.roundRect(x + h * 0.12, y + h * 0.12, w - h * 0.24, h - h * 0.24, r * 0.7);
+      ctx.strokeStyle = hexToRgba(textColor, 0.5);
+      ctx.lineWidth = Math.max(1, h * 0.018);
+      ctx.stroke();
+      drawCenteredText(textColor, w * 0.78);
+      break;
+    }
+    case "highlighter": {
+      // Marker-pen highlight sweeping in behind the answer.
+      const hw = w * 0.9 * Math.min(1, t * 1.5);
+      ctx.save();
+      ctx.globalAlpha *= 0.75;
+      ctx.fillStyle = hexToRgba(accent, 0.9);
+      ctx.beginPath();
+      ctx.roundRect(cx - hw / 2, y + h * 0.28, hw, h * 0.52, h * 0.1);
+      ctx.fill();
+      ctx.restore();
+      drawCenteredText(textColor, w * 0.86, h * 0.46);
+      break;
+    }
+    case "badge-stack": {
+      // Offset "stacked cards" look.
+      for (let i = 2; i >= 1; i--) {
+        ctx.save();
+        ctx.globalAlpha *= 0.35;
+        ctx.beginPath();
+        ctx.roundRect(x + i * h * 0.09, y + i * h * 0.09, w, h, r);
+        ctx.fillStyle = hexToRgba(accent, 0.9);
+        ctx.fill();
+        ctx.restore();
+      }
+      path(r);
+      ctx.fillStyle = hexToRgba(bg, 0.97);
+      ctx.fill();
+      ctx.strokeStyle = hexToRgba(accent, 0.9);
+      ctx.lineWidth = Math.max(2, h * 0.03);
+      ctx.stroke();
+      drawCenteredText(textColor, w * 0.82);
+      break;
+    }
+    case "glow-capsule": {
+      const pulse = 0.7 + 0.3 * Math.sin(t * Math.PI * 2);
+      ctx.save();
+      ctx.shadowColor = accent;
+      ctx.shadowBlur = h * 0.6 * pulse;
+      path(h / 2);
+      const gg = ctx.createLinearGradient(x, y, x + w, y + h);
+      gg.addColorStop(0, hexToRgba(accent, 0.95));
+      gg.addColorStop(1, hexToRgba(bg, 0.95));
+      ctx.fillStyle = gg;
+      ctx.fill();
+      ctx.restore();
+      drawCenteredText("#ffffff", w * 0.85);
+      break;
+    }
+    case "handwritten-note": {
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(-0.025);
+      ctx.translate(-cx, -cy);
+      ctx.fillStyle = hexToRgba("#fffdf3", 0.97);
+      ctx.beginPath();
+      ctx.roundRect(x, y, w, h, h * 0.06);
+      ctx.fill();
+      ctx.strokeStyle = hexToRgba("#00000022", 0.5);
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      for (let i = 1; i < 3; i++) {
+        ctx.beginPath();
+        ctx.moveTo(x + w * 0.06, y + (h * i) / 3);
+        ctx.lineTo(x + w * 0.94, y + (h * i) / 3);
+        ctx.strokeStyle = "rgba(80,120,200,0.18)";
+        ctx.stroke();
+      }
+      ctx.fillStyle = accent;
+      ctx.fillRect(x, y, w * 0.02, h);
+      drawCenteredText("#14161c", w * 0.84, h * 0.44);
+      ctx.restore();
+      break;
+    }
     case "solid-pill":
+
     default: {
       path(Math.min(r, h / 2));
       ctx.fillStyle = hexToRgba(accent, 0.95);

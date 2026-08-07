@@ -81,6 +81,8 @@ import {
 } from "@/lib/kid-elements";
 import {
   KidAudioCard,
+  VoTimingControls,
+  type VoTimingMode,
   defaultKidAudio,
   useKidAudioEngine,
   renderKidSfxBuffer,
@@ -380,6 +382,7 @@ function MathPage() {
   const [answerBoxScale, setAnswerBoxScale] = useState(1);
   const [answerBoxDx, setAnswerBoxDx] = useState(0);
   const [answerBoxDy, setAnswerBoxDy] = useState(0);
+  const [voMode, setVoMode] = useState<VoTimingMode>("overlap");
   const [audio, setAudio] = useState<KidAudioSettings>(defaultKidAudio());
   const { playSfx } = useKidAudioEngine(audio);
   const [roundBadgeId, setRoundBadgeId] = useState<RoundBadgeId>("star-burst");
@@ -417,8 +420,11 @@ function MathPage() {
   const pal = useMemo(() => applyOverrides(basePalette, colors), [basePalette, colors]);
 
   const roundDur = useCallback(
-    (r: Round) => Math.max(Math.max(3, r.duration), (r.voDur || 0) + 0.6) + revealSecs,
-    [revealSecs],
+    (r: Round) =>
+      voMode === "hold"
+        ? (r.voDur || 0) + 0.3 + Math.max(3, r.duration) + revealSecs
+        : Math.max(Math.max(3, r.duration), (r.voDur || 0) + 0.6) + revealSecs,
+    [revealSecs, voMode],
   );
 
   const timeline = useMemo(() => {
@@ -1496,6 +1502,12 @@ function MathPage() {
                   placeholder="Delivery direction"
                 />
               )}
+              <VoTimingControls
+                mode={voMode}
+                onModeChange={setVoMode}
+                resultSecs={revealSecs}
+                onResultSecsChange={setRevealSecs}
+              />
               <Button onClick={generateAll} disabled={generating} className="w-full">
                 {generating ? (
                   <Loader2 className="mr-1 h-4 w-4 animate-spin" />

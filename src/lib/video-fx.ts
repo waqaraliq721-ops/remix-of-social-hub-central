@@ -43,19 +43,40 @@ export function roundRect(
   ctx.closePath();
 }
 
+// --- measurement caches -------------------------------------------------
+// Text layout (wrapping + auto-fit) is measured per frame by every studio.
+// measureText is comparatively expensive, and fitText can loop dozens of
+// times for long strings, which made previews stutter as soon as a user
+// typed a long option label. Results only depend on (font, text, width),
+// so we memoise them and evict in bulk when the cache grows.
+const _wrapCache = new Map<string, string[]>();
+const _fitCache = new Map<string, number>();
+
+function cacheGet<T>(map: Map<string, T>, key: string, make: () => T): T {
+  const hit = map.get(key);
+  if (hit !== undefined) return hit;
+  const val = make();
+  if (map.size > 4000) map.clear();
+  map.set(key, val);
+  return val;
+}
+
 export function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
-  const words = text.split(" ");
-  const out: string[] = [];
-  let cur = "";
-  for (const w of words) {
-    const test = cur ? cur + " " + w : w;
-    if (ctx.measureText(test).width > maxWidth && cur) {
-      out.push(cur);
-      cur = w;
-    } else cur = test;
-  }
-  if (cur) out.push(cur);
-  return out;
+  const key = `${ctx.font}|${Math.round(maxWidth)}|${text}`;
+  return cacheGet(_wrapCache, key, () => {
+    const words = text.split(" ");
+    const out: string[] = [];
+    let cur = "";
+    for (const w of words) {
+      const test = cur ? cur + " " + w : w;
+      if (ctx.measureText(test).width > maxWidth && cur) {
+        out.push(cur);
+        cur = w;
+      } else cur = test;
+    }
+    if (cur) out.push(cur);
+    return out;
+  });
 }
 
 export function fitText(
@@ -66,14 +87,20 @@ export function fitText(
   weight = 900,
   min = 14,
 ) {
-  let size = start;
+  const key = `${weight}|${Math.round(start)}|${min}|${Math.round(maxWidth)}|${text}`;
+  const size = cacheGet(_fitCache, key, () => {
+    let s = start;
+    ctx.font = `${weight} ${s}px ${FX_FONT}`;
+    while (ctx.measureText(text).width > maxWidth && s > min) {
+      s -= Math.max(1, Math.round(s * 0.05));
+      ctx.font = `${weight} ${s}px ${FX_FONT}`;
+    }
+    return s;
+  });
   ctx.font = `${weight} ${size}px ${FX_FONT}`;
-  while (ctx.measureText(text).width > maxWidth && size > min) {
-    size -= Math.max(1, Math.round(size * 0.05));
-    ctx.font = `${weight} ${size}px ${FX_FONT}`;
-  }
   return size;
 }
+
 
 export function tracked(
   ctx: CanvasRenderingContext2D,

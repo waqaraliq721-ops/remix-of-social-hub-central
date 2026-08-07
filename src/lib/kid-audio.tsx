@@ -754,3 +754,59 @@ export function KidAudioCard({
     </Card>
   );
 }
+
+// ---------------------------------------------------------------------------
+// Voiceover timing mode
+// ---------------------------------------------------------------------------
+
+/**
+ * How narration interacts with the round countdown.
+ *  · "overlap" — narration plays while the countdown runs (fast-paced edits).
+ *  · "hold"    — the countdown (and therefore the result reveal) only starts
+ *                once the narration has finished.
+ */
+export type VoTimingMode = "overlap" | "hold";
+
+export function VoTimingControls({
+  mode,
+  onModeChange,
+  resultSecs,
+  onResultSecsChange,
+}: {
+  mode: VoTimingMode;
+  onModeChange: (v: VoTimingMode) => void;
+  resultSecs: number;
+  onResultSecsChange: (v: number) => void;
+}) {
+  return (
+    <div className="space-y-3 rounded-md border p-3">
+      <Label className="text-xs font-medium">Voiceover timing</Label>
+      <Select value={mode} onValueChange={(v) => onModeChange(v as VoTimingMode)}>
+        <SelectTrigger className="h-8 text-xs">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="overlap">Play over the running timer</SelectItem>
+          <SelectItem value="hold">Pause the timer until narration ends</SelectItem>
+        </SelectContent>
+      </Select>
+      <p className="text-[11px] text-muted-foreground">
+        {mode === "hold"
+          ? "Each round runs: narration → countdown → result. Round length grows with the narration."
+          : "Narration plays on top of the countdown, so rounds stay tight and predictable."}
+      </p>
+      <div>
+        <Label className="text-[11px] text-muted-foreground">
+          Result hold · {resultSecs.toFixed(1)}s
+        </Label>
+        <Slider
+          value={[resultSecs]}
+          min={0.6}
+          max={6}
+          step={0.1}
+          onValueChange={([v]) => onResultSecsChange(v)}
+        />
+      </div>
+    </div>
+  );
+}
