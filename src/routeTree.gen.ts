@@ -38,6 +38,7 @@ import { Route as AuthenticatedGamingVideosIndexRouteImport } from './routes/_au
 import { Route as AuthenticatedKidVideosWyrRouteImport } from './routes/_authenticated/kid-videos.wyr'
 import { Route as AuthenticatedKidVideosMathRouteImport } from './routes/_authenticated/kid-videos.math'
 import { Route as AuthenticatedKidVideosLogoRouteImport } from './routes/_authenticated/kid-videos.logo'
+import { Route as AuthenticatedKidVideosFlagRouteImport } from './routes/_authenticated/kid-videos.flag'
 import { Route as AuthenticatedKidVideosEmojiRouteImport } from './routes/_authenticated/kid-videos.emoji'
 import { Route as AuthenticatedGamingVideosRankingRouteImport } from './routes/_authenticated/gaming-videos.ranking'
 import { Route as AuthenticatedGamingVideosNewsRouteImport } from './routes/_authenticated/gaming-videos.news'
@@ -198,6 +199,12 @@ const AuthenticatedKidVideosLogoRoute =
     path: '/logo',
     getParentRoute: () => AuthenticatedKidVideosRoute,
   } as any)
+const AuthenticatedKidVideosFlagRoute =
+  AuthenticatedKidVideosFlagRouteImport.update({
+    id: '/flag',
+    path: '/flag',
+    getParentRoute: () => AuthenticatedKidVideosRoute,
+  } as any)
 const AuthenticatedKidVideosEmojiRoute =
   AuthenticatedKidVideosEmojiRouteImport.update({
     id: '/emoji',
@@ -251,6 +258,7 @@ export interface FileRoutesByFullPath {
   '/gaming-videos/news': typeof AuthenticatedGamingVideosNewsRoute
   '/gaming-videos/ranking': typeof AuthenticatedGamingVideosRankingRoute
   '/kid-videos/emoji': typeof AuthenticatedKidVideosEmojiRoute
+  '/kid-videos/flag': typeof AuthenticatedKidVideosFlagRoute
   '/kid-videos/logo': typeof AuthenticatedKidVideosLogoRoute
   '/kid-videos/math': typeof AuthenticatedKidVideosMathRoute
   '/kid-videos/wyr': typeof AuthenticatedKidVideosWyrRoute
@@ -283,6 +291,7 @@ export interface FileRoutesByTo {
   '/gaming-videos/news': typeof AuthenticatedGamingVideosNewsRoute
   '/gaming-videos/ranking': typeof AuthenticatedGamingVideosRankingRoute
   '/kid-videos/emoji': typeof AuthenticatedKidVideosEmojiRoute
+  '/kid-videos/flag': typeof AuthenticatedKidVideosFlagRoute
   '/kid-videos/logo': typeof AuthenticatedKidVideosLogoRoute
   '/kid-videos/math': typeof AuthenticatedKidVideosMathRoute
   '/kid-videos/wyr': typeof AuthenticatedKidVideosWyrRoute
@@ -319,6 +328,7 @@ export interface FileRoutesById {
   '/_authenticated/gaming-videos/news': typeof AuthenticatedGamingVideosNewsRoute
   '/_authenticated/gaming-videos/ranking': typeof AuthenticatedGamingVideosRankingRoute
   '/_authenticated/kid-videos/emoji': typeof AuthenticatedKidVideosEmojiRoute
+  '/_authenticated/kid-videos/flag': typeof AuthenticatedKidVideosFlagRoute
   '/_authenticated/kid-videos/logo': typeof AuthenticatedKidVideosLogoRoute
   '/_authenticated/kid-videos/math': typeof AuthenticatedKidVideosMathRoute
   '/_authenticated/kid-videos/wyr': typeof AuthenticatedKidVideosWyrRoute
@@ -355,6 +365,7 @@ export interface FileRouteTypes {
     | '/gaming-videos/news'
     | '/gaming-videos/ranking'
     | '/kid-videos/emoji'
+    | '/kid-videos/flag'
     | '/kid-videos/logo'
     | '/kid-videos/math'
     | '/kid-videos/wyr'
@@ -387,6 +398,7 @@ export interface FileRouteTypes {
     | '/gaming-videos/news'
     | '/gaming-videos/ranking'
     | '/kid-videos/emoji'
+    | '/kid-videos/flag'
     | '/kid-videos/logo'
     | '/kid-videos/math'
     | '/kid-videos/wyr'
@@ -422,6 +434,7 @@ export interface FileRouteTypes {
     | '/_authenticated/gaming-videos/news'
     | '/_authenticated/gaming-videos/ranking'
     | '/_authenticated/kid-videos/emoji'
+    | '/_authenticated/kid-videos/flag'
     | '/_authenticated/kid-videos/logo'
     | '/_authenticated/kid-videos/math'
     | '/_authenticated/kid-videos/wyr'
@@ -645,6 +658,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedKidVideosLogoRouteImport
       parentRoute: typeof AuthenticatedKidVideosRoute
     }
+    '/_authenticated/kid-videos/flag': {
+      id: '/_authenticated/kid-videos/flag'
+      path: '/flag'
+      fullPath: '/kid-videos/flag'
+      preLoaderRoute: typeof AuthenticatedKidVideosFlagRouteImport
+      parentRoute: typeof AuthenticatedKidVideosRoute
+    }
     '/_authenticated/kid-videos/emoji': {
       id: '/_authenticated/kid-videos/emoji'
       path: '/emoji'
@@ -699,6 +719,7 @@ const AuthenticatedGamingVideosRouteWithChildren =
 
 interface AuthenticatedKidVideosRouteChildren {
   AuthenticatedKidVideosEmojiRoute: typeof AuthenticatedKidVideosEmojiRoute
+  AuthenticatedKidVideosFlagRoute: typeof AuthenticatedKidVideosFlagRoute
   AuthenticatedKidVideosLogoRoute: typeof AuthenticatedKidVideosLogoRoute
   AuthenticatedKidVideosMathRoute: typeof AuthenticatedKidVideosMathRoute
   AuthenticatedKidVideosWyrRoute: typeof AuthenticatedKidVideosWyrRoute
@@ -708,6 +729,7 @@ interface AuthenticatedKidVideosRouteChildren {
 const AuthenticatedKidVideosRouteChildren: AuthenticatedKidVideosRouteChildren =
   {
     AuthenticatedKidVideosEmojiRoute: AuthenticatedKidVideosEmojiRoute,
+    AuthenticatedKidVideosFlagRoute: AuthenticatedKidVideosFlagRoute,
     AuthenticatedKidVideosLogoRoute: AuthenticatedKidVideosLogoRoute,
     AuthenticatedKidVideosMathRoute: AuthenticatedKidVideosMathRoute,
     AuthenticatedKidVideosWyrRoute: AuthenticatedKidVideosWyrRoute,

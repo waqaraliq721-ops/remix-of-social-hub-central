@@ -684,7 +684,13 @@ export type HqLayout =
   | "verticalMarquee"
   | "filmStrip"
   | "glitchTerminal"
-  | "liquidReveal";
+  | "liquidReveal"
+  | "splitDiagonal"
+  | "neonGrid"
+  | "tornMagazine"
+  | "filmFrames"
+  | "haloBacklight"
+  | "kineticMarquee";
 
 export type HqControlKey =
   | "headline"
@@ -999,6 +1005,144 @@ export const HQ_TEMPLATES: HqTemplate[] = [
     cameraMotion: "drift",
     duotone: false,
   },
+  {
+    id: "hq-split-diagonal",
+    name: "Split Diagonal",
+    desc: "A hard diagonal colour cut across the frame — subject fills one half, huge stacked type dominates the other.",
+    layout: "splitDiagonal",
+    backdrop: "gradientsun",
+    backdropColor: "#e0703a",
+    textColor: "#fff8ef",
+    highlightColor: "#101010",
+    font: "'Archivo Black', Impact, sans-serif",
+    weight: "900",
+    italic: false,
+    uppercase: true,
+    size: 0.062,
+    align: "center",
+    textY: 0.9,
+    cutout: true,
+    keepOriginalBg: false,
+    particles: "none",
+    controls: ["headline", "typography", "wordAnimation", "wordEditor", "subject", "backdrop", "camera"],
+    cameraMotion: "parallax",
+    duotone: false,
+  },
+  {
+    id: "hq-neon-grid",
+    name: "Neon Grid Night",
+    desc: "Retro synthwave perspective grid horizon with glowing chromatic-split type and a drifting sun.",
+    layout: "neonGrid",
+    backdrop: "voidsolid",
+    backdropColor: "#0a0518",
+    textColor: "#ffffff",
+    highlightColor: "#ff2fd0",
+    font: "'Archivo Black', Impact, sans-serif",
+    weight: "900",
+    italic: false,
+    uppercase: true,
+    size: 0.07,
+    align: "center",
+    textY: 0.24,
+    cutout: true,
+    keepOriginalBg: false,
+    particles: "none",
+    controls: ["headline", "typography", "wordAnimation", "wordEditor", "subject", "camera"],
+    cameraMotion: "drift",
+    duotone: false,
+  },
+  {
+    id: "hq-torn-magazine",
+    name: "Torn Magazine",
+    desc: "Torn-paper collage strips layered over a duotoned subject with cut-out ransom-note keywords.",
+    layout: "tornMagazine",
+    backdrop: "newsprint",
+    backdropColor: "#c9c6bd",
+    textColor: "#141414",
+    highlightColor: "#e5352b",
+    font: "'Helvetica Neue', Arial, sans-serif",
+    weight: "800",
+    italic: false,
+    uppercase: true,
+    size: 0.05,
+    align: "center",
+    textY: 0.88,
+    cutout: true,
+    keepOriginalBg: false,
+    particles: "none",
+    controls: ["headline", "typography", "wordAnimation", "wordEditor", "subject", "backdrop", "camera"],
+    cameraMotion: "handheld",
+    duotone: true,
+  },
+  {
+    id: "hq-film-frames",
+    name: "Film Strip Frames",
+    desc: "Three vertical framed crops of the subject side by side with letterboxing and a typewriter caption.",
+    layout: "filmFrames",
+    backdrop: "concrete",
+    backdropColor: "#101012",
+    textColor: "#eae7df",
+    highlightColor: "#d9a441",
+    font: "'Courier New', monospace",
+    weight: "700",
+    italic: false,
+    uppercase: true,
+    size: 0.042,
+    align: "center",
+    textY: 0.9,
+    cutout: false,
+    keepOriginalBg: true,
+    particles: "none",
+    controls: ["headline", "typography", "wordAnimation", "wordEditor", "backdrop", "camera", "signature"],
+    cameraMotion: "zoomIn",
+    duotone: false,
+  },
+  {
+    id: "hq-halo-backlight",
+    name: "Halo Backlight",
+    desc: "Subject silhouetted against a radial halo with a slow rotating light-ray sweep and a thin elegant serif.",
+    layout: "haloBacklight",
+    backdrop: "voidsolid",
+    backdropColor: "#050505",
+    textColor: "#f5efe2",
+    highlightColor: "#ffd98a",
+    font: "Georgia, 'Times New Roman', serif",
+    weight: "400",
+    italic: false,
+    uppercase: false,
+    size: 0.05,
+    align: "center",
+    textY: 0.84,
+    cutout: true,
+    keepOriginalBg: false,
+    particles: "dust",
+    controls: ["headline", "typography", "wordAnimation", "wordEditor", "subject", "camera", "particles"],
+    cameraMotion: "breathe",
+    duotone: false,
+  },
+  {
+    id: "hq-kinetic-marquee",
+    name: "Kinetic Stack Marquee",
+    desc: "Full-bleed subject with a scrolling marquee band repeating the keyword and a bold condensed headline.",
+    layout: "kineticMarquee",
+    backdrop: "concrete",
+    backdropColor: "#1b1b1e",
+    textColor: "#ffffff",
+    highlightColor: "#f2c744",
+    font: "'Archivo Black', Impact, sans-serif",
+    weight: "900",
+    italic: false,
+    uppercase: true,
+    size: 0.058,
+    align: "center",
+    textY: 0.86,
+    cutout: true,
+    keepOriginalBg: false,
+    particles: "none",
+    controls: ["headline", "typography", "wordAnimation", "wordEditor", "subject", "backdrop", "camera", "layoutOptions"],
+    cameraMotion: "zoomOut",
+    duotone: false,
+  },
 ];
 
 /* ------------------------------------------------------------------ config */
@@ -1083,6 +1227,12 @@ export function configForTemplate(tpl: HqTemplate, prev?: Partial<HqConfig>): Hq
     "hq-film-strip": { heading: "TAKE\nONE", subheading: "chapter i · the grind", author: "00:00:12:04" },
     "hq-glitch-terminal": { heading: "REBOOT\nYOUR MIND", subheading: "", author: "" },
     "hq-liquid-reveal": { heading: "flow with\nthe chaos", subheading: "", author: "" },
+    "hq-split-diagonal": { heading: "CHOOSE\nHARD", subheading: "", author: "" },
+    "hq-neon-grid": { heading: "NIGHT\nMODE", subheading: "", author: "" },
+    "hq-torn-magazine": { heading: "BREAK\nTHE NEWS", subheading: "hustle, grind, rise", author: "" },
+    "hq-film-frames": { heading: "THREE\nTAKES", subheading: "reel 01 · rough cut", author: "A · B · C" },
+    "hq-halo-backlight": { heading: "become\nthe light", subheading: "", author: "" },
+    "hq-kinetic-marquee": { heading: "NEVER\nSTOP", subheading: "grind, focus, rise, repeat", author: "" },
   };
   const d = headingDefaults[tpl.id] ?? { heading: "Winner.", subheading: "", author: "" };
   return {
@@ -1942,6 +2092,287 @@ export function renderHqFrame(i: HqFrameInput) {
         ctx.fillStyle = idx === lines.length - 1 ? cfg.highlightColor : cfg.textColor;
         ctx.fillText(cfg.uppercase ? ln.toUpperCase() : ln, w / 2, cy + size * 0.3);
         ctx.restore();
+      });
+      paintCaption(ctx, i, boxW, topY);
+      break;
+    }
+    case "splitDiagonal": {
+      paintBackdrop(i);
+      const edge = w * (0.52 + Math.sin(t * 0.18) * 0.015);
+      const skew = h * 0.16;
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(edge + skew, 0);
+      ctx.lineTo(w, 0);
+      ctx.lineTo(w, h);
+      ctx.lineTo(edge - skew, h);
+      ctx.closePath();
+      ctx.clip();
+      if (subject) drawSubject(ctx, i, subject);
+      ctx.restore();
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(edge + skew, 0);
+      ctx.lineTo(edge - skew, h);
+      ctx.lineTo(0, h);
+      ctx.closePath();
+      ctx.clip();
+      ctx.fillStyle = cfg.highlightColor;
+      ctx.fillRect(0, 0, w, h);
+      const lines = cfg.heading.split("\n");
+      const size = h * 0.11;
+      const lh = size * 0.98;
+      const midY = h * 0.5;
+      const startY = midY - ((lines.length - 1) / 2) * lh;
+      lines.forEach((ln, idx) => {
+        drawHeadingLines(ctx, ln, edge * 0.42, startY + idx * lh, lh, size, "900", cfg.font, cfg.textColor, "center", t + idx * 0.05, cfg.uppercase, cfg.italic);
+      });
+      ctx.restore();
+      ctx.save();
+      ctx.strokeStyle = cfg.textColor;
+      ctx.globalAlpha = 0.9;
+      ctx.lineWidth = Math.max(2, w * 0.006);
+      ctx.beginPath();
+      ctx.moveTo(edge + skew, 0);
+      ctx.lineTo(edge - skew, h);
+      ctx.stroke();
+      ctx.restore();
+      paintCaption(ctx, i, boxW, topY);
+      break;
+    }
+    case "neonGrid": {
+      paintBackdrop(i);
+      const horizon = h * 0.58;
+      ctx.save();
+      const sunG = ctx.createRadialGradient(w / 2, horizon - h * 0.02, 0, w / 2, horizon - h * 0.02, h * 0.32);
+      sunG.addColorStop(0, "rgba(255,120,220,0.55)");
+      sunG.addColorStop(1, "rgba(255,120,220,0)");
+      ctx.fillStyle = sunG;
+      ctx.fillRect(0, 0, w, h);
+      ctx.strokeStyle = cfg.highlightColor;
+      ctx.shadowColor = cfg.highlightColor;
+      ctx.shadowBlur = 14;
+      ctx.lineWidth = 2;
+      // horizontal grid lines receding toward the horizon
+      for (let n = 0; n < 14; n++) {
+        const p = n / 13;
+        const y = horizon + Math.pow(p, 2.4) * (h - horizon) + ((t * 40) % (h * 0.03));
+        if (y > h) continue;
+        ctx.globalAlpha = 0.5 * (1 - p * 0.4);
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(w, y);
+        ctx.stroke();
+      }
+      // vertical converging lines
+      const vp = w / 2;
+      for (let n = -7; n <= 7; n++) {
+        ctx.globalAlpha = 0.4;
+        ctx.beginPath();
+        ctx.moveTo(vp + n * w * 0.08, h);
+        ctx.lineTo(vp + n * w * 0.012, horizon);
+        ctx.stroke();
+      }
+      ctx.restore();
+      if (subject) drawSubject(ctx, i, subject);
+      const lines = cfg.heading.split("\n");
+      const size = h * 0.09;
+      const lh = size * 1.05;
+      const startY = h * cfg.textY;
+      lines.forEach((ln, idx) => {
+        const y = startY + idx * lh;
+        const text = cfg.uppercase ? ln.toUpperCase() : ln;
+        const p = Math.max(0, Math.min(1, (t - idx * 0.12) / 0.6));
+        const e = easeOutQuint(p);
+        ctx.save();
+        ctx.globalAlpha = e;
+        ctx.textAlign = "center";
+        ctx.font = `900 ${size}px ${cfg.font}`;
+        ctx.fillStyle = "rgba(0,255,255,0.65)";
+        ctx.fillText(text, w / 2 - 6, y);
+        ctx.fillStyle = "rgba(255,0,190,0.65)";
+        ctx.fillText(text, w / 2 + 6, y);
+        ctx.fillStyle = cfg.textColor;
+        ctx.fillText(text, w / 2, y);
+        ctx.restore();
+      });
+      paintCaption(ctx, i, boxW, topY);
+      break;
+    }
+    case "tornMagazine": {
+      paintBackdrop(i);
+      if (subject) drawSubject(ctx, i, subject, { desaturate: true });
+      ctx.save();
+      ctx.globalCompositeOperation = "color";
+      ctx.fillStyle = cfg.highlightColor;
+      ctx.globalAlpha = 0.28;
+      ctx.fillRect(0, 0, w, h);
+      ctx.restore();
+      // torn paper strips
+      const stripCount = 4;
+      for (let s2 = 0; s2 < stripCount; s2++) {
+        const sy = h * (0.14 + s2 * 0.2) + Math.sin(t * 0.3 + s2) * 6;
+        const sh2 = h * 0.09;
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(0, sy);
+        for (let x = 0; x <= w; x += 24) {
+          ctx.lineTo(x, sy + Math.sin(x * 0.09 + s2 * 3) * 8);
+        }
+        for (let x = w; x >= 0; x -= 24) {
+          ctx.lineTo(x, sy + sh2 + Math.sin(x * 0.07 + s2 * 5) * 8);
+        }
+        ctx.closePath();
+        ctx.fillStyle = s2 % 2 ? "#f4f1e8" : "#141414";
+        ctx.globalAlpha = 0.9;
+        ctx.fill();
+        ctx.restore();
+        const word = (cfg.heading.replace(/\n/g, " ").split(" ")[s2] || "NOW").toUpperCase();
+        ctx.save();
+        ctx.textAlign = "center";
+        ctx.fillStyle = s2 % 2 ? cfg.textColor : cfg.highlightColor;
+        ctx.font = `900 ${h * 0.05}px ${cfg.font}`;
+        ctx.translate(w * (0.3 + (s2 % 3) * 0.22), sy + sh2 / 2 + h * 0.018);
+        ctx.rotate((s2 % 2 ? -1 : 1) * 0.04);
+        ctx.fillText(word, 0, 0);
+        ctx.restore();
+      }
+      paintCaption(ctx, i, boxW, topY);
+      break;
+    }
+    case "filmFrames": {
+      paintBackdrop(i);
+      const gap = w * 0.02;
+      const frameW = (w - gap * 4) / 3;
+      const frameY = h * 0.14;
+      const frameH = h * 0.58;
+      const src = i.bgVideo ?? i.original ?? subject;
+      for (let f2 = 0; f2 < 3; f2++) {
+        const fx = gap + f2 * (frameW + gap);
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(fx, frameY, frameW, frameH);
+        ctx.clip();
+        if (src) {
+          ctx.save();
+          const zoom = 1.15 + Math.sin(t * 0.25 + f2) * 0.02;
+          const sw = "videoWidth" in src ? (src as HTMLVideoElement).videoWidth : (src as HTMLImageElement).naturalWidth || (src as HTMLCanvasElement).width;
+          const sh2 = "videoHeight" in src ? (src as HTMLVideoElement).videoHeight : (src as HTMLImageElement).naturalHeight || (src as HTMLCanvasElement).height;
+          if (sw && sh2) {
+            const r = Math.max(frameW / sw, frameH / sh2) * zoom;
+            const dw = sw * r;
+            const dh = sh2 * r;
+            const panX = fx + frameW / 2 - dw / 2 + Math.sin(t * 0.2 + f2 * 2) * 10;
+            ctx.drawImage(src, panX, frameY + frameH / 2 - dh / 2, dw, dh);
+          }
+          ctx.restore();
+        }
+        ctx.restore();
+        ctx.save();
+        ctx.strokeStyle = cfg.highlightColor;
+        ctx.lineWidth = 3;
+        ctx.strokeRect(fx, frameY, frameW, frameH);
+        ctx.restore();
+      }
+      const cap = cfg.subheading || "";
+      const p = Math.max(0, Math.min(1, (t % 3) / 1.4));
+      const shown = cap.slice(0, Math.floor(cap.length * p));
+      ctx.save();
+      ctx.textAlign = "center";
+      ctx.fillStyle = cfg.highlightColor;
+      ctx.font = `700 ${h * 0.024}px 'Courier New', monospace`;
+      ctx.fillText(shown + (Math.floor(t * 2) % 2 === 0 ? "_" : ""), w / 2, frameY - 16);
+      ctx.restore();
+      const lines = cfg.heading.split("\n");
+      const size = h * 0.042;
+      const lh = size * 1.1;
+      let y = h * 0.82;
+      lines.forEach((ln, idx) => {
+        drawHeadingLines(ctx, ln, w / 2, y + idx * lh, lh, size, "800", cfg.font, cfg.textColor, "center", t + idx * 0.06, cfg.uppercase, cfg.italic);
+      });
+      paintCaption(ctx, i, boxW, topY);
+      break;
+    }
+    case "haloBacklight": {
+      paintBackdrop(i);
+      ctx.save();
+      const rot = t * 0.12;
+      ctx.translate(w / 2, h * 0.42);
+      ctx.rotate(rot);
+      ctx.globalCompositeOperation = "screen";
+      for (let r2 = 0; r2 < 6; r2++) {
+        const a = (r2 / 6) * Math.PI * 2;
+        ctx.save();
+        ctx.rotate(a);
+        const grad = ctx.createLinearGradient(0, 0, 0, -h * 0.65);
+        grad.addColorStop(0, hexA(cfg.highlightColor, 0.22));
+        grad.addColorStop(1, "rgba(0,0,0,0)");
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.moveTo(-w * 0.02, 0);
+        ctx.lineTo(w * 0.02, 0);
+        ctx.lineTo(0, -h * 0.65);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+      }
+      ctx.restore();
+      ctx.save();
+      const halo = ctx.createRadialGradient(w / 2, h * 0.42, 0, w / 2, h * 0.42, h * 0.38);
+      halo.addColorStop(0, hexA(cfg.highlightColor, 0.65));
+      halo.addColorStop(0.6, hexA(cfg.highlightColor, 0.12));
+      halo.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = halo;
+      ctx.fillRect(0, 0, w, h);
+      ctx.restore();
+      if (subject) {
+        ctx.save();
+        ctx.filter = "brightness(0.15) contrast(1.2)";
+        drawSubject(ctx, i, subject);
+        ctx.restore();
+      }
+      drawParticles(ctx, w, h, t, cfg.particles, cfg.particleCount, cfg.particleSpeed, { x: 0, y: 0, w, h: h * 0.7 }, cfg.particleColor);
+      const lines = cfg.heading.split("\n");
+      const size = h * 0.05;
+      const lh = size * 1.4;
+      const midY = h * 0.86;
+      const startY = midY - ((lines.length - 1) / 2) * lh;
+      lines.forEach((ln, idx) => {
+        drawHeadingLines(ctx, ln, w / 2, startY + idx * lh, lh, size, "400", cfg.font, cfg.textColor, "center", t + idx * 0.08, cfg.uppercase, true);
+      });
+      paintCaption(ctx, i, boxW, topY);
+      break;
+    }
+    case "kineticMarquee": {
+      paintBackdrop(i);
+      if (subject) drawSubject(ctx, i, subject);
+      const bandH = h * 0.09;
+      const bandY = h * 0.66;
+      ctx.save();
+      ctx.fillStyle = cfg.highlightColor;
+      ctx.fillRect(0, bandY, w, bandH);
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(0, bandY, w, bandH);
+      ctx.clip();
+      const word = ` ${(cfg.subheading.split(",")[0] || cfg.heading.replace(/\n/g, " ")).trim().toUpperCase()} • `;
+      ctx.font = `900 ${bandH * 0.6}px ${cfg.font}`;
+      const wordW = ctx.measureText(word).width || 1;
+      const scrollX = -((t * cfg.marqueeSpeed * 220) % wordW);
+      ctx.fillStyle = "#101010";
+      ctx.textBaseline = "middle";
+      for (let x = scrollX - wordW; x < w + wordW; x += wordW) {
+        ctx.fillText(word, x, bandY + bandH / 2);
+      }
+      ctx.restore();
+      ctx.restore();
+      const lines = cfg.heading.split("\n");
+      const size = h * 0.084;
+      const lh = size * 0.96;
+      let y = h * 0.16;
+      lines.forEach((ln, idx) => {
+        drawHeadingLines(ctx, ln, w / 2, y + idx * lh, lh, size, "900", cfg.font, cfg.textColor, "center", t + idx * 0.06, cfg.uppercase, cfg.italic);
       });
       paintCaption(ctx, i, boxW, topY);
       break;

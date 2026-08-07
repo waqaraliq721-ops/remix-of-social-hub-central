@@ -88,6 +88,8 @@ import {
 } from "@/lib/kid-elements";
 import {
   KidAudioCard,
+  VoTimingControls,
+  type VoTimingMode,
   defaultKidAudio,
   useKidAudioEngine,
   renderKidSfxBuffer,
@@ -376,6 +378,7 @@ function EmojiPage() {
   const [roundBadgeId, setRoundBadgeId] = useState<RoundBadgeId>("pill");
   const [roundTransition, setRoundTransition] = useState<RoundTransitionSpec>(defaultRoundTransition());
 
+  const [voMode, setVoMode] = useState<VoTimingMode>("overlap");
   const [emojiBox, setEmojiBox] = useState<EmojiBoxSpec>(defaultEmojiBox());
   const setEmojiBoxPatch = (patch: Partial<EmojiBoxSpec>) => setEmojiBox((b) => ({ ...b, ...patch }));
   const [answerBoxStyle, setAnswerBoxStyle] = useState<string>(ANSWER_BOX_STYLES[0].id);
@@ -434,11 +437,23 @@ function EmojiPage() {
   const basePalette = PALETTES.find((p) => p.id === paletteId) ?? PALETTES[0];
   const pal = useMemo(() => applyOverrides(basePalette, colors), [basePalette, colors]);
 
+  /** Narration that plays before / during the guessing phase. */
+  const voLeadOf = useCallback(
+    (r: Round) => (r.voIntro.dur || 0) + (r.voMidOffset || 0) + (r.voMid.dur || 0),
+    [],
+  );
+
+  // "hold" waits for the narration before starting the countdown, so the round
+  // grows by the narration length; "overlap" narrates over a running timer.
   const roundDur = useCallback(
-    (r: Round) =>
-      Math.max(timerSecs, (r.voIntro.dur || 0) + (r.voMidOffset || 0) + (r.voMid.dur || 0) + 0.6) +
-      Math.max(revealSecs, (r.voAnswer.dur || 0) + 0.4),
-    [timerSecs, revealSecs],
+    (r: Round) => {
+      const vo = voLeadOf(r);
+      const reveal = Math.max(revealSecs, (r.voAnswer.dur || 0) + 0.4);
+      return voMode === "hold"
+        ? vo + 0.3 + timerSecs + reveal
+        : Math.max(timerSecs, vo + 0.6) + reveal;
+    },
+    [timerSecs, revealSecs, voMode, voLeadOf],
   );
 
   const timeline = useMemo(() => {
@@ -573,7 +588,12 @@ function EmojiPage() {
     ) => {
       drawBackground(ctx, w, h, absT);
 
-      const guessDur = Math.max(0.5, dur - revealSecs);
+      const revealHold = Math.max(revealSecs, (r.voAnswer.dur || 0) + 0.4);
+      const guessDur = Math.max(0.5, dur - revealHold);
+      // In "hold" mode the countdown only starts once narration is done.
+      const voLead = voMode === "hold" ? Math.min(guessDur - 0.2, voLeadOf(r) + 0.3) : 0;
+      const timerSpan = Math.max(0.2, guessDur - voLead);
+      const timerElapsed = Math.max(0, local - voLead);
       const revealing = local >= guessDur;
       const revealK = revealing ? ease.out(Math.min(1, (local - guessDur) / 0.45)) : 0;
       const inK = ease.out(Math.min(1, local / 0.4));
@@ -776,7 +796,7 @@ function EmojiPage() {
       // ---- countdown timer ----
       const timerStyleSpec = styles.timer ?? defaultStyle();
       if (showTimer && !revealing && timerStyleSpec.visible) {
-        const left = Math.max(0, guessDur - local);
+        const left = Math.max(0, timerSpan - timerElapsed);
         const rr = Math.min(w, h) * 0.065;
         const ccx = w - M - rr;
         const ccy = h - M - rr;
@@ -791,7 +811,7 @@ function EmojiPage() {
           ccy,
           rr,
           left,
-          guessDur,
+          timerSpan,
           { primary: pal.primary, accent: "#ef4444", text: pal.text },
           local,
         );
@@ -805,7 +825,7 @@ function EmojiPage() {
         const barH = Math.max(6, h * 0.012);
         const barX = M;
         const barY = M * 0.55;
-        const frac2 = Math.max(0, Math.min(1, 1 - local / Math.max(0.01, dur)));
+        const frac2 = Math.max(0, Math.min(1, 1 - timerElapsed / Math.max(0.01, timerSpan)));
         const timebarAnim = computeAnim(anims.timebar ?? defaultAnim(), local);
         ctx.save();
         applyStyle(ctx, timebarStyleSpec, barX + barW / 2, barY + barH / 2, w, h);
@@ -906,6 +926,8 @@ function EmojiPage() {
     },
     [
       anims,
+      voMode,
+      voLeadOf,
       answerBoxAccent,
       answerBoxBg,
       answerBoxDx,
@@ -1743,6 +1765,12 @@ function EmojiPage() {
                   placeholder="Delivery direction"
                 />
               )}
+              <VoTimingControls
+                mode={voMode}
+                onModeChange={setVoMode}
+                resultSecs={revealSecs}
+                onResultSecsChange={setRevealSecs}
+              />
               <Button onClick={generateAll} disabled={generating} className="w-full">
                 {generating ? (
                   <Loader2 className="mr-1 h-4 w-4 animate-spin" />
@@ -1878,6 +1906,135 @@ function EmojiPage() {
               <ElementStyleGroup items={STYLE_ELEMENTS} values={styles} onChange={setElStyle} />
             </CardContent>
           </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Emoji box</CardTitle>
+              <CardDescription>Resize and reposition the box so the other elements fit around it.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {([
+                ["width", "Width", 20, 100, 1, "%"],
+                ["height", "Height", 8, 70, 1, "%"],
+                ["x", "Center X", 0, 100, 1, "%"],
+                ["y", "Center Y", 0, 100, 1, "%"],
+                ["radius", "Corner radius", 0, 20, 0.5, ""],
+                ["padding", "Inner padding", 0, 20, 0.5, ""],
+                ["emojiSize", "Emoji size", 0.4, 2, 0.02, "x"],
+                ["spacing", "Emoji spacing", 0.2, 3, 0.02, "x"],
+                ["opacity", "Box opacity", 0, 1, 0.02, ""],
+                ["borderWidth", "Border width", 0, 4, 0.1, ""],
+              ] as const).map(([key, label, min, max, step, unit]) => (
+                <div key={key}>
+                  <Label className="text-[11px] text-muted-foreground">
+                    {label} · {Number(emojiBox[key]).toFixed(step < 1 ? 2 : 0)}
+                    {unit}
+                  </Label>
+                  <Slider
+                    value={[Number(emojiBox[key])]}
+                    min={min}
+                    max={max}
+                    step={step}
+                    onValueChange={([v]) => setEmojiBoxPatch({ [key]: v } as Partial<EmojiBoxSpec>)}
+                  />
+                </div>
+              ))}
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <Label className="text-[11px] text-muted-foreground">Box colour</Label>
+                  <Input
+                    value={emojiBox.bg}
+                    onChange={(e) => setEmojiBoxPatch({ bg: e.target.value })}
+                    placeholder="#000000"
+                    className="h-8 text-xs"
+                  />
+                </div>
+                <div>
+                  <Label className="text-[11px] text-muted-foreground">Border colour</Label>
+                  <Input
+                    value={emojiBox.borderColor}
+                    onChange={(e) => setEmojiBoxPatch({ borderColor: e.target.value })}
+                    placeholder="auto"
+                    className="h-8 text-xs"
+                  />
+                </div>
+              </div>
+              <div className="flex items-center justify-between">
+                <Label className="text-xs">Drop shadow</Label>
+                <Switch
+                  checked={emojiBox.shadow}
+                  onCheckedChange={(v) => setEmojiBoxPatch({ shadow: v })}
+                />
+              </div>
+              <Button variant="outline" size="sm" onClick={() => setEmojiBox(defaultEmojiBox())}>
+                Reset box
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Answer box</CardTitle>
+              <CardDescription>Style, colours and placement of the reveal chip.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <Select value={answerBoxStyle} onValueChange={setAnswerBoxStyle}>
+                <SelectTrigger className="h-8 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {ANSWER_BOX_STYLES.map((a) => (
+                    <SelectItem key={a.id} value={a.id}>
+                      {a.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <Label className="text-[11px] text-muted-foreground">Accent</Label>
+                  <Input
+                    value={answerBoxAccent}
+                    onChange={(e) => setAnswerBoxAccent(e.target.value)}
+                    placeholder="auto"
+                    className="h-8 text-xs"
+                  />
+                </div>
+                <div>
+                  <Label className="text-[11px] text-muted-foreground">Text</Label>
+                  <Input
+                    value={answerBoxTextColor}
+                    onChange={(e) => setAnswerBoxTextColor(e.target.value)}
+                    placeholder="auto"
+                    className="h-8 text-xs"
+                  />
+                </div>
+                <div>
+                  <Label className="text-[11px] text-muted-foreground">Fill</Label>
+                  <Input
+                    value={answerBoxBg}
+                    onChange={(e) => setAnswerBoxBg(e.target.value)}
+                    placeholder="auto"
+                    className="h-8 text-xs"
+                  />
+                </div>
+              </div>
+              <div>
+                <Label className="text-[11px] text-muted-foreground">Scale · {answerBoxScale.toFixed(2)}x</Label>
+                <Slider value={[answerBoxScale]} min={0.5} max={1.8} step={0.02} onValueChange={([v]) => setAnswerBoxScale(v)} />
+              </div>
+              <div>
+                <Label className="text-[11px] text-muted-foreground">Offset X · {answerBoxDx}%</Label>
+                <Slider value={[answerBoxDx]} min={-40} max={40} step={1} onValueChange={([v]) => setAnswerBoxDx(v)} />
+              </div>
+              <div>
+                <Label className="text-[11px] text-muted-foreground">Offset Y · {answerBoxDy}%</Label>
+                <Slider value={[answerBoxDy]} min={-60} max={20} step={1} onValueChange={([v]) => setAnswerBoxDy(v)} />
+              </div>
+            </CardContent>
+          </Card>
+
+          <KidAudioCard value={audio} onChange={setAudio} />
 
           <IntroOutroCard
             intro={intro}

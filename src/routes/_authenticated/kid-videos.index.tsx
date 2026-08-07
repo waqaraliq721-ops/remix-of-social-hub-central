@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Baby, HelpCircle, Smile, Calculator, Shapes } from "lucide-react";
+import { Baby, HelpCircle, Smile, Calculator, Shapes, Flag } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/kid-videos/")({
   head: () => ({
@@ -18,6 +18,7 @@ const sections = [
   { icon: Smile, title: "Guess the Emoji", desc: "Fun emoji-guessing game videos for kids and families.", to: "/kid-videos/emoji" as const },
   { icon: Calculator, title: "Math Quiz", desc: "Fast-paced math problem videos with countdown timers and animated reveals.", to: "/kid-videos/math" as const },
   { icon: Shapes, title: "Guess The Logo", desc: "Blurred-logo guessing game videos with reveal animations for brand trivia fun.", to: "/kid-videos/logo" as const },
+  { icon: Flag, title: "Guess The Country By The Flag", desc: "Flag guessing game videos with difficulty levels, hints and animated reveals.", to: "/kid-videos/flag" as const },
 ];
 
 function KidVideosPage() {

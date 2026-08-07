@@ -90,6 +90,7 @@ import {
 } from "@/lib/kid-elements";
 import {
   KidAudioCard,
+  VoTimingControls,
   defaultKidAudio,
   useKidAudioEngine,
   renderKidSfxBuffer,
@@ -348,6 +349,11 @@ function WyrPage() {
   const [rounds, setRounds] = useState<Round[]>([emptyRound()]);
   const [heading, setHeading] = useState("Would you rather…");
   const [timerSecs, setTimerSecs] = useState(5);
+  // "overlap": voiceover plays while the countdown runs.
+  // "hold": the countdown (and the result reveal) waits for the voiceover.
+  const [voMode, setVoMode] = useState<"overlap" | "hold">("overlap");
+  const [resultSecs, setResultSecs] = useState(2.4);
+
   const [showTimer, setShowTimer] = useState(true);
   const [showVs, setShowVs] = useState(true);
   const [showPct, setShowPct] = useState(false);
@@ -411,6 +417,7 @@ function WyrPage() {
   const canvasVisibleRef = useRef(true);
   const rafRef = useRef(0);
   const timeRef = useRef(0);
+  const lastTimePushRef = useRef(0);
   const playAnchorRef = useRef(0);
   const audioElRef = useRef<HTMLAudioElement | null>(null);
   const playedRef = useRef<Set<string>>(new Set());
@@ -421,10 +428,20 @@ function WyrPage() {
   const dims = ASPECTS[aspect];
   const colors = SIDE_COLORS.find((c) => c.id === sideColor) ?? SIDE_COLORS[0];
 
+  // Round length follows the voiceover mode:
+  //  · overlap — narration runs on top of the countdown, so the round is just
+  //    countdown + result hold (long narration still can't be cut off).
+  //  · hold — countdown starts after narration finishes, so the round is
+  //    narration + countdown + result hold.
   const roundDur = useCallback(
-    (r: Round) => Math.max(timerSecs + 1.2, (r.voDur || 0) + timerSecs * 0.6 + 0.8),
-    [timerSecs],
+    (r: Round) => {
+      const vo = r.voDur || 0;
+      const base = timerSecs + resultSecs;
+      return voMode === "hold" ? vo + base : Math.max(base, vo + resultSecs);
+    },
+    [timerSecs, resultSecs, voMode],
   );
+
 
   const timeline = useMemo(() => {
     let t = intro.id !== "none" ? intro.seconds : 0;
@@ -628,10 +645,12 @@ function WyrPage() {
         ctx.restore();
       }
 
-      // timer
+      // timer — starts only after the voiceover when "hold" mode is on
+      const voHold = voMode === "hold" ? r.voDur || 0 : 0;
+      const tl = Math.max(0, local - voHold);
       const timerStyleSpec = styles.timer ?? defaultStyle();
       if (showTimer && timerStyleSpec.visible) {
-        const left = Math.max(0, Math.min(timerSecs, dur - local));
+        const left = Math.max(0, Math.min(timerSecs, timerSecs - tl));
         const rr = Math.min(w, h) * 0.06;
         const cx = w - rr * 1.8;
         const cy = h - rr * 1.8;
@@ -650,8 +669,7 @@ function WyrPage() {
         const barH = Math.max(6, h * 0.012);
         const barX = (w - barW) / 2;
         const barY = h - barH * 2.4;
-        const guessDur2 = Math.min(timerSecs, dur);
-        const frac2 = Math.max(0, Math.min(1, 1 - local / Math.max(0.01, guessDur2)));
+        const frac2 = Math.max(0, Math.min(1, 1 - tl / Math.max(0.01, timerSecs)));
         const timebarAnim = computeAnim(anims.timebar ?? defaultAnim(), local);
         ctx.save();
         applyStyle(ctx, timebarStyleSpec, barX + barW / 2, barY + barH / 2, w, h);
@@ -659,6 +677,7 @@ function WyrPage() {
         drawTimeBar(ctx, timebarStyle, barX, barY, barW, barH, frac2, { primary: colors.a, accent: colors.b, text: "#ffffff" }, local);
         ctx.restore();
       }
+
 
       // round numbering
       const roundNoStyle = styles.roundNo ?? defaultStyle();
@@ -684,10 +703,10 @@ function WyrPage() {
       // channel logo
       drawChannelLogo(ctx, channelLogoImg, channelLogo, w, h, local);
 
-      // percentage reveal in the last second
-      const guessDur = Math.min(timerSecs, dur);
-      if (showPct && local >= guessDur) {
-        const k = ease.out(Math.min(1, (local - guessDur) / 0.5));
+      // result reveal — only once the guessing countdown has fully elapsed
+      if (showPct && tl >= timerSecs) {
+        const k = ease.out(Math.min(1, (tl - timerSecs) / 0.5));
+
         const label = (pct: number) => `${Math.round(pct)}%`;
         ctx.save();
         ctx.globalAlpha = k;
@@ -723,6 +742,7 @@ function WyrPage() {
       showVs,
       style,
       timerSecs,
+      voMode,
       tint,
       uppercase,
       zoom,
@@ -921,10 +941,12 @@ function WyrPage() {
         ctx.restore();
       }
 
-      // timer
+      // timer — held back while the voiceover plays in "hold" mode
+      const voHoldHQ = voMode === "hold" ? r.voDur || 0 : 0;
+      const tlHQ = Math.max(0, local - voHoldHQ);
       const timerStyleHQ = styles.timer ?? defaultStyle();
       if (showTimer && timerStyleHQ.visible) {
-        const left = Math.max(0, Math.min(timerSecs, dur - local));
+        const left = Math.max(0, Math.min(timerSecs, timerSecs - tlHQ));
         const timerAnim = computeAnim(anims.timer ?? defaultAnim(), local);
         const rr = h * 0.055;
         const tcx = w / 2;
@@ -941,8 +963,7 @@ function WyrPage() {
       const barW = w - M * 2.6;
       const barH = h * 0.02;
       const barY = h - M * 0.32;
-      const guessDurHQ = Math.min(timerSecs, dur);
-      const frac = Math.max(0, Math.min(1, 1 - local / Math.max(0.01, guessDurHQ)));
+      const frac = Math.max(0, Math.min(1, 1 - tlHQ / Math.max(0.01, timerSecs)));
       if (timebarStyleHQ.visible) {
         const timebarAnim = computeAnim(anims.timebar ?? defaultAnim(), local);
         ctx.save();
@@ -953,9 +974,9 @@ function WyrPage() {
       }
 
       // result reveal — strictly gated on the guessing timer having elapsed
-      const revealGuessDurHQ = Math.min(timerSecs, dur);
-      if (showPct && local >= revealGuessDurHQ) {
-        const k = ease.out(Math.min(1, (local - revealGuessDurHQ) / 0.5));
+      if (showPct && tlHQ >= timerSecs) {
+        const k = ease.out(Math.min(1, (tlHQ - timerSecs) / 0.5));
+
         const pcts = [r.pctA, 100 - r.pctA];
         const winnerIdx = r.pctA >= 50 ? 0 : 1;
         panels.forEach((p, i) => {
@@ -996,6 +1017,7 @@ function WyrPage() {
       showVs,
       showPct,
       timerSecs,
+      voMode,
       uppercase,
       zoom,
       styles,
@@ -1220,10 +1242,12 @@ function WyrPage() {
         ctx.restore();
       }
 
-      // timer
+      // timer — held back while the voiceover plays in "hold" mode
+      const voHoldUHD = voMode === "hold" ? r.voDur || 0 : 0;
+      const tlUHD = Math.max(0, local - voHoldUHD);
       const timerStyleUHD = styles.timer ?? defaultStyle();
       if (showTimer && timerStyleUHD.visible) {
-        const left = Math.max(0, Math.min(timerSecs, dur - local));
+        const left = Math.max(0, Math.min(timerSecs, timerSecs - tlUHD));
         const timerAnim = computeAnim(anims.timer ?? defaultAnim(), local);
         const rr = h * 0.05;
         const tcx = w / 2;
@@ -1240,8 +1264,7 @@ function WyrPage() {
       const barW = w - M * 2.8;
       const barH = h * 0.024;
       const barY = h - M * 0.85;
-      const guessDurUHD = Math.min(timerSecs, dur);
-      const frac = Math.max(0, Math.min(1, 1 - local / Math.max(0.01, guessDurUHD)));
+      const frac = Math.max(0, Math.min(1, 1 - tlUHD / Math.max(0.01, timerSecs)));
       if (timebarStyleUHD.visible) {
         const timebarAnim = computeAnim(anims.timebar ?? defaultAnim(), local);
         ctx.save();
@@ -1263,9 +1286,9 @@ function WyrPage() {
       }
 
       // result reveal — strictly gated on the guessing timer having elapsed
-      const revealGuessDurUHD = Math.min(timerSecs, dur);
-      if (showPct && local >= revealGuessDurUHD) {
-        const k = ease.out(Math.min(1, (local - revealGuessDurUHD) / 0.5));
+      if (showPct && tlUHD >= timerSecs) {
+        const k = ease.out(Math.min(1, (tlUHD - timerSecs) / 0.5));
+
         const pcts = [r.pctA, 100 - r.pctA];
         const winnerIdx = r.pctA >= 50 ? 0 : 1;
         panels.forEach((p, i) => {
@@ -1306,6 +1329,7 @@ function WyrPage() {
       showVs,
       showPct,
       timerSecs,
+      voMode,
       uppercase,
       zoom,
       styles,
@@ -1433,7 +1457,8 @@ function WyrPage() {
             audioElRef.current = el;
             void el.play().catch(() => {});
           }
-          const roundGuessDur = Math.min(timerSecs, seg.dur);
+          const voOff = voMode === "hold" ? seg.round.voDur || 0 : 0;
+          const roundGuessDur = voOff + Math.min(timerSecs, seg.dur);
           const cueDefs: { key: string; kind: "start" | "timer" | "reveal"; at: number }[] = [
             { key: `${seg.round.id}-start`, kind: "start", at: seg.start },
             { key: `${seg.round.id}-timer`, kind: "timer", at: seg.start + Math.max(0, roundGuessDur - 1) },
@@ -1467,14 +1492,20 @@ function WyrPage() {
             }
           }
         }
-        setTime(timeRef.current);
+        // Only push the clock into React ~8x/second. Re-rendering the whole
+        // settings panel on every animation frame is what made typing into a
+        // long option label stutter the preview.
+        if (Math.abs(timeRef.current - lastTimePushRef.current) > 0.12) {
+          lastTimePushRef.current = timeRef.current;
+          setTime(timeRef.current);
+        }
       }
       if (canvasVisibleRef.current) drawFrame(ctx, timeRef.current);
       rafRef.current = requestAnimationFrame(loop);
     };
     rafRef.current = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(rafRef.current);
-  }, [drawFrame, playing, timeline, playSfx, timerSecs]);
+  }, [drawFrame, playing, timeline, playSfx, timerSecs, voMode]);
 
   const togglePlay = () => {
     if (playing) {
@@ -1560,7 +1591,8 @@ function WyrPage() {
       // voiceover track — mirrors the cue schedule the live preview uses.
       const cues: KidAudioCue[] = [];
       for (const seg of timeline.segs) {
-        const guessDur = Math.min(timerSecs, seg.dur);
+        const voOff = voMode === "hold" ? seg.round.voDur || 0 : 0;
+        const guessDur = voOff + Math.min(timerSecs, seg.dur);
         cues.push({ kind: "start", time: seg.start });
         if (seg.index > 0) cues.push({ kind: "transition", time: seg.start });
         cues.push({ kind: "timer", time: seg.start + Math.max(0, guessDur - 1) });
@@ -2006,6 +2038,12 @@ function WyrPage() {
                   placeholder="Delivery direction"
                 />
               )}
+              <VoTimingControls
+                mode={voMode}
+                onModeChange={setVoMode}
+                resultSecs={resultSecs}
+                onResultSecsChange={setResultSecs}
+              />
               <Button onClick={generateAll} disabled={generating} className="w-full">
                 {generating ? (
                   <Loader2 className="mr-1 h-4 w-4 animate-spin" />
