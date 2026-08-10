@@ -44,8 +44,18 @@ function isH3SwallowedErrorBody(body: string): boolean {
   }
 }
 
+function syncRequestEnvironment(env: unknown) {
+  if (!env || typeof env !== "object") return;
+  for (const [key, value] of Object.entries(env)) {
+    if (typeof value === "string") process.env[key] = value;
+  }
+}
+
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
+    // Lovable injects current secrets per request. Keep process.env in sync so
+    // route handlers immediately use credentials updated in project settings.
+    syncRequestEnvironment(env);
     try {
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
