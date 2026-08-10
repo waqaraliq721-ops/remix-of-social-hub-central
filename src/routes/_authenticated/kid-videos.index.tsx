@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Baby, HelpCircle, Smile, Calculator, Shapes, Flag } from "lucide-react";
+import { Baby, HelpCircle, Smile, Calculator, Shapes, Flag, Brain, LetterText, AudioLines } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/kid-videos/")({
   head: () => ({
@@ -19,6 +19,9 @@ const sections = [
   { icon: Calculator, title: "Math Quiz", desc: "Fast-paced math problem videos with countdown timers and animated reveals.", to: "/kid-videos/math" as const },
   { icon: Shapes, title: "Guess The Logo", desc: "Blurred-logo guessing game videos with reveal animations for brand trivia fun.", to: "/kid-videos/logo" as const },
   { icon: Flag, title: "Guess The Country By The Flag", desc: "Flag guessing game videos with difficulty levels, hints and animated reveals.", to: "/kid-videos/flag" as const },
+  { icon: Brain, title: "General Knowledge Quiz", desc: "Bright multiple-choice trivia with countdowns and answer reveals.", to: "/kid-videos/knowledge" as const },
+  { icon: LetterText, title: "From A to Z", desc: "Letter challenges with ranked answers and animated reveals.", to: "/kid-videos/atoz" as const },
+  { icon: AudioLines, title: "Guess The Sound", desc: "Audio-led guessing games with image grids and reveal cards.", to: "/kid-videos/sound" as const },
 ];
 
 function KidVideosPage() {

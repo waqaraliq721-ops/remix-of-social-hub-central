@@ -36,10 +36,13 @@ import { Route as AuthenticatedAccountsRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedKidVideosIndexRouteImport } from './routes/_authenticated/kid-videos.index'
 import { Route as AuthenticatedGamingVideosIndexRouteImport } from './routes/_authenticated/gaming-videos.index'
 import { Route as AuthenticatedKidVideosWyrRouteImport } from './routes/_authenticated/kid-videos.wyr'
+import { Route as AuthenticatedKidVideosSoundRouteImport } from './routes/_authenticated/kid-videos.sound'
 import { Route as AuthenticatedKidVideosMathRouteImport } from './routes/_authenticated/kid-videos.math'
 import { Route as AuthenticatedKidVideosLogoRouteImport } from './routes/_authenticated/kid-videos.logo'
+import { Route as AuthenticatedKidVideosKnowledgeRouteImport } from './routes/_authenticated/kid-videos.knowledge'
 import { Route as AuthenticatedKidVideosFlagRouteImport } from './routes/_authenticated/kid-videos.flag'
 import { Route as AuthenticatedKidVideosEmojiRouteImport } from './routes/_authenticated/kid-videos.emoji'
+import { Route as AuthenticatedKidVideosAtozRouteImport } from './routes/_authenticated/kid-videos.atoz'
 import { Route as AuthenticatedGamingVideosRankingRouteImport } from './routes/_authenticated/gaming-videos.ranking'
 import { Route as AuthenticatedGamingVideosNewsRouteImport } from './routes/_authenticated/gaming-videos.news'
 import { Route as AuthenticatedGamingVideosMemesRouteImport } from './routes/_authenticated/gaming-videos.memes'
@@ -187,6 +190,12 @@ const AuthenticatedKidVideosWyrRoute =
     path: '/wyr',
     getParentRoute: () => AuthenticatedKidVideosRoute,
   } as any)
+const AuthenticatedKidVideosSoundRoute =
+  AuthenticatedKidVideosSoundRouteImport.update({
+    id: '/sound',
+    path: '/sound',
+    getParentRoute: () => AuthenticatedKidVideosRoute,
+  } as any)
 const AuthenticatedKidVideosMathRoute =
   AuthenticatedKidVideosMathRouteImport.update({
     id: '/math',
@@ -199,6 +208,12 @@ const AuthenticatedKidVideosLogoRoute =
     path: '/logo',
     getParentRoute: () => AuthenticatedKidVideosRoute,
   } as any)
+const AuthenticatedKidVideosKnowledgeRoute =
+  AuthenticatedKidVideosKnowledgeRouteImport.update({
+    id: '/knowledge',
+    path: '/knowledge',
+    getParentRoute: () => AuthenticatedKidVideosRoute,
+  } as any)
 const AuthenticatedKidVideosFlagRoute =
   AuthenticatedKidVideosFlagRouteImport.update({
     id: '/flag',
@@ -209,6 +224,12 @@ const AuthenticatedKidVideosEmojiRoute =
   AuthenticatedKidVideosEmojiRouteImport.update({
     id: '/emoji',
     path: '/emoji',
+    getParentRoute: () => AuthenticatedKidVideosRoute,
+  } as any)
+const AuthenticatedKidVideosAtozRoute =
+  AuthenticatedKidVideosAtozRouteImport.update({
+    id: '/atoz',
+    path: '/atoz',
     getParentRoute: () => AuthenticatedKidVideosRoute,
   } as any)
 const AuthenticatedGamingVideosRankingRoute =
@@ -257,10 +278,13 @@ export interface FileRoutesByFullPath {
   '/gaming-videos/memes': typeof AuthenticatedGamingVideosMemesRoute
   '/gaming-videos/news': typeof AuthenticatedGamingVideosNewsRoute
   '/gaming-videos/ranking': typeof AuthenticatedGamingVideosRankingRoute
+  '/kid-videos/atoz': typeof AuthenticatedKidVideosAtozRoute
   '/kid-videos/emoji': typeof AuthenticatedKidVideosEmojiRoute
   '/kid-videos/flag': typeof AuthenticatedKidVideosFlagRoute
+  '/kid-videos/knowledge': typeof AuthenticatedKidVideosKnowledgeRoute
   '/kid-videos/logo': typeof AuthenticatedKidVideosLogoRoute
   '/kid-videos/math': typeof AuthenticatedKidVideosMathRoute
+  '/kid-videos/sound': typeof AuthenticatedKidVideosSoundRoute
   '/kid-videos/wyr': typeof AuthenticatedKidVideosWyrRoute
   '/gaming-videos/': typeof AuthenticatedGamingVideosIndexRoute
   '/kid-videos/': typeof AuthenticatedKidVideosIndexRoute
@@ -290,10 +314,13 @@ export interface FileRoutesByTo {
   '/gaming-videos/memes': typeof AuthenticatedGamingVideosMemesRoute
   '/gaming-videos/news': typeof AuthenticatedGamingVideosNewsRoute
   '/gaming-videos/ranking': typeof AuthenticatedGamingVideosRankingRoute
+  '/kid-videos/atoz': typeof AuthenticatedKidVideosAtozRoute
   '/kid-videos/emoji': typeof AuthenticatedKidVideosEmojiRoute
   '/kid-videos/flag': typeof AuthenticatedKidVideosFlagRoute
+  '/kid-videos/knowledge': typeof AuthenticatedKidVideosKnowledgeRoute
   '/kid-videos/logo': typeof AuthenticatedKidVideosLogoRoute
   '/kid-videos/math': typeof AuthenticatedKidVideosMathRoute
+  '/kid-videos/sound': typeof AuthenticatedKidVideosSoundRoute
   '/kid-videos/wyr': typeof AuthenticatedKidVideosWyrRoute
   '/gaming-videos': typeof AuthenticatedGamingVideosIndexRoute
   '/kid-videos': typeof AuthenticatedKidVideosIndexRoute
@@ -327,10 +354,13 @@ export interface FileRoutesById {
   '/_authenticated/gaming-videos/memes': typeof AuthenticatedGamingVideosMemesRoute
   '/_authenticated/gaming-videos/news': typeof AuthenticatedGamingVideosNewsRoute
   '/_authenticated/gaming-videos/ranking': typeof AuthenticatedGamingVideosRankingRoute
+  '/_authenticated/kid-videos/atoz': typeof AuthenticatedKidVideosAtozRoute
   '/_authenticated/kid-videos/emoji': typeof AuthenticatedKidVideosEmojiRoute
   '/_authenticated/kid-videos/flag': typeof AuthenticatedKidVideosFlagRoute
+  '/_authenticated/kid-videos/knowledge': typeof AuthenticatedKidVideosKnowledgeRoute
   '/_authenticated/kid-videos/logo': typeof AuthenticatedKidVideosLogoRoute
   '/_authenticated/kid-videos/math': typeof AuthenticatedKidVideosMathRoute
+  '/_authenticated/kid-videos/sound': typeof AuthenticatedKidVideosSoundRoute
   '/_authenticated/kid-videos/wyr': typeof AuthenticatedKidVideosWyrRoute
   '/_authenticated/gaming-videos/': typeof AuthenticatedGamingVideosIndexRoute
   '/_authenticated/kid-videos/': typeof AuthenticatedKidVideosIndexRoute
@@ -364,10 +394,13 @@ export interface FileRouteTypes {
     | '/gaming-videos/memes'
     | '/gaming-videos/news'
     | '/gaming-videos/ranking'
+    | '/kid-videos/atoz'
     | '/kid-videos/emoji'
     | '/kid-videos/flag'
+    | '/kid-videos/knowledge'
     | '/kid-videos/logo'
     | '/kid-videos/math'
+    | '/kid-videos/sound'
     | '/kid-videos/wyr'
     | '/gaming-videos/'
     | '/kid-videos/'
@@ -397,10 +430,13 @@ export interface FileRouteTypes {
     | '/gaming-videos/memes'
     | '/gaming-videos/news'
     | '/gaming-videos/ranking'
+    | '/kid-videos/atoz'
     | '/kid-videos/emoji'
     | '/kid-videos/flag'
+    | '/kid-videos/knowledge'
     | '/kid-videos/logo'
     | '/kid-videos/math'
+    | '/kid-videos/sound'
     | '/kid-videos/wyr'
     | '/gaming-videos'
     | '/kid-videos'
@@ -433,10 +469,13 @@ export interface FileRouteTypes {
     | '/_authenticated/gaming-videos/memes'
     | '/_authenticated/gaming-videos/news'
     | '/_authenticated/gaming-videos/ranking'
+    | '/_authenticated/kid-videos/atoz'
     | '/_authenticated/kid-videos/emoji'
     | '/_authenticated/kid-videos/flag'
+    | '/_authenticated/kid-videos/knowledge'
     | '/_authenticated/kid-videos/logo'
     | '/_authenticated/kid-videos/math'
+    | '/_authenticated/kid-videos/sound'
     | '/_authenticated/kid-videos/wyr'
     | '/_authenticated/gaming-videos/'
     | '/_authenticated/kid-videos/'
@@ -644,6 +683,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedKidVideosWyrRouteImport
       parentRoute: typeof AuthenticatedKidVideosRoute
     }
+    '/_authenticated/kid-videos/sound': {
+      id: '/_authenticated/kid-videos/sound'
+      path: '/sound'
+      fullPath: '/kid-videos/sound'
+      preLoaderRoute: typeof AuthenticatedKidVideosSoundRouteImport
+      parentRoute: typeof AuthenticatedKidVideosRoute
+    }
     '/_authenticated/kid-videos/math': {
       id: '/_authenticated/kid-videos/math'
       path: '/math'
@@ -658,6 +704,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedKidVideosLogoRouteImport
       parentRoute: typeof AuthenticatedKidVideosRoute
     }
+    '/_authenticated/kid-videos/knowledge': {
+      id: '/_authenticated/kid-videos/knowledge'
+      path: '/knowledge'
+      fullPath: '/kid-videos/knowledge'
+      preLoaderRoute: typeof AuthenticatedKidVideosKnowledgeRouteImport
+      parentRoute: typeof AuthenticatedKidVideosRoute
+    }
     '/_authenticated/kid-videos/flag': {
       id: '/_authenticated/kid-videos/flag'
       path: '/flag'
@@ -670,6 +723,13 @@ declare module '@tanstack/react-router' {
       path: '/emoji'
       fullPath: '/kid-videos/emoji'
       preLoaderRoute: typeof AuthenticatedKidVideosEmojiRouteImport
+      parentRoute: typeof AuthenticatedKidVideosRoute
+    }
+    '/_authenticated/kid-videos/atoz': {
+      id: '/_authenticated/kid-videos/atoz'
+      path: '/atoz'
+      fullPath: '/kid-videos/atoz'
+      preLoaderRoute: typeof AuthenticatedKidVideosAtozRouteImport
       parentRoute: typeof AuthenticatedKidVideosRoute
     }
     '/_authenticated/gaming-videos/ranking': {
@@ -718,20 +778,26 @@ const AuthenticatedGamingVideosRouteWithChildren =
   )
 
 interface AuthenticatedKidVideosRouteChildren {
+  AuthenticatedKidVideosAtozRoute: typeof AuthenticatedKidVideosAtozRoute
   AuthenticatedKidVideosEmojiRoute: typeof AuthenticatedKidVideosEmojiRoute
   AuthenticatedKidVideosFlagRoute: typeof AuthenticatedKidVideosFlagRoute
+  AuthenticatedKidVideosKnowledgeRoute: typeof AuthenticatedKidVideosKnowledgeRoute
   AuthenticatedKidVideosLogoRoute: typeof AuthenticatedKidVideosLogoRoute
   AuthenticatedKidVideosMathRoute: typeof AuthenticatedKidVideosMathRoute
+  AuthenticatedKidVideosSoundRoute: typeof AuthenticatedKidVideosSoundRoute
   AuthenticatedKidVideosWyrRoute: typeof AuthenticatedKidVideosWyrRoute
   AuthenticatedKidVideosIndexRoute: typeof AuthenticatedKidVideosIndexRoute
 }
 
 const AuthenticatedKidVideosRouteChildren: AuthenticatedKidVideosRouteChildren =
   {
+    AuthenticatedKidVideosAtozRoute: AuthenticatedKidVideosAtozRoute,
     AuthenticatedKidVideosEmojiRoute: AuthenticatedKidVideosEmojiRoute,
     AuthenticatedKidVideosFlagRoute: AuthenticatedKidVideosFlagRoute,
+    AuthenticatedKidVideosKnowledgeRoute: AuthenticatedKidVideosKnowledgeRoute,
     AuthenticatedKidVideosLogoRoute: AuthenticatedKidVideosLogoRoute,
     AuthenticatedKidVideosMathRoute: AuthenticatedKidVideosMathRoute,
+    AuthenticatedKidVideosSoundRoute: AuthenticatedKidVideosSoundRoute,
     AuthenticatedKidVideosWyrRoute: AuthenticatedKidVideosWyrRoute,
     AuthenticatedKidVideosIndexRoute: AuthenticatedKidVideosIndexRoute,
   }

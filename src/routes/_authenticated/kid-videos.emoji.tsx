@@ -98,6 +98,7 @@ import {
   type KidAudioSettings,
   type KidAudioCue,
 } from "@/lib/kid-audio";
+import { downloadKidVideo, recordKidCanvas } from "@/lib/kid-export";
 
 export const Route = createFileRoute("/_authenticated/kid-videos/emoji")({
   head: () => ({
@@ -1184,8 +1185,6 @@ function EmojiPage() {
     setExporting(true);
     setExportProgress(0);
     try {
-      const fps = 60;
-      const stream = canvas.captureStream(fps);
       const audioCtx = new AudioContext();
       const dest = audioCtx.createMediaStreamDestination();
       const cues: KidAudioCue[] = [];
@@ -1213,8 +1212,6 @@ function EmojiPage() {
         await playVo(seg.round.voMid.blob, seg.start + seg.round.voMidOffset, seg.round.voMid.volume);
         await playVo(seg.round.voAnswer.blob, seg.start + guessDur + 0.1, seg.round.voAnswer.volume);
       }
-      dest.stream.getAudioTracks().forEach((t) => stream.addTrack(t));
-
       const sfxBuf = await renderKidSfxBuffer(audio, cues, timeline.total);
       const musicBuf = await renderKidMusicBuffer(audio, timeline.total);
       for (const buf of [sfxBuf, musicBuf]) {
@@ -1225,36 +1222,9 @@ function EmojiPage() {
         src.start(audioCtx.currentTime);
       }
 
-      const mime = MediaRecorder.isTypeSupported("video/mp4;codecs=avc1")
-        ? "video/mp4;codecs=avc1"
-        : "video/webm;codecs=vp9";
-      const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 12_000_000 });
-      const chunks: BlobPart[] = [];
-      rec.ondataavailable = (e) => e.data.size && chunks.push(e.data);
-      const done = new Promise<void>((res) => (rec.onstop = () => res()));
-      rec.start();
-
-      const start = performance.now();
-      await new Promise<void>((resolve) => {
-        const tick = () => {
-          const t = (performance.now() - start) / 1000;
-          if (t >= timeline.total) return resolve();
-          drawFrame(ctx, t);
-          setExportProgress(Math.min(99, (t / timeline.total) * 100));
-          requestAnimationFrame(tick);
-        };
-        tick();
-      });
-      rec.stop();
-      await done;
+      const result = await recordKidCanvas({ canvas, duration: timeline.total, drawFrame, audioStream: dest.stream, onProgress: setExportProgress });
       await audioCtx.close();
-
-      const blob = new Blob(chunks, { type: mime.split(";")[0] });
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(blob);
-      a.download = `guess-the-emoji.${mime.includes("mp4") ? "mp4" : "webm"}`;
-      a.click();
-      setExportProgress(100);
+      downloadKidVideo(result.blob, "guess-the-emoji", result.extension);
       toast.success("Export complete");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Export failed");
