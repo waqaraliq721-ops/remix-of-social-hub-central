@@ -19,9 +19,9 @@ export type KidQuizKind = "knowledge" | "atoz" | "sound";
 type Round = { id: string; prompt: string; answer: string; options: string[]; mediaUrl: string; duration: number };
 const id = () => Math.random().toString(36).slice(2, 10);
 const defaults: Record<KidQuizKind, Round[]> = {
-  knowledge: [{ id: id(), prompt: "What planet do we live on?", answer: "Earth", options: ["Earth", "Mars", "Jupiter"], mediaUrl: "", duration: 7 }],
-  atoz: [{ id: id(), prompt: "Name a country that starts with the letter…", answer: "Argentina, Algeria, Afghanistan", options: ["A"], mediaUrl: "", duration: 8 }],
-  sound: [{ id: id(), prompt: "Guess the animal by its sound", answer: "Cat", options: ["1", "2", "3"], mediaUrl: "", duration: 8 }],
+  knowledge: [{ id: "knowledge-1", prompt: "What planet do we live on?", answer: "Earth", options: ["Earth", "Mars", "Jupiter"], mediaUrl: "", duration: 7 }],
+  atoz: [{ id: "atoz-1", prompt: "Name a country that starts with the letter…", answer: "Argentina, Algeria, Afghanistan", options: ["A"], mediaUrl: "", duration: 8 }],
+  sound: [{ id: "sound-1", prompt: "Guess the animal by its sound", answer: "Cat", options: ["1", "2", "3"], mediaUrl: "", duration: 8 }],
 };
 const info = {
   knowledge: { title: "General Knowledge Quiz", description: "Bright, fast multi-choice quizzes with timed answer reveals.", accent: "#fb0051", bg: ["#ffb800", "#ffd84c"] as [string, string] },
