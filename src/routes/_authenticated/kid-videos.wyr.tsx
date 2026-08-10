@@ -98,6 +98,7 @@ import {
   type KidAudioSettings,
   type KidAudioCue,
 } from "@/lib/kid-audio";
+import { downloadKidVideo, recordKidCanvas } from "@/lib/kid-export";
 
 export const Route = createFileRoute("/_authenticated/kid-videos/wyr")({
   head: () => ({
@@ -1563,17 +1564,6 @@ function WyrPage() {
     setExporting(true);
     setExportProgress(0);
     try {
-      const fps = 30;
-      // Deterministic, fixed-timestep capture: we drive the MediaStreamTrack
-      // manually (captureStream(0) = no automatic per-RAF capture) and push
-      // exactly one frame per rendered timestep via requestFrame(), so the
-      // recorded video never depends on how fast this tab's RAF/drawing
-      // loop actually runs — no dropped/duplicated frames, no stutter.
-      const stream = canvas.captureStream(0);
-      const [videoTrack] = stream.getVideoTracks();
-      const trackWithFrame = videoTrack as MediaStreamTrack & { requestFrame?: () => void };
-      const canRequestFrame = typeof trackWithFrame.requestFrame === "function";
-
       const audioCtx = new AudioContext();
       const dest = audioCtx.createMediaStreamDestination();
 
@@ -1610,47 +1600,15 @@ function WyrPage() {
         src.start(audioCtx.currentTime);
       }
 
-      dest.stream.getAudioTracks().forEach((t) => stream.addTrack(t));
-
-      const mime = MediaRecorder.isTypeSupported("video/mp4;codecs=avc1")
-        ? "video/mp4;codecs=avc1"
-        : "video/webm;codecs=vp9";
-      const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 12_000_000 });
-      const chunks: BlobPart[] = [];
-      rec.ondataavailable = (e) => e.data.size && chunks.push(e.data);
-      const done = new Promise<void>((res) => (rec.onstop = () => res()));
-      rec.start();
-
-      const frameDur = 1 / fps;
-      const totalFrames = Math.max(1, Math.ceil(timeline.total / frameDur));
-      for (let i = 0; i < totalFrames; i++) {
-        const t = Math.min(timeline.total, i * frameDur);
-        drawFrame(ctx, t);
-        if (canRequestFrame) {
-          trackWithFrame.requestFrame!();
-        }
-        setExportProgress(Math.min(99, (i / totalFrames) * 100));
-        // Yield to the event loop so the recorder can actually pull frames
-        // and the UI stays responsive, without relying on RAF timing.
-        await new Promise((r) => setTimeout(r, 0));
-      }
-      // Render the final frame once more so the recorder captures it even
-      // when requestFrame() isn't supported (falls back to captureStream's
-      // own per-mutation capture on canvases that support it).
-      drawFrame(ctx, timeline.total);
-      if (canRequestFrame) trackWithFrame.requestFrame!();
-      await new Promise((r) => setTimeout(r, 50));
-
-      rec.stop();
-      await done;
+      const result = await recordKidCanvas({
+        canvas,
+        duration: timeline.total,
+        drawFrame,
+        audioStream: dest.stream,
+        onProgress: setExportProgress,
+      });
       await audioCtx.close();
-
-      const blob = new Blob(chunks, { type: mime.split(";")[0] });
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(blob);
-      a.download = `would-you-rather.${mime.includes("mp4") ? "mp4" : "webm"}`;
-      a.click();
-      setExportProgress(100);
+      downloadKidVideo(result.blob, "would-you-rather", result.extension);
       toast.success("Export complete");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Export failed");
