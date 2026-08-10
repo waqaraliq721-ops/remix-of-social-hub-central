@@ -44,6 +44,8 @@ export function KidQuizStudio({ kind }: { kind: KidQuizKind }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const anchorRef = useRef(0);
   const timeRef = useRef(0);
+  const soundRef = useRef<HTMLAudioElement | null>(null);
+  const soundRoundRef = useRef("");
 
   const timeline = useMemo(() => {
     let cursor = 0;
@@ -169,9 +171,21 @@ export function KidQuizStudio({ kind }: { kind: KidQuizKind }) {
     const loop = (now: number) => {
       if (playing) {
         timeRef.current = Math.min(timeline.total, (now - anchorRef.current) / 1000);
+        if (kind === "sound") {
+          const current = timeline.segs.find((item) => timeRef.current >= item.start && timeRef.current < item.start + item.duration);
+          if (current?.round.mediaUrl && soundRoundRef.current !== current.round.id) {
+            soundRef.current?.pause();
+            const player = new Audio(current.round.mediaUrl);
+            soundRef.current = player;
+            soundRoundRef.current = current.round.id;
+            void player.play().catch(() => undefined);
+          }
+        }
         if (timeRef.current >= timeline.total) {
           setPlaying(false);
           timeRef.current = 0;
+          soundRef.current?.pause();
+          soundRoundRef.current = "";
         }
         setTime(timeRef.current);
       }
@@ -180,10 +194,13 @@ export function KidQuizStudio({ kind }: { kind: KidQuizKind }) {
     };
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
-  }, [draw, playing, timeline.total]);
+  }, [draw, kind, playing, timeline]);
 
   const toggle = () => {
-    if (playing) setPlaying(false);
+    if (playing) {
+      soundRef.current?.pause();
+      setPlaying(false);
+    }
     else {
       anchorRef.current = performance.now() - timeRef.current * 1000;
       setPlaying(true);
@@ -214,6 +231,22 @@ export function KidQuizStudio({ kind }: { kind: KidQuizKind }) {
         source.buffer = buffer;
         source.connect(dest);
         source.start();
+      }
+      if (kind === "sound") {
+        for (const seg of timeline.segs) {
+          if (!seg.round.mediaUrl) continue;
+          try {
+            const response = await fetch(seg.round.mediaUrl);
+            if (!response.ok) continue;
+            const buffer = await audioCtx.decodeAudioData(await response.arrayBuffer());
+            const source = audioCtx.createBufferSource();
+            source.buffer = buffer;
+            source.connect(dest);
+            source.start(audioCtx.currentTime + seg.start, 0, Math.min(buffer.duration, seg.duration - revealSeconds));
+          } catch {
+            // Keep exporting other rounds if one uploaded/remote sound is unreadable.
+          }
+        }
       }
       const result = await recordKidCanvas({ canvas, duration: timeline.total, drawFrame: draw, audioStream: dest.stream, onProgress: setProgress });
       downloadKidVideo(result.blob, kind, result.extension);
