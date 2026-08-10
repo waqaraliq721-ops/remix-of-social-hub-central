@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import {
   Split,
   Upload,
@@ -348,6 +348,9 @@ function WyrPage() {
   const [style, setStyle] = useState<StyleId>("classic");
   const [sideColor, setSideColor] = useState(SIDE_COLORS[0].id);
   const [rounds, setRounds] = useState<Round[]>([emptyRound()]);
+  // Keep controlled text fields responsive while the 1080p canvas catches up
+  // on the next non-urgent render, especially in the taller 9:16 layout.
+  const previewRounds = useDeferredValue(rounds);
   const [heading, setHeading] = useState("Would you rather…");
   const [timerSecs, setTimerSecs] = useState(5);
   // "overlap": voiceover plays while the countdown runs.
@@ -446,7 +449,7 @@ function WyrPage() {
 
   const timeline = useMemo(() => {
     let t = intro.id !== "none" ? intro.seconds : 0;
-    const segs = rounds.map((r, index) => {
+    const segs = previewRounds.map((r, index) => {
       const start = t;
       const dur = roundDur(r);
       t += dur;
@@ -455,7 +458,7 @@ function WyrPage() {
     const outroStart = t;
     const total = t + (outro.id !== "none" ? outro.seconds : 0);
     return { segs, outroStart, total, introEnd: intro.id !== "none" ? intro.seconds : 0 };
-  }, [rounds, roundDur, intro, outro]);
+  }, [previewRounds, roundDur, intro, outro]);
 
   const setRound = (id: string, patch: Partial<Round>) =>
     setRounds((rs) => rs.map((r) => (r.id === id ? { ...r, ...patch } : r)));
