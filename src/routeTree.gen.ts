@@ -18,6 +18,7 @@ import { Route as ApiTtsRouteImport } from './routes/api/tts'
 import { Route as ApiTranscribeRouteImport } from './routes/api/transcribe'
 import { Route as ApiRepurposeRouteImport } from './routes/api/repurpose'
 import { Route as AuthenticatedVideosRouteImport } from './routes/_authenticated/videos'
+import { Route as AuthenticatedTiktokVideosRouteImport } from './routes/_authenticated/tiktok-videos'
 import { Route as AuthenticatedTierListVideosRouteImport } from './routes/_authenticated/tier-list-videos'
 import { Route as AuthenticatedRepurposeRouteImport } from './routes/_authenticated/repurpose'
 import { Route as AuthenticatedPresetsRouteImport } from './routes/_authenticated/presets'
@@ -33,6 +34,7 @@ import { Route as AuthenticatedComposeRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedCalendarRouteImport } from './routes/_authenticated/calendar'
 import { Route as AuthenticatedAnalyticsRouteImport } from './routes/_authenticated/analytics'
 import { Route as AuthenticatedAccountsRouteImport } from './routes/_authenticated/accounts'
+import { Route as AuthenticatedTiktokVideosIndexRouteImport } from './routes/_authenticated/tiktok-videos.index'
 import { Route as AuthenticatedKidVideosIndexRouteImport } from './routes/_authenticated/kid-videos.index'
 import { Route as AuthenticatedGamingVideosIndexRouteImport } from './routes/_authenticated/gaming-videos.index'
 import { Route as AuthenticatedKidVideosWyrRouteImport } from './routes/_authenticated/kid-videos.wyr'
@@ -91,6 +93,12 @@ const AuthenticatedVideosRoute = AuthenticatedVideosRouteImport.update({
   path: '/videos',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedTiktokVideosRoute =
+  AuthenticatedTiktokVideosRouteImport.update({
+    id: '/tiktok-videos',
+    path: '/tiktok-videos',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedTierListVideosRoute =
   AuthenticatedTierListVideosRouteImport.update({
     id: '/tier-list-videos',
@@ -172,6 +180,12 @@ const AuthenticatedAccountsRoute = AuthenticatedAccountsRouteImport.update({
   path: '/accounts',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedTiktokVideosIndexRoute =
+  AuthenticatedTiktokVideosIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedTiktokVideosRoute,
+  } as any)
 const AuthenticatedKidVideosIndexRoute =
   AuthenticatedKidVideosIndexRouteImport.update({
     id: '/',
@@ -269,6 +283,7 @@ export interface FileRoutesByFullPath {
   '/presets': typeof AuthenticatedPresetsRoute
   '/repurpose': typeof AuthenticatedRepurposeRoute
   '/tier-list-videos': typeof AuthenticatedTierListVideosRoute
+  '/tiktok-videos': typeof AuthenticatedTiktokVideosRouteWithChildren
   '/videos': typeof AuthenticatedVideosRoute
   '/api/repurpose': typeof ApiRepurposeRoute
   '/api/transcribe': typeof ApiTranscribeRoute
@@ -288,6 +303,7 @@ export interface FileRoutesByFullPath {
   '/kid-videos/wyr': typeof AuthenticatedKidVideosWyrRoute
   '/gaming-videos/': typeof AuthenticatedGamingVideosIndexRoute
   '/kid-videos/': typeof AuthenticatedKidVideosIndexRoute
+  '/tiktok-videos/': typeof AuthenticatedTiktokVideosIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -324,6 +340,7 @@ export interface FileRoutesByTo {
   '/kid-videos/wyr': typeof AuthenticatedKidVideosWyrRoute
   '/gaming-videos': typeof AuthenticatedGamingVideosIndexRoute
   '/kid-videos': typeof AuthenticatedKidVideosIndexRoute
+  '/tiktok-videos': typeof AuthenticatedTiktokVideosIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -345,6 +362,7 @@ export interface FileRoutesById {
   '/_authenticated/presets': typeof AuthenticatedPresetsRoute
   '/_authenticated/repurpose': typeof AuthenticatedRepurposeRoute
   '/_authenticated/tier-list-videos': typeof AuthenticatedTierListVideosRoute
+  '/_authenticated/tiktok-videos': typeof AuthenticatedTiktokVideosRouteWithChildren
   '/_authenticated/videos': typeof AuthenticatedVideosRoute
   '/api/repurpose': typeof ApiRepurposeRoute
   '/api/transcribe': typeof ApiTranscribeRoute
@@ -364,6 +382,7 @@ export interface FileRoutesById {
   '/_authenticated/kid-videos/wyr': typeof AuthenticatedKidVideosWyrRoute
   '/_authenticated/gaming-videos/': typeof AuthenticatedGamingVideosIndexRoute
   '/_authenticated/kid-videos/': typeof AuthenticatedKidVideosIndexRoute
+  '/_authenticated/tiktok-videos/': typeof AuthenticatedTiktokVideosIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -385,6 +404,7 @@ export interface FileRouteTypes {
     | '/presets'
     | '/repurpose'
     | '/tier-list-videos'
+    | '/tiktok-videos'
     | '/videos'
     | '/api/repurpose'
     | '/api/transcribe'
@@ -404,6 +424,7 @@ export interface FileRouteTypes {
     | '/kid-videos/wyr'
     | '/gaming-videos/'
     | '/kid-videos/'
+    | '/tiktok-videos/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -440,6 +461,7 @@ export interface FileRouteTypes {
     | '/kid-videos/wyr'
     | '/gaming-videos'
     | '/kid-videos'
+    | '/tiktok-videos'
   id:
     | '__root__'
     | '/'
@@ -460,6 +482,7 @@ export interface FileRouteTypes {
     | '/_authenticated/presets'
     | '/_authenticated/repurpose'
     | '/_authenticated/tier-list-videos'
+    | '/_authenticated/tiktok-videos'
     | '/_authenticated/videos'
     | '/api/repurpose'
     | '/api/transcribe'
@@ -479,6 +502,7 @@ export interface FileRouteTypes {
     | '/_authenticated/kid-videos/wyr'
     | '/_authenticated/gaming-videos/'
     | '/_authenticated/kid-videos/'
+    | '/_authenticated/tiktok-videos/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -555,6 +579,13 @@ declare module '@tanstack/react-router' {
       path: '/videos'
       fullPath: '/videos'
       preLoaderRoute: typeof AuthenticatedVideosRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/tiktok-videos': {
+      id: '/_authenticated/tiktok-videos'
+      path: '/tiktok-videos'
+      fullPath: '/tiktok-videos'
+      preLoaderRoute: typeof AuthenticatedTiktokVideosRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/tier-list-videos': {
@@ -661,6 +692,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/accounts'
       preLoaderRoute: typeof AuthenticatedAccountsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/tiktok-videos/': {
+      id: '/_authenticated/tiktok-videos/'
+      path: '/'
+      fullPath: '/tiktok-videos/'
+      preLoaderRoute: typeof AuthenticatedTiktokVideosIndexRouteImport
+      parentRoute: typeof AuthenticatedTiktokVideosRoute
     }
     '/_authenticated/kid-videos/': {
       id: '/_authenticated/kid-videos/'
@@ -807,6 +845,20 @@ const AuthenticatedKidVideosRouteWithChildren =
     AuthenticatedKidVideosRouteChildren,
   )
 
+interface AuthenticatedTiktokVideosRouteChildren {
+  AuthenticatedTiktokVideosIndexRoute: typeof AuthenticatedTiktokVideosIndexRoute
+}
+
+const AuthenticatedTiktokVideosRouteChildren: AuthenticatedTiktokVideosRouteChildren =
+  {
+    AuthenticatedTiktokVideosIndexRoute: AuthenticatedTiktokVideosIndexRoute,
+  }
+
+const AuthenticatedTiktokVideosRouteWithChildren =
+  AuthenticatedTiktokVideosRoute._addFileChildren(
+    AuthenticatedTiktokVideosRouteChildren,
+  )
+
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAccountsRoute: typeof AuthenticatedAccountsRoute
   AuthenticatedAnalyticsRoute: typeof AuthenticatedAnalyticsRoute
@@ -823,6 +875,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedPresetsRoute: typeof AuthenticatedPresetsRoute
   AuthenticatedRepurposeRoute: typeof AuthenticatedRepurposeRoute
   AuthenticatedTierListVideosRoute: typeof AuthenticatedTierListVideosRoute
+  AuthenticatedTiktokVideosRoute: typeof AuthenticatedTiktokVideosRouteWithChildren
   AuthenticatedVideosRoute: typeof AuthenticatedVideosRoute
 }
 
@@ -842,6 +895,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedPresetsRoute: AuthenticatedPresetsRoute,
   AuthenticatedRepurposeRoute: AuthenticatedRepurposeRoute,
   AuthenticatedTierListVideosRoute: AuthenticatedTierListVideosRoute,
+  AuthenticatedTiktokVideosRoute: AuthenticatedTiktokVideosRouteWithChildren,
   AuthenticatedVideosRoute: AuthenticatedVideosRoute,
 }
 
@@ -861,3 +915,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}

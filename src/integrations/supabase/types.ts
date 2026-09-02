@@ -47,6 +47,30 @@ export type Database = {
         }
         Relationships: []
       }
+      export_events: {
+        Row: {
+          created_at: string
+          id: string
+          kind: string
+          user_id: string
+          watermarked: boolean
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          kind?: string
+          user_id: string
+          watermarked?: boolean
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          kind?: string
+          user_id?: string
+          watermarked?: boolean
+        }
+        Relationships: []
+      }
       messages: {
         Row: {
           body: string
@@ -223,14 +247,48 @@ export type Database = {
         }
         Relationships: []
       }
+      subscriptions: {
+        Row: {
+          created_at: string
+          email: string | null
+          notified_tier: Database["public"]["Enums"]["app_tier"] | null
+          tier: Database["public"]["Enums"]["app_tier"]
+          tier_changed_at: string
+          updated_at: string
+          user_id: string
+          welcome_email_sent: boolean
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          notified_tier?: Database["public"]["Enums"]["app_tier"] | null
+          tier?: Database["public"]["Enums"]["app_tier"]
+          tier_changed_at?: string
+          updated_at?: string
+          user_id: string
+          welcome_email_sent?: boolean
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          notified_tier?: Database["public"]["Enums"]["app_tier"] | null
+          tier?: Database["public"]["Enums"]["app_tier"]
+          tier_changed_at?: string
+          updated_at?: string
+          user_id?: string
+          welcome_email_sent?: boolean
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      export_quota: { Args: never; Returns: Json }
     }
     Enums: {
+      app_tier: "free" | "basic" | "ultimate"
       post_status: "draft" | "scheduled" | "published" | "failed"
       social_platform:
         | "facebook"
@@ -254,12 +312,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -283,11 +341,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -308,11 +366,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -333,11 +391,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -350,11 +408,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -366,6 +424,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      app_tier: ["free", "basic", "ultimate"],
       post_status: ["draft", "scheduled", "published", "failed"],
       social_platform: [
         "facebook",
