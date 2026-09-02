@@ -285,7 +285,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      export_quota: { Args: { _user_id: string }; Returns: Json }
+      export_quota: { Args: never; Returns: Json }
     }
     Enums: {
       app_tier: "free" | "basic" | "ultimate"
