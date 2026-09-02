@@ -47,6 +47,30 @@ export type Database = {
         }
         Relationships: []
       }
+      export_events: {
+        Row: {
+          created_at: string
+          id: string
+          kind: string
+          user_id: string
+          watermarked: boolean
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          kind?: string
+          user_id: string
+          watermarked?: boolean
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          kind?: string
+          user_id?: string
+          watermarked?: boolean
+        }
+        Relationships: []
+      }
       messages: {
         Row: {
           body: string
@@ -223,14 +247,48 @@ export type Database = {
         }
         Relationships: []
       }
+      subscriptions: {
+        Row: {
+          created_at: string
+          email: string | null
+          notified_tier: Database["public"]["Enums"]["app_tier"] | null
+          tier: Database["public"]["Enums"]["app_tier"]
+          tier_changed_at: string
+          updated_at: string
+          user_id: string
+          welcome_email_sent: boolean
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          notified_tier?: Database["public"]["Enums"]["app_tier"] | null
+          tier?: Database["public"]["Enums"]["app_tier"]
+          tier_changed_at?: string
+          updated_at?: string
+          user_id: string
+          welcome_email_sent?: boolean
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          notified_tier?: Database["public"]["Enums"]["app_tier"] | null
+          tier?: Database["public"]["Enums"]["app_tier"]
+          tier_changed_at?: string
+          updated_at?: string
+          user_id?: string
+          welcome_email_sent?: boolean
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      export_quota: { Args: { _user_id: string }; Returns: Json }
     }
     Enums: {
+      app_tier: "free" | "basic" | "ultimate"
       post_status: "draft" | "scheduled" | "published" | "failed"
       social_platform:
         | "facebook"
@@ -366,6 +424,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      app_tier: ["free", "basic", "ultimate"],
       post_status: ["draft", "scheduled", "published", "failed"],
       social_platform: [
         "facebook",
