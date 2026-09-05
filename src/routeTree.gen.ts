@@ -37,6 +37,9 @@ import { Route as AuthenticatedAccountsRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedTiktokVideosIndexRouteImport } from './routes/_authenticated/tiktok-videos.index'
 import { Route as AuthenticatedKidVideosIndexRouteImport } from './routes/_authenticated/kid-videos.index'
 import { Route as AuthenticatedGamingVideosIndexRouteImport } from './routes/_authenticated/gaming-videos.index'
+import { Route as AuthenticatedTiktokVideosWyrRouteImport } from './routes/_authenticated/tiktok-videos.wyr'
+import { Route as AuthenticatedTiktokVideosRankingRouteImport } from './routes/_authenticated/tiktok-videos.ranking'
+import { Route as AuthenticatedTiktokVideosFactsRouteImport } from './routes/_authenticated/tiktok-videos.facts'
 import { Route as AuthenticatedKidVideosWyrRouteImport } from './routes/_authenticated/kid-videos.wyr'
 import { Route as AuthenticatedKidVideosSoundRouteImport } from './routes/_authenticated/kid-videos.sound'
 import { Route as AuthenticatedKidVideosMathRouteImport } from './routes/_authenticated/kid-videos.math'
@@ -198,6 +201,24 @@ const AuthenticatedGamingVideosIndexRoute =
     path: '/',
     getParentRoute: () => AuthenticatedGamingVideosRoute,
   } as any)
+const AuthenticatedTiktokVideosWyrRoute =
+  AuthenticatedTiktokVideosWyrRouteImport.update({
+    id: '/wyr',
+    path: '/wyr',
+    getParentRoute: () => AuthenticatedTiktokVideosRoute,
+  } as any)
+const AuthenticatedTiktokVideosRankingRoute =
+  AuthenticatedTiktokVideosRankingRouteImport.update({
+    id: '/ranking',
+    path: '/ranking',
+    getParentRoute: () => AuthenticatedTiktokVideosRoute,
+  } as any)
+const AuthenticatedTiktokVideosFactsRoute =
+  AuthenticatedTiktokVideosFactsRouteImport.update({
+    id: '/facts',
+    path: '/facts',
+    getParentRoute: () => AuthenticatedTiktokVideosRoute,
+  } as any)
 const AuthenticatedKidVideosWyrRoute =
   AuthenticatedKidVideosWyrRouteImport.update({
     id: '/wyr',
@@ -301,6 +322,9 @@ export interface FileRoutesByFullPath {
   '/kid-videos/math': typeof AuthenticatedKidVideosMathRoute
   '/kid-videos/sound': typeof AuthenticatedKidVideosSoundRoute
   '/kid-videos/wyr': typeof AuthenticatedKidVideosWyrRoute
+  '/tiktok-videos/facts': typeof AuthenticatedTiktokVideosFactsRoute
+  '/tiktok-videos/ranking': typeof AuthenticatedTiktokVideosRankingRoute
+  '/tiktok-videos/wyr': typeof AuthenticatedTiktokVideosWyrRoute
   '/gaming-videos/': typeof AuthenticatedGamingVideosIndexRoute
   '/kid-videos/': typeof AuthenticatedKidVideosIndexRoute
   '/tiktok-videos/': typeof AuthenticatedTiktokVideosIndexRoute
@@ -338,6 +362,9 @@ export interface FileRoutesByTo {
   '/kid-videos/math': typeof AuthenticatedKidVideosMathRoute
   '/kid-videos/sound': typeof AuthenticatedKidVideosSoundRoute
   '/kid-videos/wyr': typeof AuthenticatedKidVideosWyrRoute
+  '/tiktok-videos/facts': typeof AuthenticatedTiktokVideosFactsRoute
+  '/tiktok-videos/ranking': typeof AuthenticatedTiktokVideosRankingRoute
+  '/tiktok-videos/wyr': typeof AuthenticatedTiktokVideosWyrRoute
   '/gaming-videos': typeof AuthenticatedGamingVideosIndexRoute
   '/kid-videos': typeof AuthenticatedKidVideosIndexRoute
   '/tiktok-videos': typeof AuthenticatedTiktokVideosIndexRoute
@@ -380,6 +407,9 @@ export interface FileRoutesById {
   '/_authenticated/kid-videos/math': typeof AuthenticatedKidVideosMathRoute
   '/_authenticated/kid-videos/sound': typeof AuthenticatedKidVideosSoundRoute
   '/_authenticated/kid-videos/wyr': typeof AuthenticatedKidVideosWyrRoute
+  '/_authenticated/tiktok-videos/facts': typeof AuthenticatedTiktokVideosFactsRoute
+  '/_authenticated/tiktok-videos/ranking': typeof AuthenticatedTiktokVideosRankingRoute
+  '/_authenticated/tiktok-videos/wyr': typeof AuthenticatedTiktokVideosWyrRoute
   '/_authenticated/gaming-videos/': typeof AuthenticatedGamingVideosIndexRoute
   '/_authenticated/kid-videos/': typeof AuthenticatedKidVideosIndexRoute
   '/_authenticated/tiktok-videos/': typeof AuthenticatedTiktokVideosIndexRoute
@@ -422,6 +452,9 @@ export interface FileRouteTypes {
     | '/kid-videos/math'
     | '/kid-videos/sound'
     | '/kid-videos/wyr'
+    | '/tiktok-videos/facts'
+    | '/tiktok-videos/ranking'
+    | '/tiktok-videos/wyr'
     | '/gaming-videos/'
     | '/kid-videos/'
     | '/tiktok-videos/'
@@ -459,6 +492,9 @@ export interface FileRouteTypes {
     | '/kid-videos/math'
     | '/kid-videos/sound'
     | '/kid-videos/wyr'
+    | '/tiktok-videos/facts'
+    | '/tiktok-videos/ranking'
+    | '/tiktok-videos/wyr'
     | '/gaming-videos'
     | '/kid-videos'
     | '/tiktok-videos'
@@ -500,6 +536,9 @@ export interface FileRouteTypes {
     | '/_authenticated/kid-videos/math'
     | '/_authenticated/kid-videos/sound'
     | '/_authenticated/kid-videos/wyr'
+    | '/_authenticated/tiktok-videos/facts'
+    | '/_authenticated/tiktok-videos/ranking'
+    | '/_authenticated/tiktok-videos/wyr'
     | '/_authenticated/gaming-videos/'
     | '/_authenticated/kid-videos/'
     | '/_authenticated/tiktok-videos/'
@@ -714,6 +753,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedGamingVideosIndexRouteImport
       parentRoute: typeof AuthenticatedGamingVideosRoute
     }
+    '/_authenticated/tiktok-videos/wyr': {
+      id: '/_authenticated/tiktok-videos/wyr'
+      path: '/wyr'
+      fullPath: '/tiktok-videos/wyr'
+      preLoaderRoute: typeof AuthenticatedTiktokVideosWyrRouteImport
+      parentRoute: typeof AuthenticatedTiktokVideosRoute
+    }
+    '/_authenticated/tiktok-videos/ranking': {
+      id: '/_authenticated/tiktok-videos/ranking'
+      path: '/ranking'
+      fullPath: '/tiktok-videos/ranking'
+      preLoaderRoute: typeof AuthenticatedTiktokVideosRankingRouteImport
+      parentRoute: typeof AuthenticatedTiktokVideosRoute
+    }
+    '/_authenticated/tiktok-videos/facts': {
+      id: '/_authenticated/tiktok-videos/facts'
+      path: '/facts'
+      fullPath: '/tiktok-videos/facts'
+      preLoaderRoute: typeof AuthenticatedTiktokVideosFactsRouteImport
+      parentRoute: typeof AuthenticatedTiktokVideosRoute
+    }
     '/_authenticated/kid-videos/wyr': {
       id: '/_authenticated/kid-videos/wyr'
       path: '/wyr'
@@ -846,11 +906,18 @@ const AuthenticatedKidVideosRouteWithChildren =
   )
 
 interface AuthenticatedTiktokVideosRouteChildren {
+  AuthenticatedTiktokVideosFactsRoute: typeof AuthenticatedTiktokVideosFactsRoute
+  AuthenticatedTiktokVideosRankingRoute: typeof AuthenticatedTiktokVideosRankingRoute
+  AuthenticatedTiktokVideosWyrRoute: typeof AuthenticatedTiktokVideosWyrRoute
   AuthenticatedTiktokVideosIndexRoute: typeof AuthenticatedTiktokVideosIndexRoute
 }
 
 const AuthenticatedTiktokVideosRouteChildren: AuthenticatedTiktokVideosRouteChildren =
   {
+    AuthenticatedTiktokVideosFactsRoute: AuthenticatedTiktokVideosFactsRoute,
+    AuthenticatedTiktokVideosRankingRoute:
+      AuthenticatedTiktokVideosRankingRoute,
+    AuthenticatedTiktokVideosWyrRoute: AuthenticatedTiktokVideosWyrRoute,
     AuthenticatedTiktokVideosIndexRoute: AuthenticatedTiktokVideosIndexRoute,
   }
 
