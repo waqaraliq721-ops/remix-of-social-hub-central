@@ -178,7 +178,7 @@ export function TikTokStudio({ kind }: { kind: TikTokKind }) {
   });
   const [timerStyle, setTimerStyle] = useState<TimerStyleId>("neon-ring");
   const [timeBarStyle, setTimeBarStyle] = useState<TimeBarStyleId>(kind === "facts" ? "none" : "rounded");
-  const [transition, setTransition] = useState<RoundTransitionSpec>(() => defaultRoundTransition({ id: "swipe-up" }));
+  const [transition, setTransition] = useState<RoundTransitionSpec>(() => defaultRoundTransition({ id: "wipe-up" }));
   const [logo, setLogo] = useState<ChannelLogoSpec>(() => defaultChannelLogo({ visible: false }));
   const [logoImg, setLogoImg] = useState<HTMLImageElement | null>(null);
   const [headingStyle, setHeadingStyle] = useState<TextBlockStyle>(() => defaultTextStyle({ size: 3.6, dy: -40 }));
