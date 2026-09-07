@@ -1,4 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { ClientOnly } from "@tanstack/react-router";
+import { UpgradeGate } from "@/lib/plan";
 import {
   Outlet,
   Link,
