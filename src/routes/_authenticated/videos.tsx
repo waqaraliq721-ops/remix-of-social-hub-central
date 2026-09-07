@@ -87,6 +87,11 @@ function VideosPage() {
                 </Link>
               </Button>
               <Button asChild variant="secondary">
+                <Link to="/tiktok-videos">
+                  <Film className="mr-1 h-4 w-4" /> TikTok Videos
+                </Link>
+              </Button>
+              <Button asChild variant="secondary">
                 <Link to="/repurpose">
                   <Clapperboard className="mr-1 h-4 w-4" /> Repurpose Long-form
                 </Link>
