@@ -50,6 +50,19 @@ export async function generateSpeech(
   text: string,
   opts: TtsOptions,
 ): Promise<{ url: string; blob: Blob }> {
+  // Voiceover is a paid-plan feature.
+  try {
+    const { getAccount } = await import("@/lib/subscription.functions");
+    const { promptUpgrade } = await import("@/lib/plan");
+    const account = await getAccount();
+    if (!account.voiceover) {
+      promptUpgrade({ tier: account.tier });
+      throw new Error("AI voiceover is available on the Basic and Ultimate plans. Upgrade to unlock it.");
+    }
+  } catch (error) {
+    if (error instanceof Error && error.message.includes("Upgrade to unlock")) throw error;
+  }
+
   const endpoint =
     opts.provider === "elevenlabs"
       ? "/api/tts-elevenlabs"
