@@ -54,14 +54,6 @@ function AuthPage() {
     toast.success("Check your email to confirm your account.");
   }
 
-  async function google() {
-    const result = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: `${window.location.origin}/auth`,
-    });
-    if (result.error) return toast.error(result.error.message);
-    if (result.redirected) return;
-    navigate({ to: "/dashboard", replace: true });
-  }
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
