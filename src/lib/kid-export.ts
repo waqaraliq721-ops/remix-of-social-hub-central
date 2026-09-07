@@ -352,19 +352,33 @@ export async function recordKidCanvas(options: KidExportOptions): Promise<KidExp
   if (!Number.isFinite(duration) || duration <= 0) throw new Error("Video duration is invalid");
   if (!options.canvas.getContext("2d")) throw new Error("Canvas is unavailable");
 
+  // Plan gate: blocks the export when the monthly/weekly quota is used up and
+  // burns the watermark in for free-plan accounts.
+  const { checkExportAllowed, reportExport } = await import("@/lib/plan");
+  const account = await checkExportAllowed();
+  const opts: KidExportOptions = {
+    ...options,
+    watermark: options.watermark ?? (account?.watermark ? "Orbit" : null),
+  };
+
+  const finish = (result: KidExportResult) => {
+    void reportExport("video", !!opts.watermark);
+    return result;
+  };
+
   try {
-    const mp4 = await exportWithWebCodecs(options as never);
-    if (mp4) return mp4;
+    const mp4 = await exportWithWebCodecs(opts as never);
+    if (mp4) return finish(mp4);
   } catch (error) {
     console.error("WebCodecs mp4 export failed, falling back", error);
   }
   try {
-    const webm = await exportWithWebmCodecs(options);
-    if (webm) return webm;
+    const webm = await exportWithWebmCodecs(opts);
+    if (webm) return finish(webm);
   } catch (error) {
     console.error("WebCodecs webm export failed, falling back", error);
   }
-  return exportWithMediaRecorder(options);
+  return finish(await exportWithMediaRecorder(opts));
 }
 
 export function downloadKidVideo(blob: Blob, filename: string, extension: "mp4" | "webm") {
