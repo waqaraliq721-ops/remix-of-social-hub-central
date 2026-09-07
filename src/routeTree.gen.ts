@@ -18,6 +18,7 @@ import { Route as ApiTtsRouteImport } from './routes/api/tts'
 import { Route as ApiTranscribeRouteImport } from './routes/api/transcribe'
 import { Route as ApiRepurposeRouteImport } from './routes/api/repurpose'
 import { Route as AuthenticatedVideosRouteImport } from './routes/_authenticated/videos'
+import { Route as AuthenticatedUpgradeRouteImport } from './routes/_authenticated/upgrade'
 import { Route as AuthenticatedTiktokVideosRouteImport } from './routes/_authenticated/tiktok-videos'
 import { Route as AuthenticatedTierListVideosRouteImport } from './routes/_authenticated/tier-list-videos'
 import { Route as AuthenticatedRepurposeRouteImport } from './routes/_authenticated/repurpose'
@@ -95,6 +96,11 @@ const ApiRepurposeRoute = ApiRepurposeRouteImport.update({
 const AuthenticatedVideosRoute = AuthenticatedVideosRouteImport.update({
   id: '/videos',
   path: '/videos',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedUpgradeRoute = AuthenticatedUpgradeRouteImport.update({
+  id: '/upgrade',
+  path: '/upgrade',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedTiktokVideosRoute =
@@ -312,6 +318,7 @@ export interface FileRoutesByFullPath {
   '/repurpose': typeof AuthenticatedRepurposeRoute
   '/tier-list-videos': typeof AuthenticatedTierListVideosRoute
   '/tiktok-videos': typeof AuthenticatedTiktokVideosRouteWithChildren
+  '/upgrade': typeof AuthenticatedUpgradeRoute
   '/videos': typeof AuthenticatedVideosRoute
   '/api/repurpose': typeof ApiRepurposeRoute
   '/api/transcribe': typeof ApiTranscribeRoute
@@ -353,6 +360,7 @@ export interface FileRoutesByTo {
   '/pricing': typeof AuthenticatedPricingRoute
   '/repurpose': typeof AuthenticatedRepurposeRoute
   '/tier-list-videos': typeof AuthenticatedTierListVideosRoute
+  '/upgrade': typeof AuthenticatedUpgradeRoute
   '/videos': typeof AuthenticatedVideosRoute
   '/api/repurpose': typeof ApiRepurposeRoute
   '/api/transcribe': typeof ApiTranscribeRoute
@@ -399,6 +407,7 @@ export interface FileRoutesById {
   '/_authenticated/repurpose': typeof AuthenticatedRepurposeRoute
   '/_authenticated/tier-list-videos': typeof AuthenticatedTierListVideosRoute
   '/_authenticated/tiktok-videos': typeof AuthenticatedTiktokVideosRouteWithChildren
+  '/_authenticated/upgrade': typeof AuthenticatedUpgradeRoute
   '/_authenticated/videos': typeof AuthenticatedVideosRoute
   '/api/repurpose': typeof ApiRepurposeRoute
   '/api/transcribe': typeof ApiTranscribeRoute
@@ -445,6 +454,7 @@ export interface FileRouteTypes {
     | '/repurpose'
     | '/tier-list-videos'
     | '/tiktok-videos'
+    | '/upgrade'
     | '/videos'
     | '/api/repurpose'
     | '/api/transcribe'
@@ -486,6 +496,7 @@ export interface FileRouteTypes {
     | '/pricing'
     | '/repurpose'
     | '/tier-list-videos'
+    | '/upgrade'
     | '/videos'
     | '/api/repurpose'
     | '/api/transcribe'
@@ -531,6 +542,7 @@ export interface FileRouteTypes {
     | '/_authenticated/repurpose'
     | '/_authenticated/tier-list-videos'
     | '/_authenticated/tiktok-videos'
+    | '/_authenticated/upgrade'
     | '/_authenticated/videos'
     | '/api/repurpose'
     | '/api/transcribe'
@@ -630,6 +642,13 @@ declare module '@tanstack/react-router' {
       path: '/videos'
       fullPath: '/videos'
       preLoaderRoute: typeof AuthenticatedVideosRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/upgrade': {
+      id: '/_authenticated/upgrade'
+      path: '/upgrade'
+      fullPath: '/upgrade'
+      preLoaderRoute: typeof AuthenticatedUpgradeRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/tiktok-videos': {
@@ -963,6 +982,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedRepurposeRoute: typeof AuthenticatedRepurposeRoute
   AuthenticatedTierListVideosRoute: typeof AuthenticatedTierListVideosRoute
   AuthenticatedTiktokVideosRoute: typeof AuthenticatedTiktokVideosRouteWithChildren
+  AuthenticatedUpgradeRoute: typeof AuthenticatedUpgradeRoute
   AuthenticatedVideosRoute: typeof AuthenticatedVideosRoute
 }
 
@@ -984,6 +1004,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedRepurposeRoute: AuthenticatedRepurposeRoute,
   AuthenticatedTierListVideosRoute: AuthenticatedTierListVideosRoute,
   AuthenticatedTiktokVideosRoute: AuthenticatedTiktokVideosRouteWithChildren,
+  AuthenticatedUpgradeRoute: AuthenticatedUpgradeRoute,
   AuthenticatedVideosRoute: AuthenticatedVideosRoute,
 }
 
