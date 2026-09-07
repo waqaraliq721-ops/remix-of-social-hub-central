@@ -21,6 +21,7 @@ import { Route as AuthenticatedVideosRouteImport } from './routes/_authenticated
 import { Route as AuthenticatedTiktokVideosRouteImport } from './routes/_authenticated/tiktok-videos'
 import { Route as AuthenticatedTierListVideosRouteImport } from './routes/_authenticated/tier-list-videos'
 import { Route as AuthenticatedRepurposeRouteImport } from './routes/_authenticated/repurpose'
+import { Route as AuthenticatedPricingRouteImport } from './routes/_authenticated/pricing'
 import { Route as AuthenticatedPresetsRouteImport } from './routes/_authenticated/presets'
 import { Route as AuthenticatedMotivationalVideosRouteImport } from './routes/_authenticated/motivational-videos'
 import { Route as AuthenticatedLyricalVideosRouteImport } from './routes/_authenticated/lyrical-videos'
@@ -111,6 +112,11 @@ const AuthenticatedTierListVideosRoute =
 const AuthenticatedRepurposeRoute = AuthenticatedRepurposeRouteImport.update({
   id: '/repurpose',
   path: '/repurpose',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedPricingRoute = AuthenticatedPricingRouteImport.update({
+  id: '/pricing',
+  path: '/pricing',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedPresetsRoute = AuthenticatedPresetsRouteImport.update({
@@ -302,6 +308,7 @@ export interface FileRoutesByFullPath {
   '/lyrical-videos': typeof AuthenticatedLyricalVideosRoute
   '/motivational-videos': typeof AuthenticatedMotivationalVideosRoute
   '/presets': typeof AuthenticatedPresetsRoute
+  '/pricing': typeof AuthenticatedPricingRoute
   '/repurpose': typeof AuthenticatedRepurposeRoute
   '/tier-list-videos': typeof AuthenticatedTierListVideosRoute
   '/tiktok-videos': typeof AuthenticatedTiktokVideosRouteWithChildren
@@ -343,6 +350,7 @@ export interface FileRoutesByTo {
   '/lyrical-videos': typeof AuthenticatedLyricalVideosRoute
   '/motivational-videos': typeof AuthenticatedMotivationalVideosRoute
   '/presets': typeof AuthenticatedPresetsRoute
+  '/pricing': typeof AuthenticatedPricingRoute
   '/repurpose': typeof AuthenticatedRepurposeRoute
   '/tier-list-videos': typeof AuthenticatedTierListVideosRoute
   '/videos': typeof AuthenticatedVideosRoute
@@ -387,6 +395,7 @@ export interface FileRoutesById {
   '/_authenticated/lyrical-videos': typeof AuthenticatedLyricalVideosRoute
   '/_authenticated/motivational-videos': typeof AuthenticatedMotivationalVideosRoute
   '/_authenticated/presets': typeof AuthenticatedPresetsRoute
+  '/_authenticated/pricing': typeof AuthenticatedPricingRoute
   '/_authenticated/repurpose': typeof AuthenticatedRepurposeRoute
   '/_authenticated/tier-list-videos': typeof AuthenticatedTierListVideosRoute
   '/_authenticated/tiktok-videos': typeof AuthenticatedTiktokVideosRouteWithChildren
@@ -432,6 +441,7 @@ export interface FileRouteTypes {
     | '/lyrical-videos'
     | '/motivational-videos'
     | '/presets'
+    | '/pricing'
     | '/repurpose'
     | '/tier-list-videos'
     | '/tiktok-videos'
@@ -473,6 +483,7 @@ export interface FileRouteTypes {
     | '/lyrical-videos'
     | '/motivational-videos'
     | '/presets'
+    | '/pricing'
     | '/repurpose'
     | '/tier-list-videos'
     | '/videos'
@@ -516,6 +527,7 @@ export interface FileRouteTypes {
     | '/_authenticated/lyrical-videos'
     | '/_authenticated/motivational-videos'
     | '/_authenticated/presets'
+    | '/_authenticated/pricing'
     | '/_authenticated/repurpose'
     | '/_authenticated/tier-list-videos'
     | '/_authenticated/tiktok-videos'
@@ -639,6 +651,13 @@ declare module '@tanstack/react-router' {
       path: '/repurpose'
       fullPath: '/repurpose'
       preLoaderRoute: typeof AuthenticatedRepurposeRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/pricing': {
+      id: '/_authenticated/pricing'
+      path: '/pricing'
+      fullPath: '/pricing'
+      preLoaderRoute: typeof AuthenticatedPricingRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/presets': {
@@ -940,6 +959,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedLyricalVideosRoute: typeof AuthenticatedLyricalVideosRoute
   AuthenticatedMotivationalVideosRoute: typeof AuthenticatedMotivationalVideosRoute
   AuthenticatedPresetsRoute: typeof AuthenticatedPresetsRoute
+  AuthenticatedPricingRoute: typeof AuthenticatedPricingRoute
   AuthenticatedRepurposeRoute: typeof AuthenticatedRepurposeRoute
   AuthenticatedTierListVideosRoute: typeof AuthenticatedTierListVideosRoute
   AuthenticatedTiktokVideosRoute: typeof AuthenticatedTiktokVideosRouteWithChildren
@@ -960,6 +980,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedLyricalVideosRoute: AuthenticatedLyricalVideosRoute,
   AuthenticatedMotivationalVideosRoute: AuthenticatedMotivationalVideosRoute,
   AuthenticatedPresetsRoute: AuthenticatedPresetsRoute,
+  AuthenticatedPricingRoute: AuthenticatedPricingRoute,
   AuthenticatedRepurposeRoute: AuthenticatedRepurposeRoute,
   AuthenticatedTierListVideosRoute: AuthenticatedTierListVideosRoute,
   AuthenticatedTiktokVideosRoute: AuthenticatedTiktokVideosRouteWithChildren,
