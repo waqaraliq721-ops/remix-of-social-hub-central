@@ -1,25 +1,44 @@
-// Transactional email sender. Uses Resend when RESEND_API_KEY +
-// NOTIFICATION_FROM_EMAIL are configured in project settings; otherwise it
-// no-ops so the rest of the app keeps working without email credentials.
+// Transactional email sender. Sends through the Lovable Gmail connector
+// gateway using the connected Google account as the sender.
+
+const GMAIL_GATEWAY = "https://connector-gateway.lovable.dev/google_mail/gmail/v1";
 
 export type SendEmailInput = { to: string; subject: string; html: string };
 
 export function emailConfigured() {
-  return !!process.env["RESEND_API_KEY"] && !!process.env["NOTIFICATION_FROM_EMAIL"];
+  return !!process.env["LOVABLE_API_KEY"] && !!process.env["GOOGLE_MAIL_API_KEY"];
+}
+
+const b64 = (s: string) =>
+  btoa(Array.from(new TextEncoder().encode(s), (b) => String.fromCharCode(b)).join(""));
+const header = (v: string) => (/^[\x00-\x7F]*$/.test(v) ? v : `=?UTF-8?B?${b64(v)}?=`);
+
+function rawMessage(to: string, subject: string, html: string) {
+  const message = [
+    `To: ${to}`,
+    `Subject: ${header(subject)}`,
+    "MIME-Version: 1.0",
+    'Content-Type: text/html; charset="UTF-8"',
+    "",
+    html,
+  ].join("\r\n");
+  return b64(message).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
 export async function sendEmail({ to, subject, html }: SendEmailInput): Promise<boolean> {
-  const apiKey = process.env["RESEND_API_KEY"];
-  const from = process.env["NOTIFICATION_FROM_EMAIL"];
-  if (!apiKey || !from || !to) return false;
+  if (!emailConfigured() || !to) return false;
   try {
-    const response = await fetch("https://api.resend.com/emails", {
+    const response = await fetch(`${GMAIL_GATEWAY}/users/me/messages/send`, {
       method: "POST",
-      headers: { Authorization: `Bearer ${apiKey}`, "content-type": "application/json" },
-      body: JSON.stringify({ from, to, subject, html }),
+      headers: {
+        Authorization: `Bearer ${process.env["LOVABLE_API_KEY"]}`,
+        "X-Connection-Api-Key": process.env["GOOGLE_MAIL_API_KEY"]!,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({ raw: rawMessage(to, subject, html) }),
     });
     if (!response.ok) {
-      console.error("email send failed", response.status, await response.text());
+      console.error("gmail send failed", response.status, await response.text());
       return false;
     }
     return true;
@@ -32,7 +51,7 @@ export async function sendEmail({ to, subject, html }: SendEmailInput): Promise<
 function shell(title: string, body: string) {
   return `<!doctype html><html><body style="margin:0;background:#0b0713;font-family:system-ui,-apple-system,Segoe UI,sans-serif;color:#f5f3ff">
   <div style="max-width:560px;margin:0 auto;padding:32px 24px">
-    <div style="font-size:20px;font-weight:700;letter-spacing:-.02em;background:linear-gradient(90deg,#a78bfa,#f0abfc);-webkit-background-clip:text;background-clip:text;color:transparent">Orbit</div>
+    <div style="font-size:20px;font-weight:700;letter-spacing:-.02em;color:#c4b5fd">Orbit</div>
     <h1 style="font-size:26px;line-height:1.25;margin:22px 0 12px">${title}</h1>
     <div style="font-size:15px;line-height:1.65;color:#d8d2ea">${body}</div>
     <p style="margin-top:32px;font-size:12px;color:#8d84a8">You are receiving this because you have an Orbit account.</p>
