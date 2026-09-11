@@ -132,9 +132,26 @@
   ::selection { background: color-mix(in oklch, var(--color-primary) 18%, transparent); }
   button, a, input, textarea, select {
     transition-property: color, background-color, border-color, opacity, box-shadow, transform;
-    transition-duration: 120ms;
-    transition-timing-function: ease-out;
+    transition-duration: 160ms;
+    transition-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
   }
+  button:active, a:active { transform: scale(0.985); }
+}
+
+@keyframes orbit-page-in {
+  from { opacity: 0; transform: translate3d(0, 8px, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+
+@keyframes orbit-fade-up {
+  from { opacity: 0; transform: translate3d(0, 10px, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+
+@keyframes orbit-progress {
+  0% { transform: translateX(-100%); }
+  50% { transform: translateX(-15%); }
+  100% { transform: translateX(100%); }
 }
 
 @layer utilities {
@@ -155,6 +172,34 @@
     background: linear-gradient(180deg, color-mix(in oklch, var(--color-primary) 2%, transparent), transparent);
   }
   .content-auto { content-visibility: auto; contain-intrinsic-size: 400px; }
+  .page-shell > * {
+    animation: orbit-page-in 280ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  }
+  .motion-stagger > * {
+    animation: orbit-fade-up 360ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  }
+  .motion-stagger > *:nth-child(1) { animation-delay: 20ms; }
+  .motion-stagger > *:nth-child(2) { animation-delay: 45ms; }
+  .motion-stagger > *:nth-child(3) { animation-delay: 70ms; }
+  .motion-stagger > *:nth-child(4) { animation-delay: 95ms; }
+  .motion-stagger > *:nth-child(5) { animation-delay: 120ms; }
+  .motion-stagger > *:nth-child(6) { animation-delay: 145ms; }
+  .motion-stagger > *:nth-child(7) { animation-delay: 170ms; }
+  .nav-link-motion { transition: transform 160ms cubic-bezier(0.2, 0.8, 0.2, 1), background-color 160ms ease, color 160ms ease; }
+  .nav-link-motion:hover { transform: translateX(2px); }
+  .icon-motion { transition: transform 180ms cubic-bezier(0.2, 0.8, 0.2, 1); }
+  .group:hover .icon-motion { transform: scale(1.08) rotate(-2deg); }
+  .route-progress {
+    position: absolute;
+    inset: 0 auto auto 0;
+    z-index: 50;
+    width: 35%;
+    height: 2px;
+    pointer-events: none;
+    background: var(--color-primary);
+    box-shadow: 0 0 12px color-mix(in oklch, var(--color-primary) 55%, transparent);
+    animation: orbit-progress 900ms ease-in-out infinite;
+  }
 }
 
 @media (max-width: 767px) {
