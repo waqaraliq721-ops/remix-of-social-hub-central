@@ -1,40 +1,17 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
-  LayoutDashboard,
-  PenSquare,
-  CalendarDays,
-  BarChart3,
-  Inbox,
-  PlugZap,
-  Sparkles,
-  Video,
-  Music4,
-  Quote,
-  Scissors,
-  LayoutTemplate,
-  Gamepad2,
-  Baby,
-  Film,
-  ListOrdered,
-  CreditCard,
-  ChevronRight,
+  LayoutDashboard, PenSquare, CalendarDays, BarChart3, Inbox, PlugZap,
+  Sparkles, Video, Music4, Quote, Scissors, LayoutTemplate, Gamepad2, Baby,
+  Film, ListOrdered, CreditCard, ChevronRight,
 } from "lucide-react";
 import {
-  Sidebar,
-  SidebarContent,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
-  SidebarHeader,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  SidebarFooter,
+  Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
+  SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarFooter,
   useSidebar,
 } from "@/components/ui/sidebar";
 
 const mainItems = [
-  { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
+  { title: "Overview", url: "/dashboard", icon: LayoutDashboard },
   { title: "Compose", url: "/compose", icon: PenSquare },
   { title: "Calendar", url: "/calendar", icon: CalendarDays },
   { title: "Analytics", url: "/analytics", icon: BarChart3 },
@@ -56,22 +33,16 @@ const studioItems = [
   { title: "Templates & Presets", url: "/presets", icon: LayoutTemplate },
 ];
 
-function NavSection({
-  label,
-  items,
-  collapsed,
-  path,
-}: {
-  label: string;
-  items: typeof mainItems;
-  collapsed: boolean;
-  path: string;
-}) {
+function NavSection({ label, items, collapsed, path }: { label: string; items: typeof mainItems; collapsed: boolean; path: string }) {
   return (
     <SidebarGroup className="px-2 py-2">
-      {!collapsed && <SidebarGroupLabel className="px-3 text-[10px] font-semibold uppercase tracking-[0.16em] text-sidebar-foreground/45">{label}</SidebarGroupLabel>}
+      {!collapsed && (
+        <SidebarGroupLabel className="mb-1 px-3 text-[10px] font-bold uppercase tracking-[0.18em] text-sidebar-foreground/35">
+          {label}
+        </SidebarGroupLabel>
+      )}
       <SidebarGroupContent>
-        <SidebarMenu className="gap-1">
+        <SidebarMenu className="gap-0.5">
           {items.map((item) => {
             const active = path === item.url || path.startsWith(item.url + "/");
             return (
@@ -80,12 +51,12 @@ function NavSection({
                   asChild
                   isActive={active}
                   tooltip={collapsed ? item.title : undefined}
-                  className="h-10 rounded-xl px-3 text-sidebar-foreground/65 transition-all hover:bg-sidebar-accent hover:text-sidebar-foreground data-[active=true]:bg-sidebar-accent data-[active=true]:text-sidebar-foreground data-[active=true]:shadow-[inset_3px_0_0_theme(colors.indigo.400)]"
+                  className="group h-10 rounded-lg px-3 text-sidebar-foreground/60 hover:bg-sidebar-accent/80 hover:text-sidebar-foreground data-[active=true]:bg-sidebar-accent data-[active=true]:text-sidebar-foreground"
                 >
                   <Link to={item.url} className="flex items-center gap-3">
-                    <item.icon className="h-[17px] w-[17px] shrink-0" />
+                    <item.icon className="h-[17px] w-[17px] shrink-0 transition-transform group-hover:scale-[1.04]" />
                     {!collapsed && <span className="truncate text-[13px] font-medium">{item.title}</span>}
-                    {!collapsed && active && <ChevronRight className="ml-auto h-3.5 w-3.5 opacity-50" />}
+                    {!collapsed && active && <ChevronRight className="ml-auto h-3.5 w-3.5 text-sidebar-primary" />}
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -103,25 +74,24 @@ export function AppSidebar() {
   const path = useRouterState({ select: (r) => r.location.pathname });
 
   return (
-    <Sidebar collapsible="icon" className="border-r-0 bg-sidebar">
-      <SidebarHeader className="border-b border-sidebar-border/70 px-3 py-4">
-        <div className="flex items-center gap-3 rounded-2xl px-2 py-1">
-          <div className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-400 via-violet-500 to-fuchsia-500 text-white shadow-lg shadow-indigo-950/30">
-            <Sparkles className="h-[17px] w-[17px]" />
-            <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full border-2 border-sidebar bg-emerald-400" />
+    <Sidebar collapsible="icon" className="border-r border-sidebar-border bg-sidebar">
+      <SidebarHeader className="px-3 pb-4 pt-5">
+        <div className="flex items-center gap-3 px-2">
+          <div className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-sidebar-primary text-sidebar-primary-foreground shadow-sm">
+            <Sparkles className="h-[16px] w-[16px]" strokeWidth={2.2} />
           </div>
           {!collapsed && (
             <div className="min-w-0">
-              <div className="text-[15px] font-semibold tracking-tight text-sidebar-foreground">Orbit</div>
-              <div className="text-[10px] font-medium uppercase tracking-[0.16em] text-sidebar-foreground/40">Social suite</div>
+              <div className="text-[15px] font-bold tracking-[-0.02em] text-sidebar-foreground">Orbit</div>
+              <div className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.17em] text-sidebar-foreground/35">Social workspace</div>
             </div>
           )}
         </div>
       </SidebarHeader>
 
-      <SidebarContent className="scrollbar-thin">
+      <SidebarContent>
         <NavSection label="Workspace" items={mainItems} collapsed={collapsed} path={path} />
-        <NavSection label="Creator studio" items={studioItems} collapsed={collapsed} path={path} />
+        <NavSection label="Creator tools" items={studioItems} collapsed={collapsed} path={path} />
 
         <SidebarGroup className="mt-auto px-2 py-2">
           <SidebarMenu>
@@ -130,7 +100,7 @@ export function AppSidebar() {
                 asChild
                 isActive={path.startsWith("/pricing")}
                 tooltip={collapsed ? "Plans & Pricing" : undefined}
-                className="h-10 rounded-xl px-3 text-sidebar-foreground/65 hover:bg-sidebar-accent hover:text-sidebar-foreground data-[active=true]:bg-sidebar-accent"
+                className="h-10 rounded-lg px-3 text-sidebar-foreground/55 hover:bg-sidebar-accent/80 hover:text-sidebar-foreground data-[active=true]:bg-sidebar-accent"
               >
                 <Link to="/pricing" className="flex items-center gap-3">
                   <CreditCard className="h-[17px] w-[17px]" />
@@ -142,17 +112,17 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="border-t border-sidebar-border/70 p-3">
+      <SidebarFooter className="p-3">
         {!collapsed ? (
-          <div className="rounded-2xl border border-sidebar-border bg-sidebar-accent/60 p-3">
+          <div className="rounded-xl border border-sidebar-border bg-sidebar-accent/50 px-3 py-2.5">
             <div className="flex items-center gap-2">
-              <div className="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_10px_theme(colors.emerald.400)]" />
-              <span className="text-xs font-semibold text-sidebar-foreground">Workspace active</span>
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+              <span className="text-[11px] font-semibold text-sidebar-foreground/80">Workspace active</span>
             </div>
-            <p className="mt-1 text-[11px] leading-relaxed text-sidebar-foreground/45">Your social channels are ready to manage.</p>
+            <p className="mt-1 text-[10px] leading-relaxed text-sidebar-foreground/35">All connected channels are ready.</p>
           </div>
         ) : (
-          <div className="mx-auto h-2 w-2 rounded-full bg-emerald-400" />
+          <div className="mx-auto h-1.5 w-1.5 rounded-full bg-emerald-400" />
         )}
       </SidebarFooter>
     </Sidebar>
