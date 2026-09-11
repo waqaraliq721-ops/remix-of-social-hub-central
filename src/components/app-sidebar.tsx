@@ -51,12 +51,12 @@ function NavSection({ label, items, collapsed, path }: { label: string; items: t
                   asChild
                   isActive={active}
                   tooltip={collapsed ? item.title : undefined}
-                  className="group h-10 rounded-lg px-3 text-sidebar-foreground/60 hover:bg-sidebar-accent/80 hover:text-sidebar-foreground data-[active=true]:bg-sidebar-accent data-[active=true]:text-sidebar-foreground"
+                  className="group nav-link-motion h-10 rounded-lg px-3 text-sidebar-foreground/60 hover:bg-sidebar-accent/80 hover:text-sidebar-foreground data-[active=true]:bg-sidebar-accent data-[active=true]:text-sidebar-foreground"
                 >
                   <Link to={item.url} className="flex items-center gap-3">
-                    <item.icon className="h-[17px] w-[17px] shrink-0 transition-transform group-hover:scale-[1.04]" />
+                    <item.icon className="icon-motion h-[17px] w-[17px] shrink-0" />
                     {!collapsed && <span className="truncate text-[13px] font-medium">{item.title}</span>}
-                    {!collapsed && active && <ChevronRight className="ml-auto h-3.5 w-3.5 text-sidebar-primary" />}
+                    {!collapsed && active && <ChevronRight className="ml-auto h-3.5 w-3.5 text-sidebar-primary transition-transform duration-200 group-hover:translate-x-0.5" />}
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -77,8 +77,8 @@ export function AppSidebar() {
     <Sidebar collapsible="icon" className="border-r border-sidebar-border bg-sidebar">
       <SidebarHeader className="px-3 pb-4 pt-5">
         <div className="flex items-center gap-3 px-2">
-          <div className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-sidebar-primary text-sidebar-primary-foreground shadow-sm">
-            <Sparkles className="h-[16px] w-[16px]" strokeWidth={2.2} />
+          <div className="group relative flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-sidebar-primary text-sidebar-primary-foreground shadow-sm transition-transform duration-300 hover:scale-105">
+            <Sparkles className="icon-motion h-[16px] w-[16px]" strokeWidth={2.2} />
           </div>
           {!collapsed && (
             <div className="min-w-0">
@@ -100,10 +100,10 @@ export function AppSidebar() {
                 asChild
                 isActive={path.startsWith("/pricing")}
                 tooltip={collapsed ? "Plans & Pricing" : undefined}
-                className="h-10 rounded-lg px-3 text-sidebar-foreground/55 hover:bg-sidebar-accent/80 hover:text-sidebar-foreground data-[active=true]:bg-sidebar-accent"
+                className="nav-link-motion h-10 rounded-lg px-3 text-sidebar-foreground/55 hover:bg-sidebar-accent/80 hover:text-sidebar-foreground data-[active=true]:bg-sidebar-accent"
               >
                 <Link to="/pricing" className="flex items-center gap-3">
-                  <CreditCard className="h-[17px] w-[17px]" />
+                  <CreditCard className="icon-motion h-[17px] w-[17px]" />
                   {!collapsed && <span className="text-[13px] font-medium">Plans & Pricing</span>}
                 </Link>
               </SidebarMenuButton>
@@ -114,15 +114,15 @@ export function AppSidebar() {
 
       <SidebarFooter className="p-3">
         {!collapsed ? (
-          <div className="rounded-xl border border-sidebar-border bg-sidebar-accent/50 px-3 py-2.5">
+          <div className="rounded-xl border border-sidebar-border bg-sidebar-accent/50 px-3 py-2.5 transition-colors duration-200 hover:bg-sidebar-accent">
             <div className="flex items-center gap-2">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" />
               <span className="text-[11px] font-semibold text-sidebar-foreground/80">Workspace active</span>
             </div>
             <p className="mt-1 text-[10px] leading-relaxed text-sidebar-foreground/35">All connected channels are ready.</p>
           </div>
         ) : (
-          <div className="mx-auto h-1.5 w-1.5 rounded-full bg-emerald-400" />
+          <div className="mx-auto h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" />
         )}
       </SidebarFooter>
     </Sidebar>
