@@ -1,6 +1,4 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { Sparkles, CalendarDays, BarChart3, Inbox, PenSquare, Facebook, Instagram, Youtube, Twitter, Music2 } from "lucide-react";
 
@@ -23,12 +21,6 @@ export const Route = createFileRoute("/")({
 });
 
 function Landing() {
-  const navigate = useNavigate();
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      if (data.session) navigate({ to: "/dashboard", replace: true });
-    });
-  }, [navigate]);
   return (
     <div className="min-h-screen bg-background">
       <header className="mx-auto flex max-w-6xl items-center justify-between px-6 py-6">
@@ -38,14 +30,9 @@ function Landing() {
           </div>
           <span className="text-lg font-semibold tracking-tight">Orbit</span>
         </div>
-        <div className="flex items-center gap-3">
-          <Link to="/auth" className="text-sm text-muted-foreground hover:text-foreground">
-            Sign in
-          </Link>
-          <Button asChild size="sm">
-            <Link to="/auth">Get started</Link>
-          </Button>
-        </div>
+        <Button asChild size="sm">
+          <Link to="/dashboard">Open dashboard</Link>
+        </Button>
       </header>
 
       <main className="mx-auto max-w-6xl px-6">
@@ -61,12 +48,9 @@ function Landing() {
             Compose once, publish everywhere. Track what's working. Reply from a single inbox.
             Orbit brings Facebook, Instagram, TikTok, YouTube and X together — without the chaos.
           </p>
-          <div className="mt-8 flex items-center justify-center gap-3">
+          <div className="mt-8 flex items-center justify-center">
             <Button asChild size="lg">
-              <Link to="/auth">Start free</Link>
-            </Button>
-            <Button asChild size="lg" variant="outline">
-              <Link to="/auth">Sign in</Link>
+              <Link to="/dashboard">Open dashboard</Link>
             </Button>
           </div>
           <div className="mt-12 flex items-center justify-center gap-6 text-muted-foreground">
