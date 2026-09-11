@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { getAuthorizationUrl, getWorkspaceId, exchangeAndSave, signedState, verifyState, workspaceCookieHeader, type SocialPlatform } from "@/lib/social-oauth.server";
+import { getAuthorizationUrl, getWorkspaceId, exchangeAndSave, verifyState, workspaceCookieHeader, type SocialPlatform } from "@/lib/social-oauth.server";
 
 const platforms = new Set<SocialPlatform>(["facebook", "instagram", "tiktok", "youtube", "twitter"]);
 
@@ -24,10 +24,7 @@ export const Route = createFileRoute("/api/social/oauth/$platform")({
           }
         }
 
-        if (error) {
-          return new Response(null, { status: 302, headers: { Location: `/accounts?oauth_error=${encodeURIComponent(error)}` } });
-        }
-
+        if (error) return new Response(null, { status: 302, headers: { Location: `/accounts?oauth_error=${encodeURIComponent(error)}` } });
         if (!stateValue || !code) return new Response("Missing OAuth response", { status: 400 });
 
         try {
