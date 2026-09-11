@@ -3,17 +3,15 @@ export type Platform = "facebook" | "instagram" | "tiktok" | "youtube" | "twitte
 export const PLATFORMS: {
   id: Platform;
   name: string;
-  color: string; // tailwind-safe hex used only for accents/badges
+  color: string;
   hasConnector: boolean;
+  connectionLabel: string;
 }[] = [
-  { id: "facebook", name: "Facebook", color: "#1877F2", hasConnector: false },
-  { id: "instagram", name: "Instagram", color: "#E1306C", hasConnector: false },
-  { id: "tiktok", name: "TikTok", color: "#000000", hasConnector: true },
-  { id: "youtube", name: "YouTube", color: "#FF0000", hasConnector: false },
-  { id: "twitter", name: "X (Twitter)", color: "#1DA1F2", hasConnector: true },
+  { id: "facebook", name: "Facebook", color: "#1877F2", hasConnector: true, connectionLabel: "Connect Facebook Page" },
+  { id: "instagram", name: "Instagram", color: "#E1306C", hasConnector: true, connectionLabel: "Connect Instagram" },
+  { id: "tiktok", name: "TikTok", color: "#000000", hasConnector: true, connectionLabel: "Connect TikTok" },
+  { id: "youtube", name: "YouTube", color: "#FF0000", hasConnector: true, connectionLabel: "Connect YouTube" },
+  { id: "twitter", name: "X (Twitter)", color: "#1DA1F2", hasConnector: true, connectionLabel: "Connect X" },
 ];
 
-export const PLATFORM_MAP = Object.fromEntries(PLATFORMS.map((p) => [p.id, p])) as Record<
-  Platform,
-  (typeof PLATFORMS)[number]
->;
+export const PLATFORM_MAP = Object.fromEntries(PLATFORMS.map((p) => [p.id, p])) as Record<Platform, (typeof PLATFORMS)[number]>;
