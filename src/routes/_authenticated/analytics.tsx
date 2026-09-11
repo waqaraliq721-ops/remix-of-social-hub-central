@@ -4,241 +4,31 @@ import { useServerFn } from "@tanstack/react-start";
 import { listAccounts, listAnalytics, listPostTargets } from "@/lib/social.functions";
 import { PLATFORMS, PLATFORM_MAP, type Platform } from "@/lib/platforms";
 import { PlatformIcon } from "@/components/platform-badge";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AreaChart, Area, BarChart, Bar, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from "recharts";
+import { AreaChart, Area, BarChart, Bar, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { useMemo, useState } from "react";
 import { DeliveryStatusBadge } from "@/components/delivery-status";
+import { BarChart3, TrendingUp } from "lucide-react";
 
-type Metric = "followers" | "impressions" | "engagement";
-const METRIC_LABEL: Record<Metric, string> = {
-  followers: "Follower changes",
-  impressions: "Reach (impressions)",
-  engagement: "Engagement",
-};
-
-export const Route = createFileRoute("/_authenticated/analytics")({
-  head: () => ({ meta: [{ title: "Analytics — Orbit" }] }),
-  component: Analytics,
-});
-
-function Analytics() {
-  const accountsFn = useServerFn(listAccounts);
-  const analyticsFn = useServerFn(listAnalytics);
-  const targetsFn = useServerFn(listPostTargets);
-  const accounts = useQuery({ queryKey: ["accounts"], queryFn: () => accountsFn() });
-  const snapshots = useQuery({ queryKey: ["analytics"], queryFn: () => analyticsFn() });
-  const targets = useQuery({ queryKey: ["post-targets"], queryFn: () => targetsFn() });
-
-  const [metric, setMetric] = useState<Metric>("followers");
-  const [active, setActive] = useState<Set<Platform>>(() => new Set(PLATFORMS.map((p) => p.id)));
-
-  function toggle(p: Platform) {
-    setActive((prev) => {
-      const next = new Set(prev);
-      if (next.has(p)) next.delete(p); else next.add(p);
-      return next;
-    });
-  }
-
-  const chartData = useMemo(() => {
-    const map = new Map<string, Record<string, number | string>>();
-    (snapshots.data ?? []).forEach((s) => {
-      const row = map.get(s.snapshot_date) ?? { date: s.snapshot_date };
-      row[s.platform] = (s as Record<string, unknown>)[metric] as number;
-      map.set(s.snapshot_date, row);
-    });
-    return Array.from(map.values()).sort((a, b) => String(a.date).localeCompare(String(b.date)));
-  }, [snapshots.data, metric]);
-
-  const followerDelta = useMemo(() => {
-    // per-platform: latest - earliest (in current window)
-    const byP = new Map<Platform, { first: number; last: number }>();
-    const sorted = [...(snapshots.data ?? [])].sort((a, b) => a.snapshot_date.localeCompare(b.snapshot_date));
-    sorted.forEach((s) => {
-      const cur = byP.get(s.platform);
-      if (!cur) byP.set(s.platform, { first: s.followers, last: s.followers });
-      else byP.set(s.platform, { first: cur.first, last: s.followers });
-    });
-    return PLATFORMS.map((p) => {
-      const v = byP.get(p.id);
-      return { platform: p.id, delta: v ? v.last - v.first : 0 };
-    });
-  }, [snapshots.data]);
-
-  const deliveryCounts = useMemo(() => {
-    const counts = { queued: 0, sent: 0, failed: 0 };
-    (targets.data ?? []).forEach((t) => {
-      if (t.status === "pending" || t.status === "publishing") counts.queued++;
-      else if (t.status === "published") counts.sent++;
-      else if (t.status === "failed") counts.failed++;
-    });
-    return counts;
-  }, [targets.data]);
-
-  return (
-    <div className="mx-auto max-w-6xl space-y-6 p-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Analytics</h1>
-        <p className="text-sm text-muted-foreground">Followers, reach and engagement per platform, over time.</p>
-      </div>
-
-      <Card>
-        <CardHeader className="gap-3">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <CardTitle>{METRIC_LABEL[metric]}</CardTitle>
-            <Tabs value={metric} onValueChange={(v) => setMetric(v as Metric)}>
-              <TabsList>
-                <TabsTrigger value="followers">Followers</TabsTrigger>
-                <TabsTrigger value="impressions">Reach</TabsTrigger>
-                <TabsTrigger value="engagement">Engagement</TabsTrigger>
-              </TabsList>
-            </Tabs>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {PLATFORMS.map((p) => {
-              const on = active.has(p.id);
-              return (
-                <button
-                  key={p.id}
-                  type="button"
-                  onClick={() => toggle(p.id)}
-                  className="flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition"
-                  style={{
-                    borderColor: on ? p.color : "hsl(var(--border))",
-                    backgroundColor: on ? `${p.color}18` : "transparent",
-                    color: on ? p.color : "hsl(var(--muted-foreground))",
-                  }}
-                >
-                  <PlatformIcon platform={p.id} className="h-3 w-3" />
-                  {p.name}
-                </button>
-              );
-            })}
-          </div>
-        </CardHeader>
-        <CardContent className="h-80">
-          {chartData.length === 0 ? (
-            <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-              No analytics snapshots yet. Once connected, daily snapshots will appear here.
-            </div>
-          ) : (
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={chartData}>
-                <defs>
-                  {PLATFORMS.map((p) => (
-                    <linearGradient key={p.id} id={`g-${p.id}`} x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor={p.color} stopOpacity={0.35} />
-                      <stop offset="100%" stopColor={p.color} stopOpacity={0} />
-                    </linearGradient>
-                  ))}
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
-                <XAxis dataKey="date" fontSize={12} />
-                <YAxis fontSize={12} />
-                <Tooltip contentStyle={{ background: "hsl(var(--popover))", border: "1px solid hsl(var(--border))", borderRadius: 8 }} />
-                <Legend />
-                {PLATFORMS.filter((p) => active.has(p.id)).map((p) => (
-                  <Area
-                    key={p.id}
-                    type="monotone"
-                    dataKey={p.id}
-                    name={p.name}
-                    stroke={p.color}
-                    fill={`url(#g-${p.id})`}
-                    strokeWidth={2}
-                  />
-                ))}
-              </AreaChart>
-            </ResponsiveContainer>
-          )}
-        </CardContent>
-      </Card>
-
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Follower change per platform</CardTitle>
-            <CardDescription>Net change across the current window.</CardDescription>
-          </CardHeader>
-          <CardContent className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={followerDelta}>
-                <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
-                <XAxis dataKey="platform" fontSize={12} />
-                <YAxis fontSize={12} />
-                <Tooltip />
-                <Bar dataKey="delta" radius={[6, 6, 0, 0]}>
-                  {followerDelta.map((d) => (
-                    <Cell key={d.platform} fill={PLATFORM_MAP[d.platform as Platform].color} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Delivery status</CardTitle>
-            <CardDescription>Per-post delivery across connected platforms.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-3 gap-3">
-              <StatMini label="Queued" value={deliveryCounts.queued} tone="amber" />
-              <StatMini label="Sent" value={deliveryCounts.sent} tone="emerald" />
-              <StatMini label="Failed" value={deliveryCounts.failed} tone="rose" />
-            </div>
-            {(targets.data ?? []).length === 0 ? (
-              <p className="text-sm text-muted-foreground">No deliveries yet. Schedule a post to see it here.</p>
-            ) : (
-              <ul className="divide-y">
-                {(targets.data ?? []).slice(0, 8).map((t) => (
-                  <li key={t.id} className="flex items-center justify-between gap-3 py-2">
-                    <div className="flex min-w-0 items-center gap-2">
-                      <PlatformIcon platform={t.platform} />
-                      <span className="truncate text-sm">
-                        {(t as unknown as { posts?: { caption?: string } }).posts?.caption?.slice(0, 60) || "Post"}
-                      </span>
-                    </div>
-                    <DeliveryStatusBadge status={t.status} />
-                  </li>
-                ))}
-              </ul>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {(accounts.data ?? []).map((a) => (
-          <Card key={a.id}>
-            <CardContent className="space-y-2 p-5">
-              <div className="flex items-center gap-2">
-                <PlatformIcon platform={a.platform} />
-                <span className="text-sm font-medium">{a.display_name ?? a.handle}</span>
-              </div>
-              <p className="text-3xl font-semibold">{a.followers.toLocaleString()}</p>
-              <p className="text-xs text-muted-foreground">followers</p>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-    </div>
-  );
+type Metric="followers"|"impressions"|"engagement";
+const METRIC_LABEL:Record<Metric,string>={followers:"Follower changes",impressions:"Reach (impressions)",engagement:"Engagement"};
+export const Route=createFileRoute("/_authenticated/analytics")({head:()=>({meta:[{title:"Analytics — Orbit"}]}),component:Analytics});
+function Analytics(){
+ const accounts=useQuery({queryKey:["accounts"],queryFn:()=>useServerFn(listAccounts)()});
+ const snapshots=useQuery({queryKey:["analytics"],queryFn:()=>useServerFn(listAnalytics)()});
+ const targets=useQuery({queryKey:["post-targets"],queryFn:()=>useServerFn(listPostTargets)()});
+ const [metric,setMetric]=useState<Metric>("followers");const [active,setActive]=useState<Set<Platform>>(()=>new Set(PLATFORMS.map(p=>p.id)));
+ const toggle=(p:Platform)=>setActive(prev=>{const n=new Set(prev);n.has(p)?n.delete(p):n.add(p);return n;});
+ const chartData=useMemo(()=>{const map=new Map<string,Record<string,number|string>>();(snapshots.data??[]).forEach(s=>{const row=map.get(s.snapshot_date)??{date:s.snapshot_date};row[s.platform]=(s as Record<string,unknown>)[metric] as number;map.set(s.snapshot_date,row);});return Array.from(map.values()).sort((a,b)=>String(a.date).localeCompare(String(b.date)));},[snapshots.data,metric]);
+ const followerDelta=useMemo(()=>{const by=new Map<Platform,{first:number,last:number}>();[...(snapshots.data??[])].sort((a,b)=>a.snapshot_date.localeCompare(b.snapshot_date)).forEach(s=>{const v=by.get(s.platform);by.set(s.platform,v?{first:v.first,last:s.followers}:{first:s.followers,last:s.followers});});return PLATFORMS.map(p=>({platform:p.id,delta:(by.get(p.id)?.last??0)-(by.get(p.id)?.first??0)}));},[snapshots.data]);
+ const delivery=useMemo(()=>{const c={queued:0,sent:0,failed:0};(targets.data??[]).forEach(t=>{if(t.status==="pending"||t.status==="publishing")c.queued++;else if(t.status==="published")c.sent++;else if(t.status==="failed")c.failed++;});return c;},[targets.data]);
+ return <div className="page-shell mx-auto max-w-[1400px] space-y-6 p-6 lg:p-8"><header><div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-primary"><BarChart3 className="h-3.5 w-3.5"/> Performance</div><h1 className="mt-1 text-3xl font-semibold tracking-[-0.03em]">Analytics</h1><p className="mt-1.5 text-sm text-muted-foreground">Understand how your channels are performing over time.</p></header>
+ <div className="grid gap-3 sm:grid-cols-3"><Mini label="Connected channels" value={(accounts.data??[]).length}/><Mini label="Deliveries sent" value={delivery.sent}/><Mini label="Failed deliveries" value={delivery.failed}/></div>
+ <Card className="border shadow-none"><CardContent className="p-6"><div className="flex flex-col gap-4 border-b pb-5 lg:flex-row lg:items-center lg:justify-between"><div><h2 className="font-semibold">{METRIC_LABEL[metric]}</h2><p className="mt-1 text-xs text-muted-foreground">Compare performance across your connected channels.</p></div><Tabs value={metric} onValueChange={v=>setMetric(v as Metric)}><TabsList><TabsTrigger value="followers">Followers</TabsTrigger><TabsTrigger value="impressions">Reach</TabsTrigger><TabsTrigger value="engagement">Engagement</TabsTrigger></TabsList></Tabs></div><div className="mt-4 flex flex-wrap gap-2">{PLATFORMS.map(p=>{const on=active.has(p.id);return <button key={p.id} type="button" onClick={()=>toggle(p.id)} className={`flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium ${on?"bg-muted":"opacity-50"}`}><PlatformIcon platform={p.id} className="h-3 w-3"/>{p.name}</button>})}</div><div className="mt-5 h-80">{chartData.length===0?<div className="flex h-full items-center justify-center rounded-lg bg-muted/20 text-sm text-muted-foreground">No analytics snapshots yet. Once connected, daily snapshots will appear here.</div>:<ResponsiveContainer width="100%" height="100%"><AreaChart data={chartData}><CartesianGrid strokeDasharray="3 3" opacity={.16}/><XAxis dataKey="date" fontSize={11}/><YAxis fontSize={11}/><Tooltip contentStyle={{background:"hsl(var(--popover))",border:"1px solid hsl(var(--border))",borderRadius:8}}/>{PLATFORMS.filter(p=>active.has(p.id)).map(p=><Area key={p.id} type="monotone" dataKey={p.id} name={p.name} stroke={p.color} fill={p.color} fillOpacity={.06} strokeWidth={2} dot={false}/>)}</AreaChart></ResponsiveContainer>}</div></CardContent></Card>
+ <div className="grid gap-5 lg:grid-cols-2"><Card className="border shadow-none"><CardContent className="p-6"><div className="mb-4"><h2 className="font-semibold">Follower change</h2><p className="mt-1 text-xs text-muted-foreground">Net movement in the current analytics window.</p></div><div className="h-60"><ResponsiveContainer width="100%" height="100%"><BarChart data={followerDelta}><CartesianGrid strokeDasharray="3 3" opacity={.16}/><XAxis dataKey="platform" fontSize={11}/><YAxis fontSize={11}/><Tooltip/><Bar dataKey="delta" radius={[5,5,0,0]}>{followerDelta.map(d=><Cell key={d.platform} fill={PLATFORM_MAP[d.platform as Platform].color}/>)}</Bar></BarChart></ResponsiveContainer></div></CardContent></Card>
+ <Card className="border shadow-none"><CardContent className="p-6"><div className="mb-4"><h2 className="font-semibold">Delivery health</h2><p className="mt-1 text-xs text-muted-foreground">Publishing status across your post targets.</p></div><div className="grid grid-cols-3 gap-2 mb-4"><div className="rounded-lg border bg-muted/20 p-3"><p className="text-[10px] font-semibold uppercase text-muted-foreground">Queued</p><p className="mt-1 text-2xl font-semibold">{delivery.queued}</p></div><div className="rounded-lg border bg-muted/20 p-3"><p className="text-[10px] font-semibold uppercase text-muted-foreground">Sent</p><p className="mt-1 text-2xl font-semibold">{delivery.sent}</p></div><div className="rounded-lg border bg-muted/20 p-3"><p className="text-[10px] font-semibold uppercase text-muted-foreground">Failed</p><p className="mt-1 text-2xl font-semibold">{delivery.failed}</p></div></div>{(targets.data??[]).length===0?<p className="text-sm text-muted-foreground">No deliveries yet.</p>:<ul className="divide-y">{(targets.data??[]).slice(0,7).map(t=><li key={t.id} className="flex items-center gap-3 py-2.5"><PlatformIcon platform={t.platform}/><span className="min-w-0 flex-1 truncate text-sm">{(t as unknown as {posts?:{caption?:string}}).posts?.caption?.slice(0,55)||"Post"}</span><DeliveryStatusBadge status={t.status}/></li>)}</ul>}</CardContent></Card></div>
+ <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">{(accounts.data??[]).map(a=><Card key={a.id} className="border shadow-none"><CardContent className="p-4"><div className="flex items-center gap-2"><PlatformIcon platform={a.platform}/><span className="truncate text-xs font-medium">{a.display_name??a.handle}</span></div><p className="mt-4 text-2xl font-semibold">{a.followers.toLocaleString()}</p><p className="text-[11px] text-muted-foreground">followers</p><div className="mt-3 flex items-center gap-1 text-[11px] text-muted-foreground"><TrendingUp className="h-3 w-3"/> Channel audience</div></CardContent></Card>)}</div>
+ </div>;
 }
-
-function StatMini({ label, value, tone }: { label: string; value: number; tone: "amber" | "emerald" | "rose" }) {
-  const cls = {
-    amber: "bg-amber-500/10 text-amber-600 border-amber-500/30",
-    emerald: "bg-emerald-500/10 text-emerald-600 border-emerald-500/30",
-    rose: "bg-rose-500/10 text-rose-600 border-rose-500/30",
-  }[tone];
-  return (
-    <div className={`rounded-lg border p-3 ${cls}`}>
-      <p className="text-xs uppercase tracking-wide opacity-80">{label}</p>
-      <p className="text-2xl font-semibold">{value}</p>
-    </div>
-  );
-}
+function Mini({label,value}:{label:string,value:number}){return <Card className="border shadow-none"><CardContent className="p-4"><p className="text-[10px] font-semibold uppercase tracking-[.12em] text-muted-foreground">{label}</p><p className="mt-2 text-2xl font-semibold tracking-tight">{value.toLocaleString()}</p></CardContent></Card>}
