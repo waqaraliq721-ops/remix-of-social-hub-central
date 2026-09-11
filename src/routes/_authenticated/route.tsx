@@ -1,4 +1,4 @@
-import { createFileRoute, Outlet } from "@tanstack/react-router";
+import { createFileRoute, Outlet, useRouterState } from "@tanstack/react-router";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { Toaster } from "@/components/ui/sonner";
@@ -7,6 +7,8 @@ import { Command, Sparkles, Circle } from "lucide-react";
 export const Route = createFileRoute("/_authenticated")({ component: Layout });
 
 function Layout() {
+  const isNavigating = useRouterState({ select: (state) => state.status === "pending" });
+
   return (
     <SidebarProvider>
       <div className="flex h-[100dvh] w-full overflow-hidden bg-background">
@@ -29,11 +31,12 @@ function Layout() {
               </button>
               <div className="flex items-center gap-1.5 rounded-full border border-border bg-card px-2.5 py-1.5 sm:gap-2 sm:px-3">
                 <Circle className="h-2 w-2 shrink-0 fill-emerald-500 text-emerald-500" />
-                <span className="hidden text-xs font-medium text-muted-foreground xs:inline sm:inline">All systems ready</span>
+                <span className="hidden text-xs font-medium text-muted-foreground sm:inline">All systems ready</span>
               </div>
             </div>
           </header>
-          <main className="page-shell min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain">
+          <main className="page-shell relative min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain">
+            {isNavigating && <div className="route-progress" aria-hidden="true" />}
             <Outlet />
           </main>
         </div>
